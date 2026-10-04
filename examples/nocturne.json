@@ -1,0 +1,12 @@
+{
+  "title": "Moon over still water",
+  "version": 1,
+  "seed": 42,
+  "fps": [60, 1],
+  "frames": 480,
+  "band": [1920, 1080],
+  "look": [[0, 1], [8, 1]],
+  "scenes": [
+    { "id": "nocturne", "picture": "./nocturne.js", "start": 0, "end": 8, "in": { "type": "settled" } }
+  ]
+}

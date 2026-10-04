@@ -1,0 +1,50 @@
+# Image import and the web
+
+The studio keeps imported images in the browser.
+No upload service is involved.
+JPEG, PNG, WebP, and other image formats supported by the browser can be imported; animated files contribute one decoded frame.
+Prefer a source with a clear silhouette and readable lighting.
+Inspect fine features after conversion, especially eyes, fingers, thin lines, and text.
+Conversion preserves image structure but does not understand those features semantically.
+
+```javascript
+import { createMosaic } from './engine/runtime.js';
+const artwork = await createMosaic(document.querySelector('canvas'), {
+  image: file,
+  imageOptions: { stoneSize: 12, paletteSize: 18, material: 'glass', detail: .6, seed: 42 },
+  width: 1280,
+  samples: 1
+});
+```
+
+`imageToPicture(source, options)` also accepts a URL with browser CORS access or `{width,height,data}` RGBA data.
+`analyzeImage()` is the pure synchronous RGBA entry point.
+The maximum working dimension defaults to 768 pixels; export resolution remains independent.
+`paletteSize` ranges from 2 to 48, `detail` from 0 to 1, and `material` is `glass`, `stone`, or `gold`.
+Transparent pixels leave unfilled mortar; the exported canvas itself is opaque.
+Higher detail retains smaller islands but can produce visual noise.
+
+For a code-authored scene, replace `image` with `project: './project.json'`.
+The controller exposes `seek`, `play`, `pause`, `setPointer`, `setView`, `resize`, `exportPNG`, `getState`, and `dispose`.
+`info` contains native aspect, dimensions, duration, frame rate, and stone counts.
+Use `resize(width, height)` when the display needs different render dimensions and call `dispose()` when replacing or removing an artwork.
+
+```javascript
+canvas.addEventListener('pointermove', event => {
+  const r = canvas.getBoundingClientRect();
+  artwork.setPointer({ x: (event.clientX-r.left)/r.width, y: (event.clientY-r.top)/r.height, active: true });
+});
+canvas.addEventListener('pointerleave', () => artwork.setPointer({ active: false }));
+artwork.setView({ zoom: 1.4, light: .25 });
+```
+
+Pointer positions are normalized canvas coordinates.
+The bounded curl displaces and tilts nearby stones, while both colour and shadow passes share the pose.
+Stones settle when input ends.
+Respect reduced-motion preferences and make pointer motion optional; keep image controls and export keyboard accessible.
+
+A normal `seek(t)` clears live input for deterministic inspection.
+`startRecording()` and `stopRecording()` return a trace of displayed normalized pointer positions and strength.
+Replay with `seek(t, {trace: recording.points})` or supply an explicit `pointer` object.
+Traces use their own elapsed seconds; align the project time with the recording start when replaying moving films.
+PNG export uses the current view and time with no live pointer unless a trace or pointer is explicitly supplied.

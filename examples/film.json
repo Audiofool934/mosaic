@@ -1,0 +1,13 @@
+{
+  "title": "From moon to morning",
+  "version": 1,
+  "seed": 42,
+  "fps": [60, 1],
+  "frames": 600,
+  "band": [1920, 1080],
+  "look": [[0, 1], [10, 1]],
+  "scenes": [
+    { "id": "nocturne", "picture": "./nocturne-film.js", "start": 0, "end": 6, "in": { "type": "settled" } },
+    { "id": "dawn", "picture": "./dawn.js", "start": 4, "end": 10, "in": { "type": "flow", "launch": [4, 4.6], "land": [4.8, 5.5], "focus": [990, 340] } }
+  ]
+}

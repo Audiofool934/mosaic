@@ -1,0 +1,6 @@
+interface:
+  display_name: "mosAIc"
+  short_description: "Physical stone, glass, and gold mosaic artwork"
+  default_prompt: "Use $mosaic to create an original mosaic artwork with the mosAIc engine."
+policy:
+  allow_implicit_invocation: true

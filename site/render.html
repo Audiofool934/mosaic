@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Mosaic capture</title><style>html,body{margin:0;background:#111}canvas{display:block;max-width:100vw;height:auto}</style></head>
+<body><canvas id="mosaic"></canvas><script type="module">
+import { createMosaic } from '/engine/runtime.js';
+const params = new URLSearchParams(location.search);
+window.ready = (async () => {
+  const canvas = document.querySelector('canvas');
+  const options = { project: params.get('project'), width: Number(params.get('width')), height: Number(params.get('height')), samples: Number(params.get('samples')), shadowSize: 4096, interactive: false };
+  if (params.has('from')) options.from = Number(params.get('from'));
+  if (params.has('to')) options.to = Number(params.get('to'));
+  const mosaic = await createMosaic(canvas, options);
+  window.mosaic = mosaic;
+  let pixels;
+  window.captureFrame = async (time, endpoint, png = false) => {
+    const start = performance.now();
+    let body;
+    if (png) body = await mosaic.exportPNG({ time });
+    else {
+      mosaic.seek(time);
+      const gl = canvas.getContext('webgl2');
+      if (!pixels) pixels = new Uint8Array(canvas.width * canvas.height * 4);
+      gl.readPixels(0, 0, canvas.width, canvas.height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+      if (gl.getError() !== gl.NO_ERROR) throw new Error('The GPU could not read the rendered frame.');
+      body = new Blob([pixels], { type: 'application/octet-stream' });
+    }
+    const response = await fetch(endpoint, { method: 'POST', body });
+    if (!response.ok) throw new Error(`Frame transfer failed: HTTP ${response.status}.`);
+    if (window.gc) window.gc();
+    return performance.now() - start;
+  };
+  return mosaic.info;
+})();
+window.ready.catch(error => { document.title = 'Capture failed'; window.captureError = error.message; });
+</script></body></html>

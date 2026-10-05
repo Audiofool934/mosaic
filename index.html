@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#eeece5">
+  <meta name="description" content="mosAIc cuts thousands of stones along the contours of a drawing, sets them in mortar, and lights each one. Use it in the browser, on the command line, or with your coding agent.">
+  <title>mosAIc, an open mosaic engine</title>
+  <link rel="icon" href="site/mark.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="home/style.css">
+  <link rel="modulepreload" href="engine/runtime.js">
+</head>
+<body>
+  <header class="masthead">
+    <a class="wordmark" href="./" aria-label="mosAIc home">
+      <svg viewBox="0 0 32 32" aria-hidden="true"><path d="m2 3 12-1-1 13-11-2Zm16 0 12 2-2 11-12-2ZM3 17l11 1 1 12-13-2Zm15 1 11 1 1 11-12-1Z" fill="currentColor"/></svg>
+      <span>mosAIc</span>
+    </a>
+    <nav class="nav" aria-label="Sections">
+      <a href="#method">How it works</a>
+      <a href="#materials">Materials</a>
+      <a href="#work">Work</a>
+      <a href="#use">Use it</a>
+      <a class="nav-studio" href="site/">Studio</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero" aria-labelledby="title">
+      <div class="panel" id="panel" data-state="poster">
+        <picture>
+          <source media="(prefers-reduced-motion: reduce)" srcset="home/media/hero-end-960.webp 960w, home/media/hero-end.webp 1920w" sizes="100vw">
+          <img id="panel-poster" src="home/media/hero-start.webp" srcset="home/media/hero-start-960.webp 960w, home/media/hero-start.webp 1920w" sizes="100vw" width="1920" height="1080" alt="" fetchpriority="high">
+        </picture>
+        <canvas id="panel-canvas" role="img" aria-label="A mosaic of a white heron in blue water under a gold moon, laid stone by stone."></canvas>
+      </div>
+      <div class="plate-caption wrap">
+        <p class="plate-title"><span class="work-title">Moon over still water</span> <span class="plate-note" id="panel-note" role="status">Cutting the stones in your browser.</span></p>
+        <div class="plate-actions">
+          <span class="plate-hint" id="panel-hint" hidden>Move across the panel to lift the stones.</span>
+          <button class="text-button" id="panel-replay" type="button" hidden>Pause</button>
+        </div>
+      </div>
+
+      <div class="intro wrap">
+        <h1 id="title">The stones follow the picture.</h1>
+        <div class="lede">
+          <p>mosAIc is an open engine for mosaic art. It cuts thousands of individual stones along the contours of a drawing, sets them in mortar, and lights each one. The same engine runs in a browser studio, on the command line, and in a skill for coding agents.</p>
+          <p class="actions"><a class="button primary" href="site/">Open the studio</a> <a class="button" href="#use">Set up the agent skill</a></p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section wrap" id="method" aria-labelledby="method-title">
+      <div class="section-head">
+        <h2 id="method-title">How a drawing becomes a wall</h2>
+        <p>There is no grid underneath. The courses come from the drawing's own edges, the way a mosaicist sets them by hand.</p>
+      </div>
+      <figure class="strip">
+        <div class="strip-labels" aria-hidden="true"><span>I Draw</span><span>II Flow</span><span>III Cut</span><span>IV Light</span></div>
+        <img src="home/media/method.webp" srcset="home/media/method-1200.webp 1200w, home/media/method.webp 2400w" sizes="(min-width: 1440px) 1320px, 92vw" width="2400" height="1350" loading="lazy" decoding="async" alt="One frame of the heron mosaic in four vertical bands: a flat painting, then the heron drawn as lines that follow its outline, then flat cut stones on dark mortar, then the finished, lit stones around the gold moon.">
+        <ol class="stages">
+          <li><h3><span class="numeral">I</span> Draw</h3><p>A scene is a few flat regions in code. Each region names its material, its stone size, and how its courses run.</p></li>
+          <li><h3><span class="numeral">II</span> Flow</h3><p>A field follows every edge, and courses are laid through it at an even spacing. Mosaicists call this flow andamento.</p></li>
+          <li><h3><span class="numeral">III</span> Cut</h3><p>Each course is cut into stones a little smaller than their cells, so mortar shows between them.</p></li>
+          <li><h3><span class="numeral">IV</span> Light</h3><p>Each stone gets thickness, a bevel, and a slight tilt of its own, so one light catches them one at a time.</p></li>
+        </ol>
+        <figcaption>One frame of <i>Moon over still water</i>, in four bands. The flow and cut bands are drawn from the same tessellation the renderer uses.</figcaption>
+      </figure>
+    </section>
+
+    <section class="section wrap" id="materials" aria-labelledby="materials-title">
+      <div class="section-head">
+        <h2 id="materials-title">Eight materials</h2>
+        <p>Each region of a drawing picks its own. Gold appears only where a scene asks for it.</p>
+      </div>
+      <ul class="tray">
+        <li><img src="home/media/material-glass.webp" width="720" height="720" loading="lazy" decoding="async" alt="Blue glass stones around a pale glass medallion."><h3>Glass</h3><p>Smalti with a broken face, rippled, with the odd bubble.</p></li>
+        <li><img src="home/media/material-gold.webp" width="720" height="720" loading="lazy" decoding="async" alt="Gold stones catching a lamp one at a time."><h3>Gold</h3><p>Leaf under a thin glass skin, softly hammered.</p></li>
+        <li><img src="home/media/material-silver.webp" width="720" height="720" loading="lazy" decoding="async" alt="Silver stones around a pale silver medallion."><h3>Silver</h3><p>The same leaf, cooler.</p></li>
+        <li><img src="home/media/material-marble.webp" width="720" height="720" loading="lazy" decoding="async" alt="White marble stones around a grey marble medallion."><h3>Marble</h3><p>A fine grain and a soft sheen.</p></li>
+        <li><img src="home/media/material-basalt.webp" width="720" height="720" loading="lazy" decoding="async" alt="Near-black basalt stones around a dark green medallion."><h3>Basalt</h3><p>Dark and dense, with a rare glint.</p></li>
+        <li><img src="home/media/material-limestone.webp" width="720" height="720" loading="lazy" decoding="async" alt="Warm limestone stones around a darker limestone medallion."><h3>Limestone</h3><p>Matte, pitted, and quiet.</p></li>
+        <li><img src="home/media/material-terracotta.webp" width="720" height="720" loading="lazy" decoding="async" alt="Red terracotta stones around a pale terracotta medallion."><h3>Terracotta</h3><p>Fired clay, warmer in its hollows.</p></li>
+        <li><img src="home/media/material-light.webp" width="720" height="720" loading="lazy" decoding="async" alt="A glowing amber medallion set in dark glass."><h3>Light</h3><p>The emit material: glass that glows from inside, for lamps and windows.</p></li>
+      </ul>
+    </section>
+
+    <section class="section wrap" id="work" aria-labelledby="work-title">
+      <div class="section-head">
+        <h2 id="work-title">Made with mosAIc</h2>
+        <p>A short film from the examples, and two pieces made by agents with the skill.</p>
+      </div>
+      <figure class="film">
+        <video id="film" src="home/media/moon-to-morning.mp4" poster="home/media/moon-to-morning.webp" width="1280" height="720" muted loop playsinline preload="none" aria-label="From moon to morning: the stones of a night scene lift off the wall and resettle as a coastal dawn."></video>
+        <figcaption>
+          <h3>From moon to morning</h3>
+          <p>A ten-second film in two scenes. The night's stones lift off the wall and resettle as a coastal dawn. <a href="site/?project=../examples/film.json">Scrub it in the studio</a>.</p>
+          <button class="text-button" id="film-toggle" type="button" hidden>Pause the film</button>
+        </figcaption>
+      </figure>
+      <div class="agents">
+        <div class="agents-note">
+          <h3>Made by agents</h3>
+          <p>Two pieces from the first skill trials. Each agent got a copy of the skill, wrote its scene as code, rendered it from the command line, and inspected the result.</p>
+        </div>
+        <figure><img src="home/media/copper-leaf.webp" width="1024" height="1024" loading="lazy" decoding="async" alt="A copper leaf with a gold midrib on deep teal glass."><figcaption><i>Copper leaf</i>, by Codex. 5,250 stones.</figcaption></figure>
+        <figure><img src="home/media/gold-crescent.webp" width="768" height="768" loading="lazy" decoding="async" alt="A gold crescent moon above three green waves on blue glass."><figcaption><i>Gold crescent over jade waves</i>, by Claude Code. 7,340 stones.</figcaption></figure>
+      </div>
+    </section>
+
+    <section class="section wrap" id="use" aria-labelledby="use-title">
+      <div class="section-head">
+        <h2 id="use-title">Use it</h2>
+        <p>The browser, the command line, and the agent skill share one renderer, so a picture looks the same wherever it is made.</p>
+      </div>
+      <div class="routes">
+        <article class="route">
+          <h3>In the browser</h3>
+          <p>Move over the stones, change the light, or bring an image of your own and choose glass, stone, or gold. Your images stay in your browser.</p>
+          <p><a class="button primary" href="site/">Open the studio</a></p>
+        </article>
+        <article class="route">
+          <h3>With your coding agent</h3>
+          <p>Build the skill and copy it into Claude Code, then install the capture browser once. Ask for a mosaic, and the agent writes the scene as code, renders it, and checks the picture before showing you.</p>
+          <div class="code"><pre><code>npm run build
+cp -R dist/mosaic ~/.claude/skills/mosaic
+cd ~/.claude/skills/mosaic/assets/runtime
+npm ci &amp;&amp; npx playwright-core install chromium</code></pre><button class="copy" type="button">Copy</button></div>
+          <p class="aside">For Codex, copy it to <code>~/.codex/skills/mosaic</code> instead.</p>
+        </article>
+        <article class="route">
+          <h3>On the command line</h3>
+          <p>Start a scene, preview it, and export a still or a silent H.264 film. Every export is a fresh render with a receipt of its inputs.</p>
+          <div class="code"><pre><code>npm ci
+npx playwright-core install chromium
+node tools/cli.mjs init art
+node tools/cli.mjs preview art/project.json
+node tools/cli.mjs still art/project.json
+node tools/cli.mjs render art/project.json</code></pre><button class="copy" type="button">Copy</button></div>
+          <p class="aside">Exports land in <code>output/</code>. Films also need FFmpeg on your <code>PATH</code>.</p>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <footer class="colophon wrap">
+    <p class="colophon-mark"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="m2 3 12-1-1 13-11-2Zm16 0 12 2-2 11-12-2ZM3 17l11 1 1 12-13-2Zm15 1 11 1 1 11-12-1Z" fill="currentColor"/></svg> mosAIc 0.1.0</p>
+    <p>mosAIc began in a sketchbook of mosaic films. Its engine was cut out of those pieces and rebuilt to take any picture. <a href="docs/provenance.md">Provenance</a></p>
+    <p>Checked in Chromium on macOS with Apple silicon. Safari, Firefox, Windows, and Linux are not checked yet. <a href="docs/verification.md">Verification</a></p>
+    <p>MIT License, © 2026 Everett / Audiofool. <a href="THIRD_PARTY_NOTICES.md">Third-party notices</a></p>
+  </footer>
+  <script type="module" src="home/main.js"></script>
+</body>
+</html>

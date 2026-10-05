@@ -20,6 +20,7 @@ npm run dev
 ```
 
 Open the local URL printed by the preview command.
+The same server shows the project page at its root URL.
 Move across the original artwork, change the light, look closer, or choose **Bring an image** to make your own mosaic.
 Image analysis and rendering happen in your browser.
 Choose glass, stone, or gold, adjust the stone size, and save a PNG.
@@ -79,7 +80,8 @@ Its wrapper is `node <skill-directory>/scripts/mosaic.mjs` and supports the same
 ## Put it on a website
 
 Serve the contents of `dist/site/` from any static HTTP host.
-The root redirects to the studio, and the build keeps all asset URLs relative so it can live under a subdirectory.
+The root is the project page and the studio lives at `site/`.
+The build keeps all asset URLs relative, so the site can live under a subdirectory.
 For example, after serving the build at `/mosaic/`, embed the complete studio with:
 
 ```html
@@ -118,6 +120,9 @@ npm run check
 npm run test:browser
 npm run build
 ```
+
+The project page's pictures and film are rendered from `examples/` by the same engine.
+Run `npm run media` after a visual change to render them again; it needs the same Chromium and FFmpeg as capture.
 
 Builds copy the canonical source rather than maintaining a second renderer.
 The tests verify mathematical behavior, source-to-bundle equality, and repeatable GPU rendering.

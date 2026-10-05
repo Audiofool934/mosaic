@@ -10,6 +10,9 @@ const PROJECT_TREES = ['engine', 'tools', 'site', 'examples', 'tests'];
 const PUBLIC_FILES = ['package.json', 'package-lock.json', 'README.md', 'LICENSE', 'THIRD_PARTY_NOTICES.md', 'docs/architecture.md', 'docs/provenance.md', 'docs/verification.md'];
 const WEB_TREES = ['engine', 'site', 'examples'];
 const WEB_FILES = ['README.md', 'LICENSE', 'THIRD_PARTY_NOTICES.md', 'docs/architecture.md', 'docs/provenance.md', 'docs/verification.md'];
+// The project page belongs to the website only; the skill and its runtime never carry it.
+const PAGE_FILES = ['index.html'];
+const PAGE_TREES = ['home'];
 const REDIRECT = `<!doctype html>
 <html lang="en">
 <meta charset="utf-8">
@@ -73,6 +76,22 @@ async function readSources(root, skillRoot) {
   return sources;
 }
 
+// A checkout has a project page; an installed runtime rebuilding itself does not.
+async function readPage(root) {
+  const page = new Map();
+  const paths = [];
+  for (const name of PAGE_FILES) if (await exists(path.join(root, name))) paths.push(name);
+  for (const tree of PAGE_TREES) {
+    if (await exists(path.join(root, tree))) for (const relative of await collectTree(path.join(root, tree))) paths.push(`${tree}/${relative}`);
+  }
+  for (const relative of paths.sort()) {
+    const absolute = path.join(root, relative);
+    if (!(await lstat(absolute)).isFile()) throw new Error(`Expected a regular source file: ${relative}`);
+    page.set(relative, await readFile(absolute));
+  }
+  return page;
+}
+
 async function writeBundle(directory, kind, version, records) {
   const files = [];
   for (const record of records.sort((a, b) => a.path.localeCompare(b.path, 'en'))) {
@@ -93,8 +112,10 @@ export async function buildDistribution({ root = ROOT, outDir = path.join(root, 
   const skillRoot = await skillRootFor(root);
   // Read once so web and skill copies use exactly the same source bytes.
   const sources = await readSources(root, skillRoot);
+  const page = await readPage(root);
   const { version } = JSON.parse(sources.get('package.json').toString());
-  const web = [{ path: 'index.html', source: null, data: Buffer.from(REDIRECT) }];
+  const web = page.has('index.html') ? [] : [{ path: 'index.html', source: null, data: Buffer.from(REDIRECT) }];
+  for (const [source, data] of page) web.push({ path: source, source, data });
   const skill = [];
   for (const [source, data] of sources) {
     if (source.startsWith('skills/mosaic/')) {

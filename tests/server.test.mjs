@@ -30,7 +30,7 @@ async function fixture(run) {
     await symlink(path.join(project, '.hidden.js'), path.join(project, 'alias.js'));
     await symlink(path.join(root, 'private.txt'), path.join(root, 'site/leak.js'));
     server = await startServer({ root, projectFile: path.join(project, 'project.json') });
-    await run(server);
+    await run(server, root);
   } finally {
     await server?.close();
     await rm(base, { recursive: true, force: true });
@@ -60,6 +60,22 @@ test('preview serves the studio and a mounted external project with correct MIME
     assert.equal(script.headers['x-content-type-options'], 'nosniff');
     const head = await request(server, '/project/scene.js', {}, 'HEAD');
     assert.equal(head.status, 200); assert.equal(head.body, '');
+  });
+});
+
+test('a checkout with a project page opens on it and serves its media', async () => {
+  await fixture(async (_, root) => {
+    await writeFile(path.join(root, 'index.html'), '<title>Project</title>');
+    await mkdir(path.join(root, 'home/media'), { recursive: true });
+    await writeFile(path.join(root, 'home/media/film.mp4'), 'mp4');
+    const server = await startServer({ root });
+    try {
+      assert.equal((await request(server, '/')).body, '<title>Project</title>');
+      assert.equal((await request(server, '/site/')).body, '<title>Studio</title>');
+      assert.equal((await request(server, '/home/media/film.mp4')).headers['content-type'], 'video/mp4');
+    } finally {
+      await server.close();
+    }
   });
 });
 

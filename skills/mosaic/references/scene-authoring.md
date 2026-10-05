@@ -48,6 +48,7 @@ Use these helpers for shapes so colour and geometry stay aligned.
 Path2D supports custom curves.
 A region tray accepts hex colours or `{hex, mat, emit}` objects.
 Materials are `glass`, `gold`, `silver`, `marble`, `basalt`, `emit`, `limestone`, and `terracotta`.
+The bundled `examples/materials.json` renders one sample of each, one per second.
 
 Courses support `contour`, `radial` with a centre, and `flow` with an angle; consult the original example before introducing a new layout.
 Use coarse stones in quiet backgrounds and finer stones around the focal silhouette.
@@ -62,6 +63,7 @@ Lighting supports a directional key and fill, ambient sky/ground, point lights, 
 
 `in.type: "settled"` displays completed stonework immediately.
 `"laid"` schedules stones into the mortar using the picture's `build` configuration.
+The bundled `examples/laid.json` lays the nocturne outward from the moon while the camera pulls back; `"bed": 0` shows the bare mortar and its sinopia from the first frame.
 `"flow"` pairs outgoing stones with an incoming picture; its `launch` and `land` intervals are on the project clock.
 For a first film, inspect the timeline implementation and adapt a small two-scene test before scaling to a long sequence.
 Scenes can also export `events` for ignition, dissolution, and bursts, or `arrivals` for separately tessellated figures.

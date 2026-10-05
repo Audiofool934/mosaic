@@ -68,10 +68,14 @@ test('web and skill distributions retain canonical bytes, notices, and source ma
   for (const name of ['package.json', 'package-lock.json', 'tools/build.mjs']) {
     assert.deepEqual(await readFile(path.join(runtime, name)), await readFile(path.join(ROOT, name)));
   }
-  const redirect = await readFile(path.join(built.site, 'index.html'), 'utf8');
-  assert.match(redirect, /url=\.\/site\//);
-  assert.match(redirect, /location\.search/);
-  assert.match(redirect, /location\.hash/);
+  // The website opens on the project page, which links to the studio; the skill never carries the page.
+  const home = await readFile(path.join(built.site, 'index.html'));
+  assert.deepEqual(home, await readFile(path.join(ROOT, 'index.html')));
+  assert.match(home.toString(), /href="site\/"/);
+  assert.equal((await filesIn(built.site)).some(name => name.startsWith('home/media/')), true);
+  const skillFiles = await filesIn(built.skill);
+  assert.equal(skillFiles.includes('assets/runtime/index.html'), false);
+  assert.equal(skillFiles.some(name => name.startsWith('assets/runtime/home/')), false);
 
   await t.test('the installed skill wrapper runs outside the checkout without npm dependencies', async () => {
     const { stdout } = await exec(process.execPath, [path.join(built.skill, 'scripts/mosaic.mjs'), 'inspect'], {
@@ -88,6 +92,11 @@ test('web and skill distributions retain canonical bytes, notices, and source ma
     const rebuilt = JSON.parse(stdout);
     const next = await compareBundle(rebuilt.skill, 'skill');
     assert.deepEqual(next, skillManifest);
+    // Without the project page, the rebuilt website still opens the studio.
+    const redirect = await readFile(path.join(rebuilt.site, 'index.html'), 'utf8');
+    assert.match(redirect, /url=\.\/site\//);
+    assert.match(redirect, /location\.search/);
+    assert.match(redirect, /location\.hash/);
     assert.equal((await filesIn(rebuilt.skill)).some(name => name.includes('/runtime/assets/runtime/')), false);
   });
 

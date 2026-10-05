@@ -1,0 +1,12 @@
+{
+  "title": "Eight materials",
+  "version": 1,
+  "seed": 42,
+  "fps": [60, 1],
+  "frames": 480,
+  "band": [800, 800],
+  "look": [[0, 1], [8, 1]],
+  "scenes": [
+    { "id": "materials", "picture": "./materials.js", "start": 0, "end": 8, "in": { "type": "settled" } }
+  ]
+}

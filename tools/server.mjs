@@ -5,10 +5,10 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export const ROOT = fileURLToPath(new URL('../', import.meta.url));
-const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8', '.json': 'application/json; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.avif': 'image/avif', '.gif': 'image/gif', '.woff2': 'font/woff2', '.mp3': 'audio/mpeg', '.wav': 'audio/wav', '.ogg': 'audio/ogg', '.md': 'text/plain; charset=utf-8' };
-const PUBLIC_DIRS = new Set(['engine', 'examples', 'site', 'dist']);
+const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8', '.json': 'application/json; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.avif': 'image/avif', '.gif': 'image/gif', '.mp4': 'video/mp4', '.woff2': 'font/woff2', '.mp3': 'audio/mpeg', '.wav': 'audio/wav', '.ogg': 'audio/ogg', '.md': 'text/plain; charset=utf-8' };
+const PUBLIC_DIRS = new Set(['engine', 'examples', 'site', 'home', 'docs', 'dist']);
 const PRIVATE_FILES = new Set(['agents.md', 'claude.md', 'user.md', 'current.md', 'opinions.md', 'voice.md', 'package.json', 'package-lock.json', 'credentials.json', 'secrets.json']);
-const PUBLIC_ROOT = new Set(['README.md', 'LICENSE', 'NOTICE', 'THIRD_PARTY_NOTICES.md']);
+const PUBLIC_ROOT = new Set(['index.html', 'README.md', 'LICENSE', 'NOTICE', 'THIRD_PARTY_NOTICES.md']);
 const within = (root, file) => file === root || file.startsWith(root + path.sep);
 
 function reply(res, status, message) {
@@ -20,6 +20,8 @@ function reply(res, status, message) {
 export async function createHandler({ root = ROOT, projectFile, intercept } = {}) {
   const rootPath = await realpath(root);
   const projectPath = projectFile ? await realpath(path.dirname(path.resolve(projectFile))) : null;
+  // A checkout opens on its project page; an installed skill runtime has only the studio.
+  const home = await stat(path.join(rootPath, 'index.html')).then(info => info.isFile(), () => false);
   return async function handler(req, res) {
     try {
       if (!/^(?:127\.0\.0\.1|localhost):\d+$/.test(req.headers.host || '')) { reply(res, 403, 'Use the loopback preview URL.'); return; }
@@ -42,7 +44,7 @@ export async function createHandler({ root = ROOT, projectFile, intercept } = {}
         parts.shift();
         if (!parts.length) parts.push('index.html');
       } else {
-        if (!parts.length) parts.push('site', 'index.html');
+        if (!parts.length) parts.push(...(home ? ['index.html'] : ['site', 'index.html']));
         if (parts.length === 1 && PUBLIC_DIRS.has(parts[0])) parts.push('index.html');
         if (!PUBLIC_DIRS.has(parts[0]) && !(parts.length === 1 && PUBLIC_ROOT.has(parts[0]))) { reply(res, 403, 'This file is private.'); return; }
       }

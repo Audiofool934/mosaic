@@ -1,0 +1,12 @@
+{
+  "title": "Moon over still water, laid",
+  "version": 1,
+  "seed": 42,
+  "fps": [60, 1],
+  "frames": 540,
+  "band": [1920, 1080],
+  "look": [[0, 1], [9, 1]],
+  "scenes": [
+    { "id": "laid", "picture": "./nocturne-laid.js", "start": 0, "end": 9, "in": { "type": "laid", "bed": 0 } }
+  ]
+}

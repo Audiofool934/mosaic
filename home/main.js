@@ -1,137 +1,228 @@
 import { createMosaic } from "../engine/runtime.js";
+import { heroAt, wallScale } from "./wall.js";
 
 const $ = (id) => document.getElementById(id);
-const panel = $("panel");
-const canvas = $("panel-canvas");
-const poster = $("panel-poster");
-const note = $("panel-note");
-const hint = $("panel-hint");
-const replay = $("panel-replay");
+const wall = $("wall");
+const note = $("wall-note");
+const replay = $("wall-replay");
 const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)");
-const finePointer = matchMedia("(hover: hover) and (pointer: fine)");
-const project = new URL("../examples/laid.json", import.meta.url).href;
+// The canvas reaches this share of the viewport above and below it, so a fast scroll never
+// outruns the stones between two frames.
+const OVERSCAN = 0.15;
+const END = 10;
 
-let mosaic = null;
-let end = 0;
-let inView = true;
-let resume = false;
-let watching = 0;
+// The wall on screen: its controller, its canvas, the millimetres of wall in each CSS
+// pixel, and the stretch of page its canvas covers.
+let live = null;
+let budget = 2.6e6;
+let tallest = 0;
+let generation = 0;
 let resizeTimer = 0;
+let building = Promise.resolve();
+let lastLog = [];
 
-function renderSize() {
-  const width = canvas.getBoundingClientRect().width || panel.clientWidth || 1280;
-  const px = Math.round(Math.min(1920, Math.max(640, width * Math.min(devicePixelRatio || 1, 2))));
-  return { width: px, height: Math.round((px * 9) / 16) };
+// Every block marked data-wall, in page pixels: the stones are cut around these.
+function measure() {
+  const top = window.scrollY;
+  const blocks = [...document.querySelectorAll("[data-wall]")].filter((el) => !el.hidden).map((el) => {
+    const r = el.getBoundingClientRect();
+    return { kind: el.dataset.wall, material: el.dataset.material, x: r.left, y: r.top + top, w: r.width, h: r.height };
+  });
+  const width = document.documentElement.clientWidth;
+  return { width, height: document.documentElement.scrollHeight, hero: $("hero").getBoundingClientRect().bottom + top, blocks, scale: wallScale(width) };
+}
+
+// The canvas spans the page width and the tallest viewport seen, with a margin above and
+// below; a dense display draws at most `budget` pixels and is upscaled past that.
+function canvasView() {
+  tallest = Math.max(tallest, window.innerHeight);
+  const width = document.documentElement.clientWidth;
+  const margin = Math.round(tallest * OVERSCAN);
+  const height = tallest + 2 * margin;
+  const k = Math.min(Math.min(devicePixelRatio || 1, 2), Math.sqrt(budget / (width * height)));
+  return { width, height, margin, px: [Math.round(width * k), Math.round(height * k)] };
+}
+
+// Read once for each frame drawn: the canvas follows the scroll, and the camera looks at
+// the same stretch of wall, so both move in the same task.
+function framing(canvas, scale, view) {
+  return () => {
+    const y = window.scrollY - view.margin;
+    canvas.style.transform = `translate3d(0, ${y}px, 0)`;
+    return { x: (view.width * scale) / 2, y: (y + view.height / 2) * scale, w: view.width * scale };
+  };
 }
 
 function finished() {
-  return mosaic.getState().time >= end - 1e-3;
+  return live.mosaic.getState().time >= END - 1 / 60 - 1e-3;
 }
 
-// One button follows the build: pause it, resume it, or lay the panel again.
 function updateControls() {
-  if (!mosaic) return;
-  const { playing } = mosaic.getState();
-  const done = finished();
-  replay.hidden = false;
-  replay.textContent = playing ? "Pause" : done ? "Lay it again" : "Resume";
-  hint.hidden = !(done && finePointer.matches && !reduceMotion.matches);
+  if (!live) return;
+  const { playing } = live.mosaic.getState();
+  replay.hidden = reduceMotion.matches;
+  replay.textContent = playing ? "Pause" : finished() ? "Lay it again" : "Resume";
 }
 
+// While the wall is laid, every frame is drawn; if they come too slowly, the canvas draws
+// fewer pixels from then on.
+let watching = 0;
 function watch() {
   cancelAnimationFrame(watching);
-  const step = () => {
+  const times = [];
+  let last = 0;
+  const step = (now) => {
     updateControls();
-    watching = mosaic?.getState().playing ? requestAnimationFrame(step) : 0;
+    if (last && times.length < 90) times.push(now - last);
+    last = now;
+    if (times.length === 90 && budget > 0.9e6) {
+      const sorted = times.sort((a, b) => a - b);
+      if (sorted[45] > 28) lighten();
+      times.push(0);
+    }
+    watching = live?.mosaic.getState().playing ? requestAnimationFrame(step) : 0;
   };
-  step();
+  step(0);
 }
 
-function play() {
-  if (inView) mosaic.play();
-  else resume = true;
-  watch();
+function lighten() {
+  budget /= 2;
+  const view = canvasView();
+  live.view = view;
+  live.canvas.style.height = `${view.height}px`;
+  live.mosaic.resize(view.px[0], view.px[1]);
+  live.mosaic.setView({ frame: framing(live.canvas, live.scale, view) });
 }
 
-async function start() {
+async function build() {
+  const token = ++generation;
+  await document.fonts?.ready;
+  const layout = measure();
+  const view = canvasView();
+  // The first wall is laid live; a wall cut again for a new layout appears already laid,
+  // on a canvas of its own, and replaces the old one once all of it is ready.
+  const first = !live;
+  const canvas = first ? wall.querySelector("canvas") : document.createElement("canvas");
+  if (!first) {
+    canvas.hidden = true;
+    wall.append(canvas);
+  }
+  canvas.style.height = `${view.height}px`;
+  const log = [];
+  // Two pictures on one wall: the nocturne as it was drawn, and the page around it. Each is
+  // named rather than passed, so workers cut them while the page stays live, and the
+  // nocturne is laid as soon as it is ready.
+  const module = new URL("./wall.js", import.meta.url).href;
+  const arrive = reduceMotion.matches || !first ? { type: "settled" } : { type: "laid", bed: 0 };
+  const project = {
+    version: 1, title: "mosAIc", seed: 42, fps: [60, 1], frames: END * 60, band: view.px, look: [[0, 1], [END, 1]],
+    scenes: [
+      { id: "nocturne", picture: { module, export: "heroPicture" }, start: 0, end: END, at: heroAt(layout), in: arrive },
+      { id: "page", picture: { module, export: "wallPicture", args: layout }, start: 0, end: END, at: [0, 0], in: arrive }
+    ]
+  };
+  let mosaic;
   try {
-    mosaic = await createMosaic(canvas, { project, ...renderSize(), samples: 1, interactive: true });
+    mosaic = await createMosaic(canvas, { project, width: view.px[0], height: view.px[1], samples: 1, interactive: true, worker: true, onProgress: (line) => log.push(line) });
+    if (!first) await mosaic.ready;
   } catch (error) {
-    console.error("The mosaic could not start:", error);
-    poster.closest("picture")?.querySelector("source")?.remove();
-    poster.srcset = "home/media/hero-end-960.webp 960w, home/media/hero-end.webp 1920w";
-    poster.src = "home/media/hero-end.webp";
-    poster.alt = "A mosaic of a white heron in blue water under a gold moon.";
-    note.textContent = "This browser could not start WebGL2, so this is a still from the same engine.";
+    if (!first) canvas.remove();
+    if (token !== generation || live) return;
+    console.error("The wall could not be laid:", error);
+    wall.dataset.state = "still";
+    note.textContent = "This browser could not start WebGL2, so the wall is a still from the same engine.";
     return;
   }
-  const { stoneCount, setupMs, duration, fps } = mosaic.info;
-  end = duration - 1 / fps;
-  note.textContent = `${stoneCount.toLocaleString("en-US")} stones of glass, marble, limestone, basalt, and gold, cut in your browser in ${(setupMs / 1000).toFixed(1)} seconds.`;
-  if (reduceMotion.matches) mosaic.seek(end);
+  if (token !== generation) {
+    mosaic.dispose();
+    if (!first) canvas.remove();
+    return;
+  }
+  const previous = live;
+  live = { mosaic, canvas, scale: layout.scale, view, width: layout.width, height: layout.height };
+  lastLog = log;
+  mosaic.setView({ frame: framing(canvas, layout.scale, view) });
+  if (previous) {
+    previous.mosaic.dispose();
+    previous.canvas.remove();
+    canvas.hidden = false;
+    mosaic.seek(END);
+    updateControls();
+    return;
+  }
+  const started = performance.now() - mosaic.info.setupMs;
+  note.textContent = "Laying the stones cut in your browser.";
+  mosaic.ready.then(() => {
+    if (live?.mosaic !== mosaic) return;
+    const seconds = ((performance.now() - started) / 1000).toFixed(1);
+    note.textContent = `${mosaic.info.stoneCount.toLocaleString("en-US")} stones of glass, marble, limestone, basalt, and gold, cut around this page in your browser in ${seconds} seconds.`;
+  });
+  if (reduceMotion.matches) mosaic.seek(END);
   else {
     mosaic.seek(0);
-    play();
+    mosaic.play();
+    watch();
   }
-  panel.dataset.state = "live";
+  wall.dataset.state = "live";
   updateControls();
 }
 
 replay.addEventListener("click", () => {
-  if (!mosaic) return;
-  const { playing } = mosaic.getState();
-  if (playing) {
-    mosaic.pause();
-    resume = false;
-  } else {
+  if (!live) return;
+  const { mosaic } = live;
+  if (mosaic.getState().playing) mosaic.pause();
+  else {
     if (finished()) mosaic.seek(0);
-    play();
+    mosaic.play();
   }
-  updateControls();
+  watch();
 });
 
-new IntersectionObserver(([entry]) => {
-  inView = entry.isIntersecting;
-  if (!mosaic) return;
-  if (!inView && mosaic.getState().playing) {
-    mosaic.pause();
-    resume = true;
-  } else if (inView && resume) {
-    resume = false;
-    play();
-  }
-}, { threshold: 0.1 }).observe(panel);
+addEventListener("scroll", () => live?.mosaic.requestFrame(), { passive: true });
 
+// The pointer lifts the stones wherever it is on the page.
 function lift(event) {
-  if (!mosaic || reduceMotion.matches) return;
-  const r = canvas.getBoundingClientRect();
-  mosaic.setPointer({ x: (event.clientX - r.left) / r.width, y: (event.clientY - r.top) / r.height, active: true });
+  if (!live || reduceMotion.matches) return;
+  const r = live.canvas.getBoundingClientRect();
+  live.mosaic.setPointer({ x: (event.clientX - r.left) / r.width, y: (event.clientY - r.top) / r.height, active: true });
 }
 function settle() {
-  mosaic?.setPointer({ active: false });
+  live?.mosaic.setPointer({ active: false });
 }
-canvas.addEventListener("pointermove", lift);
-canvas.addEventListener("pointerdown", lift);
-canvas.addEventListener("pointerleave", settle);
-canvas.addEventListener("pointercancel", settle);
-canvas.addEventListener("pointerup", (event) => { if (event.pointerType !== "mouse") settle(); });
+addEventListener("pointermove", lift, { passive: true });
+addEventListener("pointerdown", lift, { passive: true });
+document.documentElement.addEventListener("pointerleave", settle);
+addEventListener("pointercancel", settle);
+addEventListener("pointerup", (event) => { if (event.pointerType !== "mouse") settle(); });
+addEventListener("blur", settle);
 
+// A new width reflows the page, so the wall is cut again around the new layout. A taller
+// viewport, as when a phone's toolbar hides, only needs a taller canvas.
+function relayout() {
+  if (!live) return;
+  const width = document.documentElement.clientWidth;
+  const height = document.documentElement.scrollHeight;
+  if (width !== live.width || Math.abs(height - live.height) > 2) building = building.then(build);
+  else if (window.innerHeight > tallest) {
+    const view = canvasView();
+    live.view = view;
+    live.canvas.style.height = `${view.height}px`;
+    live.mosaic.resize(view.px[0], view.px[1]);
+    live.mosaic.setView({ frame: framing(live.canvas, live.scale, view) });
+  }
+}
 new ResizeObserver(() => {
   clearTimeout(resizeTimer);
-  resizeTimer = setTimeout(() => {
-    if (!mosaic) return;
-    const size = renderSize();
-    if (size.width !== canvas.width) mosaic.resize(size.width, size.height);
-  }, 200);
-}).observe(panel);
+  resizeTimer = setTimeout(relayout, 250);
+}).observe(document.body);
 
 window.addEventListener("pagehide", () => {
   cancelAnimationFrame(watching);
-  mosaic?.dispose();
-  mosaic = null;
+  live?.mosaic.dispose();
+  live = null;
 });
 window.addEventListener("pageshow", (event) => {
-  if (event.persisted && !mosaic) start();
+  if (event.persisted && !live) building = building.then(build);
 });
 
 // The film plays while it is on screen, unless motion is reduced.
@@ -176,4 +267,6 @@ for (const button of document.querySelectorAll(".copy")) {
   });
 }
 
-start();
+// A small observable surface for browser verification.
+window.mosaicWall = { get mosaic() { return live?.mosaic; }, get log() { return lastLog; }, get building() { return building; } };
+building = build().then(relayout);

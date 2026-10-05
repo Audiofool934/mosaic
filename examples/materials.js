@@ -5,7 +5,7 @@ import { circle, poly } from "../engine/paint.js";
 const SIDE = 220;
 const box = (x, y, w, h) => poly([[x, y], [x + w, y], [x + w, y + h], [x, y + h]]);
 
-const SAMPLES = [
+export const SAMPLES = [
   { name: "glass", mat: "glass", field: ["#163f52", "#1f5268", "#2b6a80", "#3f8597"], disc: ["#4f97a3", "#6eb0b4", "#92c5c0"] },
   { name: "gold", mat: "gold", field: ["#a77c3d", "#bd9150", "#cfa663", "#e0bb78"], disc: ["#b88838", "#c99a48", "#d8ab5a"] },
   { name: "silver", mat: "silver", field: ["#a3a9aa", "#b5babb", "#c6cbcb", "#d5d9d8"], disc: ["#dfe2e0", "#e8eae7", "#f1f2ef"] },

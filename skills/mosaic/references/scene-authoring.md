@@ -65,6 +65,7 @@ Lighting supports a directional key and fill, ambient sky/ground, point lights, 
 `"laid"` schedules stones into the mortar using the picture's `build` configuration.
 The bundled `examples/laid.json` lays the nocturne outward from the moon while the camera pulls back; `"bed": 0` shows the bare mortar and its sinopia from the first frame.
 `"flow"` pairs outgoing stones with an incoming picture; its `launch` and `land` intervals are on the project clock.
+Scenes with `"at": [x, y]` are placed side by side on one wall, in millimetres from its top left corner, and can share the same clock; they cannot flow in.
 For a first film, inspect the timeline implementation and adapt a small two-scene test before scaling to a long sequence.
 Scenes can also export `events` for ignition, dissolution, and bursts, or `arrivals` for separately tessellated figures.
 These are advanced authored effects, not inferred motion from a source image.

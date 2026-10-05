@@ -24,7 +24,7 @@ The maximum working dimension defaults to 768 pixels; export resolution remains 
 Transparent pixels leave unfilled mortar; the exported canvas itself is opaque.
 Higher detail retains smaller islands but can produce visual noise.
 
-For a code-authored scene, replace `image` with `project: './project.json'`.
+For a code-authored scene, replace `image` with `project: './project.json'`, and add `worker: true` to cut its stones off the page's main thread.
 The controller exposes `seek`, `play`, `pause`, `setPointer`, `setView`, `resize`, `exportPNG`, `getState`, and `dispose`.
 `info` contains native aspect, dimensions, duration, frame rate, and stone counts.
 Use `resize(width, height)` when the display needs different render dimensions and call `dispose()` when replacing or removing an artwork.
@@ -40,11 +40,16 @@ artwork.setView({ zoom: 1.4, light: .25 });
 
 Pointer positions are normalized canvas coordinates.
 The bounded curl displaces and tilts nearby stones, while both colour and shadow passes share the pose.
-Stones settle when input ends.
+Each stone follows the pointer's recent path on a damped spring, so stones trail a moving pointer and rock back into place when it leaves.
+Send pointer events as they happen; the engine does its own smoothing.
 Respect reduced-motion preferences and make pointer motion optional; keep image controls and export keyboard accessible.
 
 A normal `seek(t)` clears live input for deterministic inspection.
-`startRecording()` and `stopRecording()` return a trace of displayed normalized pointer positions and strength.
-Replay with `seek(t, {trace: recording.points})` or supply an explicit `pointer` object.
+`startRecording()` and `stopRecording()` return a version 2 trace of the normalized pointer input samples and their strength.
+Replay with `seek(t, {trace: recording.points})` or supply an explicit `pointer` object, which poses the stones as under a resting pointer.
 Traces use their own elapsed seconds; align the project time with the recording start when replaying moving films.
 PNG export uses the current view and time with no live pointer unless a trace or pointer is explicitly supplied.
+
+A page that scrolls across a wall can keep one viewport-sized canvas moving with the scroll and give `setView({ frame })` a function returning `{ x, y, w }` in panel millimetres for the stretch in view; call `requestFrame()` on scroll.
+Scenes placed with `at: [x, y]` form one wall of several pictures, each cut in its own worker and drawn as soon as it is ready; `controller.ready` resolves when all have joined.
+The project page in the mosAIc source repository, `home/main.js` and `home/wall.js`, is a complete example: the page measures its own layout and has a picture painted around it.

@@ -101,6 +101,17 @@ try {
     require(await seekHash(2, undefined, 'cleared pointer') === hashes.baseline, 'Clearing pointer input did not restore the baseline.');
     checks.push('explicit pointer changes pixels and repeats exactly', 'clearing input restores baseline');
 
+    // A recorded pass across the water: its trail repeats exactly, and once the release
+    // has passed through the trail every stone is back on its seat.
+    const trace = [];
+    for (let i = 0; i <= 30; i++) trace.push({ t: 2 + i / 60, x: 0.4 + 0.3 * i / 30, y: 0.55, strength: 1, active: true });
+    trace.push({ t: 2.52, x: 0.7, y: 0.55, strength: 0, active: false });
+    hashes.pass = await seekHash(2.6, { trace }, 'recorded pass');
+    require(hashes.pass !== await seekHash(2.6, undefined, 'without the pass'), 'The recorded pass did not move any visible stones.');
+    require(await seekHash(2.6, { trace }, 'repeated pass') === hashes.pass, 'The recorded pass changed its pixels on repeat.');
+    require(await seekHash(3.5, { trace }, 'after the pass') === await seekHash(3.5, undefined, 'still water'), 'The stones did not settle after the recorded pass.');
+    checks.push('a recorded pass repeats exactly and settles afterwards');
+
     mosaic.resize(480, 270);
     require(canvas.width === 480 && canvas.height === 270 && mosaic.info.width === 480, 'Resize did not update the render surface.');
     hashes.resized = await seekHash(2, undefined, 'resized surface');
@@ -139,6 +150,43 @@ try {
     hashes.restored = await seekHash(2, undefined, 'fresh seek after context restoration');
     require(hashes.restored === hashes.baseline, 'Context restoration changed the baseline pixels.');
     checks.push('context loss and restoration allow an error-free identical fresh frame');
+
+    // Live input draws while the stones move and stops once they rest under a still pointer.
+    const { createMosaic } = await import('/engine/runtime.js');
+    const live = await createMosaic(document.createElement('canvas'), { project: '/examples/nocturne.json', width: 320, height: 180, samples: 1 });
+    live.seek(2);
+    live.setPointer({ x: 0.5, y: 0.5, active: true });
+    require(window.__animationProbe().pending > 0, 'Pointer input did not schedule an animation callback.');
+    await new Promise(resolve => setTimeout(resolve, 900));
+    require(window.__animationProbe().pending === 0, 'The animation loop kept running under a resting pointer.');
+    live.dispose();
+    checks.push('live input stops drawing once the stones rest');
+
+    // A wall of two pictures side by side, each cut in its own worker: the wall is drawn
+    // once the first is ready, the second joins it, and a frame can look at either.
+    const pairCanvas = document.createElement('canvas');
+    const pair = await createMosaic(pairCanvas, {
+      project: { version: 1, seed: 42, fps: [60, 1], frames: 120, band: [320, 180], scenes: [
+        { id: 'left', picture: '/examples/nocturne.js', start: 0, end: 2, at: [0, 0], in: { type: 'settled' } },
+        { id: 'right', picture: '/examples/nocturne.js', start: 0, end: 2, at: [1600, 0], in: { type: 'settled' } }
+      ] },
+      width: 320, height: 180, samples: 1, worker: true
+    });
+    await pair.ready;
+    require(pair.info.stoneCount === 2 * mosaic.info.stoneCount, 'The second picture did not join the wall.');
+    const pairGl = pairCanvas.getContext('webgl2');
+    const lit = () => {
+      const pixels = new Uint8Array(320 * 180 * 4);
+      pairGl.readPixels(0, 0, 320, 180, pairGl.RGBA, pairGl.UNSIGNED_BYTE, pixels);
+      return pixels.some((value, index) => index % 4 !== 3 && value > 8);
+    };
+    for (const x of [800, 2400]) {
+      pair.setView({ frame: { x, y: 450, w: 1600 } });
+      pair.seek(1);
+      require(lit(), `The wall of pictures drew nothing at ${x} mm.`);
+    }
+    pair.dispose();
+    checks.push('a wall of pictures is cut in workers and joins as each is ready');
 
     mosaic.play();
     require(mosaic.getState().playing, 'Playback did not start for the disposal check.');

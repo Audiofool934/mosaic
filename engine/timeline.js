@@ -396,6 +396,33 @@ function bedData(layer) {
       dst[o + 2] = clamp(Math.round(Math.max(0, d) * 48), 0, 255);
     }
   });
+  // Slivers no stone claimed, at the edges of thin regions, take the mortar of the nearest
+  // stone, so bare plaster does not show through the finished wall in a stair of specks.
+  const free = (i) => own[i * 4] === 255 && own[i * 4 + 1] === 255;
+  let gaps = [];
+  for (let i = 0; i < N; i++) if (label[i] && free(i)) gaps.push(i);
+  for (let pass = 0; pass < 6 && gaps.length; pass++) {
+    const found = [];
+    for (const i of gaps) {
+      const x = i % GW;
+      for (const j of [x > 0 ? i - 1 : -1, x < GW - 1 ? i + 1 : -1, i - GW, i + GW]) {
+        if (j < 0 || j >= N || free(j)) continue;
+        found.push(i, own[j * 4] + 256 * own[j * 4 + 1]);
+        break;
+      }
+    }
+    for (let f = 0; f < found.length; f += 2) {
+      const i = found[f], idx = found[f + 1], o = i * 4;
+      const px = ((i % GW) + 0.5) / res;
+      const py = (((i / GW) | 0) + 0.5) / res;
+      let d = -1e9;
+      for (const e of lines[idx]) d = Math.max(d, e[0] * px + e[1] * py + e[2]);
+      own[o] = idx & 255;
+      own[o + 1] = idx >> 8;
+      own[o + 2] = clamp(Math.round(Math.max(0, d) * 48), 0, 255);
+    }
+    gaps = gaps.filter(free);
+  }
   return { w: GW, h: GH, own, own2, sin };
 }
 
@@ -424,7 +451,7 @@ export async function loadFilm(source, opts = {}) {
 
   for (const s of scenes) {
     film.scenes.push(s);
-    if (!s.picture || !want.has(s.index)) continue;
+    if (!s.picture || !want.has(s.index) || (opts.scenes && !opts.scenes.includes(s.id))) continue;
     const tStart = performance.now();
     const pic = await loadPicture(opts.resolvePicture ? await opts.resolvePicture(s.picture) : s.picture, baseURL);
     if (pic.seed === undefined) pic.seed = table.seed;
@@ -554,6 +581,9 @@ export async function loadFilm(source, opts = {}) {
       const [ax, ay] = toWorld(prev, prev.cam.X(tc), prev.cam.Y(tc));
       L.world = [ax - L.cam.X(tc) / 1000, ay + L.cam.Y(tc) / 1000];
       flowInto(film, prev, L, s.in);
+    } else if (s.at) {
+      // Pictures placed with at share one wall, whose top left corner is the world origin.
+      L.world = [s.at[0] / 1000, -s.at[1] / 1000];
     } else {
       L.world = [-L.W / 2000, L.H / 2000];
     }
@@ -574,6 +604,32 @@ export async function loadFilm(source, opts = {}) {
     }
     layer.first = first;
     layer.last = Math.min(last, layer.scene.end);
+  }
+  return film;
+}
+
+// ---------------------------------------------------------------------------
+// A built film as plain data and the buffers it can hand over, so a worker can build it
+// and a page can draw it. The camera paths are made again from each picture's config.
+// ---------------------------------------------------------------------------
+
+export function packFilm(film) {
+  const plain = ({ layer, picture, ...scene }) => scene;
+  const layers = film.layers.map((L) => ({
+    scene: film.scenes.indexOf(L.scene), W: L.W, H: L.H, world: L.world, grout: L.grout, wet: L.wet, flicker: L.flicker, ripple: L.ripple,
+    timing: L.timing, count: L.count, data: L.data, bed: L.bed, first: L.first, last: L.last, cfg: L.pic.cfg
+  }));
+  const film2 = { table: { ...film.table, scenes: film.table.scenes.map(plain) }, fps: film.fps, aspect: film.aspect, no: film.no, scenes: film.scenes.map(plain), layers };
+  return { film: film2, transfer: layers.flatMap((L) => [L.data.buffer, L.bed.own.buffer, L.bed.own2.buffer, L.bed.sin.buffer]) };
+}
+
+export function unpackFilm(packed) {
+  const film = { ...packed, layers: [] };
+  for (const L of packed.layers) {
+    const scene = film.scenes[L.scene];
+    const layer = { ...L, scene, pic: { cfg: L.cfg }, cam: cameraPath(L.cfg, L.W, L.H, packed.aspect) };
+    scene.layer = layer;
+    film.layers.push(layer);
   }
   return film;
 }

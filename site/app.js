@@ -127,6 +127,8 @@ async function loadArtwork(file = null, { resetView = true } = {}) {
       ...renderDimensions(),
       samples: 1,
       interactive: true,
+      // A project is cut in a worker, so the studio stays responsive; an image is analysed here.
+      worker: true,
       onProgress(message) {
         if (token !== generation) return;
         const text = typeof message === "string" ? message : message?.message;

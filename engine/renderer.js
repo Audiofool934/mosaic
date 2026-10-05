@@ -19,6 +19,13 @@ export const TEXELS = 10;
 export const PER_ROW = 256;
 export const FLAG_TYPE = 1;
 export const POINTS = 4;
+// The pointer's recent path: TRAIL samples, TRAIL_STEP seconds apart, newest first,
+// long enough for the slowest stone's spring to come to rest.
+export const TRAIL = 24;
+export const TRAIL_STEP = 0.025;
+// Each stone's spring under the pointer: natural frequency (rad/s), damping ratio, and
+// how far each stone's own frequency strays from it.
+const SPRING = { omega: 16, zeta: 0.55, spread: 0.15 };
 
 const GLSL_COMMON = `
 // Hash without Sine: David Hoskins, via David A Roberts MIT port.
@@ -141,7 +148,10 @@ uniform mat4 uVP;
 uniform float uTime;
 uniform vec4 uRipple;
 uniform float uFlicker;
+// Cull centre xy and cull radius of the trail, and the curl radius (m); no input culls everything.
 uniform vec4 uPointer;
+// Wall xy and strength of each trail sample (k + 0.5) * TRAIL_STEP seconds ago.
+uniform vec4 uTrail[${TRAIL}];
 vec4 iA;
 vec4 iB;
 vec4 iC;
@@ -258,16 +268,47 @@ void stonePose(out mat3 R, out vec3 off, out float flight) {
     off.xy += d * (v * tt + 2.6 * v * tt * tt);
     R = rotAxis(axis, (spin == 0.0 ? 1.2 : spin) * (tt * 9.0 + tt * tt * 14.0)) * R;
   }
-  // A bounded curl around the live pointer. The shadow pass shares this pose.
-  if (uPointer.w > 0.0 && uTime >= T && uTime < iG.x) {
-    vec2 delta = iA.xy - uPointer.xy;
-    float radius = max(0.001, uPointer.z);
-    float q = clamp(1.0 - length(delta) / radius, 0.0, 1.0);
-    float weight = q * q * (3.0 - 2.0 * q) * uPointer.w;
-    vec2 tangent = vec2(-delta.y, delta.x) / max(length(delta), radius * 0.15);
-    off.xy += tangent * radius * 0.12 * weight;
-    off.z += radius * 0.085 * weight;
-    R = rotAxis(normalize(vec3(tangent.y, -tangent.x, 0.25)), 0.32 * weight) * R;
+  // A bounded curl around the pointer. Each stone answers the pointer's recent path as a
+  // damped spring of its own, so it rises under the hand, trails it, and rocks back into
+  // the mortar once the hand has passed. A resting pointer holds the plain curl.
+  // The shadow pass shares this pose.
+  if (uPointer.z > 0.0 && uTime >= T && uTime < iG.x && distance(iA.xy, uPointer.xy) < uPointer.z) {
+    float radius = uPointer.w;
+    float w0 = ${SPRING.omega.toFixed(3)} * (1.0 + ${SPRING.spread.toFixed(3)} * (2.0 * fract(seed * 71.3) - 1.0));
+    float ed = exp(-${SPRING.zeta.toFixed(3)} * w0 * ${TRAIL_STEP});
+    float wd = ${Math.sqrt(1 - SPRING.zeta ** 2).toFixed(4)} * w0 * ${TRAIL_STEP};
+    vec2 turnStep = vec2(cos(wd), sin(wd));
+    // The spring's impulse response at each sample's age, stepped by recurrence.
+    float env = sqrt(ed);
+    vec2 phase = vec2(cos(0.5 * wd), sin(0.5 * wd));
+    vec2 shift = vec2(0.0);
+    vec3 turn = vec3(0.0);
+    float lift = 0.0;
+    float norm = 0.0;
+    for (int k = 0; k < ${TRAIL}; k++) {
+      float g = env * phase.y;
+      norm += g;
+      env *= ed;
+      phase = vec2(phase.x * turnStep.x - phase.y * turnStep.y, phase.x * turnStep.y + phase.y * turnStep.x);
+      vec4 s = uTrail[k];
+      vec2 delta = iA.xy - s.xy;
+      float d = length(delta);
+      float q = clamp(1.0 - d / radius, 0.0, 1.0);
+      float weight = q * q * (3.0 - 2.0 * q) * s.z * g;
+      if (weight == 0.0) continue;
+      vec2 tangent = vec2(-delta.y, delta.x) / max(d, radius * 0.15);
+      shift += tangent * weight;
+      turn += normalize(vec3(tangent.y, -tangent.x, 0.25)) * weight;
+      lift += weight;
+    }
+    shift /= norm;
+    turn /= norm;
+    lift /= norm;
+    off.xy += shift * radius * 0.12;
+    // The rebound rocks the stone; the mortar keeps it from sinking more than half a millimetre.
+    off.z += radius * 0.085 * max(lift, -0.02);
+    float a = length(turn);
+    if (a > 1e-6) R = rotAxis(turn / a, 0.32 * a) * R;
   }
 }
 // Lit smalti: on from its ignition, out at its extinction, flickering on seeded
@@ -931,6 +972,8 @@ export function createRenderer(gl, opts) {
     const finalProg = program(gl, QUAD_VS, FINAL_FS);
     own("Program", finalProg.p);
 
+    // Rows of one-byte textures (the sinopia) are packed with no padding at any width.
+    gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
     function tex(w, h, internal, format, type, data, filter, mips) {
       const t = own("Texture", gl.createTexture());
       gl.bindTexture(gl.TEXTURE_2D, t);
@@ -946,13 +989,18 @@ export function createRenderer(gl, opts) {
       return t;
     }
 
-    function stoneVao(count, mesh) {
+    // The triangles of every stone, listed in the given order so a run of stones can be drawn.
+    function stoneVao(count, mesh, order) {
       const vao = own("VertexArray", gl.createVertexArray());
       gl.bindVertexArray(vao);
       const ids = new Uint32Array(count * mesh.verts);
       for (let i = 0; i < count; i++) for (let k = 0; k < mesh.verts; k++) ids[i * mesh.verts + k] = i * 64 + k;
-      const ix = new Uint32Array(count * mesh.index.length);
-      for (let i = 0; i < count; i++) for (let k = 0; k < mesh.index.length; k++) ix[i * mesh.index.length + k] = i * mesh.verts + mesh.index[k];
+      const per = mesh.index.length;
+      const ix = new Uint32Array(count * per);
+      for (let j = 0; j < count; j++) {
+        const i = order ? order[j] : j;
+        for (let k = 0; k < per; k++) ix[j * per + k] = i * mesh.verts + mesh.index[k];
+      }
       const vb = own("Buffer", gl.createBuffer());
       gl.bindBuffer(gl.ARRAY_BUFFER, vb);
       gl.bufferData(gl.ARRAY_BUFFER, ids, gl.STATIC_DRAW);
@@ -962,18 +1010,37 @@ export function createRenderer(gl, opts) {
       gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, eb);
       gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, ix, gl.STATIC_DRAW);
       gl.bindVertexArray(null);
-      return { vao, count: ix.length, buffers: [vb, eb] };
+      return { vao, count: ix.length, per, buffers: [vb, eb] };
     }
 
     // A layer: one shot's stones and its bed, uploaded once.
+    // A tall picture that asks for rows (config.rows), such as a page that scrolls across one
+    // wall, lists its stones by height, and a frame draws only the rows within reach of its
+    // view. Stones that fly in or leave can be anywhere, so their picture is drawn whole.
+    // Other pictures keep their own drawing order, and so their exact pixels.
+    function rows(L) {
+      if (!L.pic?.cfg?.rows) return null;
+      const n = L.count, d = L.data;
+      let reach = 0.15;
+      for (let i = 0; i < n; i++) {
+        const o = i * TEXELS * 4;
+        if (d[o + 24] < 1e5 || d[o + 30] < 1e5) return null;
+        reach = Math.max(reach, d[o + 22] * 2.4 + 0.05);
+      }
+      const order = new Uint32Array(n).map((_, i) => i).sort((a, b) => d[a * TEXELS * 4 + 1] - d[b * TEXELS * 4 + 1] || a - b);
+      return { order, y: Float32Array.from(order, (i) => d[i * TEXELS * 4 + 1]), reach };
+    }
+
     function addLayer(L) {
       const instH = Math.ceil(L.count / PER_ROW);
       const data = new Float32Array(PER_ROW * TEXELS * instH * 4);
       data.set(L.data);
+      const byRow = rows(L);
       const g = {
         inst: tex(PER_ROW * TEXELS, instH, gl.RGBA32F, gl.RGBA, gl.FLOAT, data, gl.NEAREST, false),
-        stones: stoneVao(L.count, MESH),
-        casters: stoneVao(L.count, shadowMesh()),
+        rows: byRow,
+        stones: stoneVao(L.count, MESH, byRow?.order),
+        casters: stoneVao(L.count, shadowMesh(), byRow?.order),
         own: tex(L.bed.w, L.bed.h, gl.RGBA8, gl.RGBA, gl.UNSIGNED_BYTE, L.bed.own, gl.LINEAR, false),
         own2: tex(L.bed.w, L.bed.h, gl.RGBA8, gl.RGBA, gl.UNSIGNED_BYTE, L.bed.own2, gl.LINEAR, false),
         sin: tex(L.bed.w, L.bed.h, gl.R8, gl.RED, gl.UNSIGNED_BYTE, L.bed.sin, gl.LINEAR, true)
@@ -1103,11 +1170,21 @@ export function createRenderer(gl, opts) {
       return { cam, near, far, view, proj, vp: mat4Mul(proj, view) };
     }
 
-    function drawStones(prog, layer, geo, vp, t) {
+    const noTrail = new Float32Array(TRAIL * 4);
+    // The first stone at or above height y, in a layer's rows.
+    function rowAt(y, h) {
+      let lo = 0, hi = y.length;
+      while (lo < hi) { const mid = (lo + hi) >> 1; if (y[mid] < h) lo = mid + 1; else hi = mid; }
+      return lo;
+    }
+    // span: the wall heights in view, padded; stones listed by row outside it are skipped.
+    function drawStones(prog, layer, geo, vp, t, span) {
       gl.useProgram(prog.p);
       gl.uniformMatrix4fv(prog.u.uVP, false, vp);
       gl.uniform1f(prog.u.uTime, t);
-      gl.uniform4fv(prog.u.uPointer, opts.pointerAt?.(t) || [0, 0, 1, 0]);
+      const pointer = opts.pointerAt?.(t);
+      gl.uniform4fv(prog.u.uPointer, pointer?.head || [0, 0, 0, 1]);
+      gl.uniform4fv(prog.u.uTrail, pointer?.trail || noTrail);
       gl.activeTexture(gl.TEXTURE7);
       gl.bindTexture(gl.TEXTURE_2D, layer.gpu.inst);
       gl.uniform1i(prog.u.uInst, 7);
@@ -1115,7 +1192,10 @@ export function createRenderer(gl, opts) {
       gl.uniform4fv(prog.u.uRipple, layer.ripple || [1, 0, 0, 0]);
       gl.uniform1f(prog.u.uFlicker, layer.flicker || 0);
       gl.bindVertexArray(geo.vao);
-      gl.drawElements(gl.TRIANGLES, geo.count, gl.UNSIGNED_INT, 0);
+      const R = layer.gpu.rows;
+      const first = R && span ? rowAt(R.y, span[0] - R.reach) : 0;
+      const last = R && span ? rowAt(R.y, span[1] + R.reach) : layer.count;
+      if (last > first) gl.drawElements(gl.TRIANGLES, (last - first) * geo.per, gl.UNSIGNED_INT, first * geo.per * 4);
     }
 
     function lightsAt(t, layers) {
@@ -1147,7 +1227,7 @@ export function createRenderer(gl, opts) {
       gl.bindFramebuffer(gl.FRAMEBUFFER, keySh.fb);
       gl.viewport(0, 0, SH, SH);
       gl.clear(gl.DEPTH_BUFFER_BIT);
-      for (const layer of layers) drawStones(shadowProg, layer, layer.gpu.casters, keyM, t);
+      for (const layer of layers) drawStones(shadowProg, layer, layer.gpu.casters, keyM, t, [fp[2], fp[3]]);
       gl.disable(gl.POLYGON_OFFSET_FILL);
       return L;
     }
@@ -1184,7 +1264,7 @@ export function createRenderer(gl, opts) {
       gl.useProgram(tileProg.p);
       setLights(tileProg, L);
       gl.uniform1f(tileProg.u.uEmit, 1.0);
-      for (const layer of layers) drawStones(tileProg, layer, layer.gpu.stones, C.vp, t);
+      for (const layer of layers) drawStones(tileProg, layer, layer.gpu.stones, C.vp, t, [L.footprint[2], L.footprint[3]]);
       gl.disable(gl.CULL_FACE);
       // The bed covers the footprint of the view.
       const fp = L.footprint;

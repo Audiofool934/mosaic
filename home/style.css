@@ -1,21 +1,30 @@
 :root {
-  color-scheme: light;
-  --paper: #eeece5;
-  --paper-deep: #e3e1d7;
-  --ink: #233337;
-  --muted: #56615d;
-  --rule: #cfd1c6;
-  --gold: #7d6a43;
-  --bed: #7b807a;
+  color-scheme: dark;
+  /* On the wall: light ink over dark stones, and over bare plaster while they are laid. */
+  --light: #efebe1;
+  --light-muted: #c3cbc6;
+  --gilt: #d9b674;
+  /* On the tablets set into it. */
+  --paper: #ece7da;
+  --paper-deep: #dfd8c8;
+  --ink: #1d2a2e;
+  --muted: #4c5754;
+  --gold: #7a6235;
+  /* The bare bed, as the engine lights it, shows until the first stones are drawn. */
+  --plaster: #7b807a;
   --serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
   --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
   --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-  --gutter: clamp(16px, 4vw, 56px);
-  --measure: 1320px;
-  --masthead: 64px;
+  --gutter: clamp(20px, 5vw, 72px);
+  --measure: 1240px;
+  --masthead: 72px;
+  /* The nocturne fills the page width up to 1440 pixels, a fixed height below that, and a
+     closer crop on phones; home/wall.js uses the same scale. */
+  --nocturne: max(min(102.27vw, 811px), 56.25vw);
+  --lift: 0 1px 2px rgb(8 18 24 / 0.55), 0 0 18px rgb(8 18 24 / 0.35);
   font: 400 18px / 1.6 var(--serif);
-  color: var(--ink);
-  background: var(--paper);
+  color: var(--light);
+  background: var(--plaster);
   font-kerning: normal;
   -webkit-font-smoothing: antialiased;
   -webkit-text-size-adjust: 100%;
@@ -23,113 +32,119 @@
 
 * { box-sizing: border-box; }
 html { scroll-padding-top: 24px; }
-body { margin: 0; background: var(--paper); overflow-x: clip; }
+body { position: relative; display: flow-root; margin: 0; background: var(--plaster); overflow-x: clip; }
 a { color: inherit; text-decoration-thickness: 1px; text-underline-offset: 3px; }
-a:hover { color: var(--gold); }
 button { font: inherit; color: inherit; cursor: pointer; }
-:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }
 code { font: 400 0.86em / 1 var(--mono); }
 [hidden] { display: none !important; }
 
 .wrap { width: min(100% - 2 * var(--gutter), var(--measure)); margin-inline: auto; }
 
+/* The wall. Its canvas spans the viewport and a margin above and below it, and moves with
+   the page between frames, so the stones never slide against the words set in them. */
+.wall { position: absolute; inset: 0; overflow: clip; pointer-events: none; }
+.wall canvas { position: absolute; top: 0; left: 0; width: 100%; display: block; will-change: transform; visibility: hidden; }
+.wall[data-state="live"] canvas { visibility: visible; }
+.wall[data-state="still"] { background: url("media/hero-end.webp") center var(--masthead) / max(100%, var(--nocturne) * 1.7778) auto no-repeat, #12303f; }
+.masthead, main, .colophon { position: relative; }
+
+/* Words set straight on the stones; the level band under them hugs the words themselves. */
+[data-wall="band"] { text-shadow: var(--lift); }
+h1[data-wall="band"], h2[data-wall="band"] { width: fit-content; }
+
+/* A tablet: a slab set into the wall, which lays a gold frame around it. */
+.tablet {
+  margin: 0; padding: 26px 30px; color: var(--ink); background: var(--paper);
+  box-shadow: inset 6px 7px 10px -7px rgb(20 24 22 / 0.55), inset -1px -1px 0 rgb(255 255 255 / 0.35);
+  text-shadow: none;
+}
+.tablet a:hover { color: var(--gold); }
+
+/* An emblem: a picture or film set into the wall the same way. */
+.emblem { margin: 0; background: #0e1d24; }
+.emblem img, .emblem video { display: block; width: 100%; height: auto; }
+
 /* Masthead */
 .masthead {
   display: flex; align-items: center; justify-content: space-between; gap: 24px;
-  height: var(--masthead); width: min(100% - 2 * var(--gutter), var(--measure)); margin-inline: auto;
+  height: var(--masthead); width: min(100% - 2 * var(--gutter), var(--measure)); margin-inline: auto; text-shadow: var(--lift);
 }
 .wordmark { display: inline-flex; align-items: center; gap: 10px; font: 600 24px / 1 var(--serif); letter-spacing: -0.02em; text-decoration: none; }
-.wordmark:hover { color: var(--ink); }
 .wordmark svg { width: 21px; height: 21px; }
 .nav { display: flex; align-items: center; gap: clamp(16px, 2.4vw, 32px); font: 500 14px / 1 var(--sans); }
-.nav a { color: var(--muted); text-decoration: none; }
-.nav a:hover { color: var(--ink); }
-.nav .nav-studio { color: var(--ink); border: 1px solid var(--ink); border-radius: 2px; padding: 10px 14px; }
-.nav .nav-studio:hover { background: var(--ink); color: var(--paper); }
+.nav a { color: var(--light-muted); text-decoration: none; }
+.nav a:hover { color: var(--light); }
+.nav .nav-studio { color: var(--light); border: 1px solid rgb(239 235 225 / 0.7); border-radius: 2px; padding: 10px 14px; background: rgb(10 22 29 / 0.25); }
+.nav .nav-studio:hover { background: var(--light); color: var(--ink); text-shadow: none; }
 
-/* The panel is the hero: the engine lays it live over a rendered first frame. */
-.panel {
-  position: relative; overflow: hidden; margin-inline: auto;
-  width: min(100% - 2 * var(--gutter), var(--measure), (100vh - var(--masthead) - 72px) * 16 / 9);
-  width: min(100% - 2 * var(--gutter), var(--measure), (100svh - var(--masthead) - 72px) * 16 / 9);
-  min-width: min(100% - 2 * var(--gutter), 480px);
-  aspect-ratio: 16 / 9; background: var(--bed);
-}
-.panel img, .panel canvas { position: absolute; inset: 0; display: block; width: 100%; height: 100%; }
-.panel img { object-fit: cover; }
-.panel canvas { visibility: hidden; touch-action: pan-y; }
-.panel[data-state="live"] canvas { visibility: visible; }
-
-.plate-caption { display: flex; align-items: baseline; justify-content: space-between; gap: 8px 32px; flex-wrap: wrap; padding-top: 16px; }
-.plate-title { margin: 0; font-size: 16px; line-height: 1.5; }
-.work-title { font-style: italic; margin-right: 10px; }
-.plate-note { font: 400 14px / 1.5 var(--sans); color: var(--muted); }
-.plate-actions { display: flex; align-items: baseline; gap: 24px; font: 400 14px / 1.5 var(--sans); color: var(--muted); }
-.text-button { padding: 0; border: 0; background: none; font: 500 14px / 1.5 var(--sans); color: var(--ink); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 4px; }
-.text-button:hover { color: var(--gold); }
+/* The first screen is the nocturne itself. */
+.hero { position: relative; }
+.hero-art { height: var(--nocturne); }
+.hero-foot { position: absolute; left: 0; right: 0; bottom: 18px; display: flex; align-items: baseline; justify-content: space-between; gap: 8px 32px; flex-wrap: wrap; }
+.hero-note { margin: 0; font: 400 14px / 1.5 var(--sans); color: var(--light-muted); }
+.work-title { font: italic 400 16px / 1.5 var(--serif); color: var(--light); margin-right: 10px; }
+.text-button { padding: 0; border: 0; background: none; font: 500 14px / 1.5 var(--sans); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 4px; }
+.text-button:hover { color: var(--gilt); }
+.tablet .text-button:hover { color: var(--gold); }
 
 .intro {
-  display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: 24px; row-gap: 32px; align-items: end;
-  padding-block: clamp(56px, 8vw, 112px) clamp(48px, 7vw, 96px);
+  display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: 24px; row-gap: 48px; align-items: end;
+  padding-block: clamp(96px, 12vw, 176px) clamp(64px, 8vw, 120px);
 }
-h1 { grid-column: 1 / span 8; margin: 0; font: 400 clamp(44px, 6.3vw, 92px) / 0.98 var(--serif); letter-spacing: -0.03em; text-wrap: balance; }
-.lede { grid-column: 9 / span 4; }
-.lede p { margin: 0 0 28px; text-wrap: pretty; }
+h1 { grid-column: 1 / span 7; margin: 0; font: 400 clamp(46px, 6.4vw, 96px) / 0.98 var(--serif); letter-spacing: -0.03em; text-wrap: balance; }
+.lede { grid-column: 8 / span 5; }
+.lede p { margin: 0 0 24px; text-wrap: pretty; }
 .lede .actions { display: flex; flex-wrap: wrap; gap: 12px; margin: 0; }
 
 .button {
   display: inline-flex; align-items: center; justify-content: center; min-height: 46px; padding: 0 20px;
   border: 1px solid var(--ink); border-radius: 2px; font: 600 15px / 1 var(--sans); text-decoration: none; white-space: nowrap;
 }
-.button:hover { background: var(--paper-deep); color: var(--ink); }
+.button:hover { background: var(--paper-deep); }
 .button.primary { background: var(--ink); color: var(--paper); }
-.button.primary:hover { background: #3a4d50; color: var(--paper); }
+.button.primary:hover { background: #33464a; color: var(--paper); }
 
-/* Sections */
-.section { padding-block: clamp(56px, 7.5vw, 108px); }
+/* Sections: rooms along the wall, with water between them. */
+.section { padding-block: clamp(80px, 10vw, 160px); }
 .section-head {
-  display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: 24px; row-gap: 16px; align-items: end;
-  margin-bottom: clamp(32px, 4vw, 56px);
+  display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: 24px; row-gap: 24px; align-items: end;
+  margin-bottom: clamp(48px, 6vw, 88px);
 }
-h2 { grid-column: 1 / span 6; margin: 0; font: 400 clamp(34px, 4.4vw, 58px) / 1.02 var(--serif); letter-spacing: -0.025em; text-wrap: balance; }
+h2 { grid-column: 1 / span 6; justify-self: start; margin: 0; font: 400 clamp(36px, 4.6vw, 62px) / 1.02 var(--serif); letter-spacing: -0.025em; text-wrap: balance; }
 .section-head p { grid-column: 8 / span 5; margin: 0; color: var(--muted); text-wrap: pretty; }
 h3 { margin: 0; font: 600 20px / 1.25 var(--serif); letter-spacing: -0.005em; }
 
-/* The method plate: four bands, captioned below in the same four columns. */
-.strip { margin: 0; }
-.strip img { display: block; width: 100%; height: auto; background: var(--paper-deep); }
-.strip-labels { display: none; }
-/* The bands follow the picture, not equal quarters: see EDGES in tools/media.mjs. */
-.stages, .strip-labels { grid-template-columns: 623fr 577fr 484fr 716fr; }
-.stages { display: grid; margin: 0; padding: 0; list-style: none; }
-.stages li { padding: 20px 28px 0 0; }
+/* The method plate and its four stages. */
+.strip img { background: #0e1d24; }
+.stages { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 24px 32px; margin-top: 48px; list-style: none; }
 .stages h3 { margin-bottom: 8px; }
 .numeral { color: var(--gold); font-weight: 400; margin-right: 4px; }
 .stages p { margin: 0; font-size: 16px; line-height: 1.55; color: var(--muted); text-wrap: pretty; }
-.strip figcaption, .film figcaption p, .agents figcaption { font: 400 14px / 1.55 var(--sans); color: var(--muted); }
-.strip figcaption { margin-top: 32px; max-width: 64ch; }
 
-/* Materials */
-.tray { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 44px 24px; margin: 0; padding: 0; list-style: none; }
-.tray img { display: block; width: 100%; height: auto; aspect-ratio: 1; background: var(--paper-deep); }
-.tray h3 { margin: 16px 0 4px; }
-.tray p { margin: 0; font: 400 15px / 1.5 var(--sans); color: var(--muted); text-wrap: pretty; }
+/* Materials: live medallions in the wall. */
+.tray { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 72px 32px; margin: 0; padding: 0; list-style: none; }
+.tray li { display: grid; justify-items: center; gap: 30px; text-align: center; }
+.medallion { width: min(100%, 220px); aspect-ratio: 1; border-radius: 50%; }
+.label h3 { font-size: 21px; }
+.label p { margin: 6px 0 0; font: 400 15px / 1.5 var(--sans); color: var(--light-muted); text-wrap: balance; }
 
 /* Work */
-.film { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: 24px; row-gap: 18px; margin: 0 0 clamp(64px, 8vw, 112px); }
-.film video { grid-column: 1 / span 8; display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; background: #0f222c; }
+.film { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: 40px; row-gap: 32px; align-items: end; margin: 0 0 clamp(80px, 9vw, 140px); }
+.film .emblem { grid-column: 1 / span 8; }
+.film video { aspect-ratio: 16 / 9; background: #0f222c; }
 .film figcaption { grid-column: 9 / span 4; display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
 .film figcaption h3 { font-style: italic; font-weight: 400; font-size: 22px; }
-.film figcaption p { margin: 0; }
-.agents { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 32px 24px; align-items: start; }
+.film figcaption p { margin: 0; font: 400 15px / 1.55 var(--sans); color: var(--muted); }
+.agents { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 48px 40px; align-items: start; }
 .agents-note { grid-column: 1 / span 4; }
 .agents-note p { margin: 12px 0 0; color: var(--muted); text-wrap: pretty; }
 .agents figure { grid-column: span 4; margin: 0; }
-.agents img { display: block; width: 100%; height: auto; aspect-ratio: 1; background: var(--paper-deep); }
-.agents figcaption { margin-top: 12px; }
+.agents img { aspect-ratio: 1; }
+.agents figcaption { margin-top: 26px; font: 400 14px / 1.55 var(--sans); color: var(--light-muted); justify-self: start; width: fit-content; }
 
 /* Use */
-.routes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 48px 32px; }
+.routes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 56px 40px; align-items: start; }
 .route { min-width: 0; }
 .route > p { margin: 12px 0 0; color: var(--muted); text-wrap: pretty; }
 .route > p:has(.button) { margin-top: 24px; }
@@ -139,7 +154,7 @@ h3 { margin: 0; font: 600 20px / 1.25 var(--serif); letter-spacing: -0.005em; }
 .code pre { order: 2; margin: 0; padding: 4px 18px 18px; overflow-x: auto; font: 400 12.5px / 1.75 var(--mono); }
 .code pre code { font: inherit; }
 .copy {
-  order: 1; align-self: flex-end; margin: 8px 8px 0 0; padding: 5px 9px; border: 1px solid var(--rule); border-radius: 2px;
+  order: 1; align-self: flex-end; margin: 8px 8px 0 0; padding: 5px 9px; border: 1px solid rgb(29 42 46 / 0.2); border-radius: 2px;
   background: var(--paper); font: 500 12px / 1 var(--sans); color: var(--muted);
 }
 .copy:hover { color: var(--ink); border-color: var(--muted); }
@@ -147,7 +162,7 @@ h3 { margin: 0; font: 600 20px / 1.25 var(--serif); letter-spacing: -0.005em; }
 /* Colophon */
 .colophon {
   display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 24px 32px;
-  margin-top: clamp(32px, 4vw, 48px); padding-block: 40px 64px; border-top: 1px solid var(--rule);
+  margin-block: clamp(40px, 6vw, 96px) clamp(96px, 12vw, 180px); padding: 32px 36px;
   font: 400 14px / 1.6 var(--sans); color: var(--muted);
 }
 .colophon p { margin: 0; text-wrap: pretty; }
@@ -156,30 +171,32 @@ h3 { margin: 0; font: 600 20px / 1.25 var(--serif); letter-spacing: -0.005em; }
 .colophon-mark svg { width: 15px; height: 15px; }
 
 @media (max-width: 1080px) {
-  h1 { grid-column: 1 / -1; }
-  .lede { grid-column: 1 / span 9; }
+  h1, .lede { grid-column: 1 / span 10; }
   h2, .section-head p { grid-column: 1 / -1; }
   .section-head p { max-width: 60ch; }
   .tray { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .routes { grid-template-columns: minmax(0, 1fr); max-width: 720px; }
+  .stages { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .agents-note { grid-column: 1 / -1; max-width: 60ch; }
   .agents figure { grid-column: span 6; }
-  .film video, .film figcaption { grid-column: 1 / -1; }
+  .film .emblem, .film figcaption { grid-column: 1 / -1; }
   .colophon { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (max-width: 720px) {
-  :root { font-size: 17px; --masthead: 56px; }
+  :root { font-size: 17px; --masthead: 60px; --gutter: 22px; }
   .nav a:not(.nav-studio, .nav-source) { display: none; }
   .wordmark { font-size: 22px; }
-  .panel { width: 100%; min-width: 0; }
-  .plate-caption { padding-top: 12px; }
-  .lede { grid-column: 1 / -1; }
-  .strip-labels { display: grid; padding-bottom: 8px; font: 500 13px / 1.3 var(--sans); color: var(--muted); }
+  h1, .lede { grid-column: 1 / -1; }
+  .tablet { padding: 22px 22px; }
   .stages { grid-template-columns: minmax(0, 1fr); }
-  .stages li { padding: 20px 0 0; }
-  .tray { gap: 32px 16px; }
-  .tray p { font-size: 14px; }
-  .agents figure { grid-column: 1 / -1; }
+  .tray { gap: 56px 20px; }
+  .medallion { width: min(100%, 150px); }
+  .label p { font-size: 14px; }
+  .film, .agents, .intro, .section-head { grid-template-columns: minmax(0, 1fr); }
+  .film .emblem, .film figcaption, .agents-note, .agents figure { grid-column: 1 / -1; }
   .colophon { grid-template-columns: 1fr; }
+  /* The nocturne is short on a phone, so its caption follows it instead of covering it. */
+  .hero-foot { position: static; padding-top: 14px; }
+  .intro { padding-top: 72px; }
 }

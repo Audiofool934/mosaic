@@ -60,13 +60,35 @@ function dispose() {
 
 The controller also supports `setView`, `resize`, `play`, `pause`, `exportPNG`, and pointer recording.
 `site/app.js` connects this API to import controls, pointer and keyboard input, reduced-motion preferences, and PNG saving.
+
+Pass `worker: true` to cut a project's stones in a module worker, so the page stays responsive while they are cut.
+The worker builds the film from plain data and hands back only the finished stone and bed buffers.
+A scene's picture can therefore be a module path, or `{ module, export, args }`: a function in a module that returns a picture from plain arguments.
+If a worker cannot start, or the browser cannot paint on an `OffscreenCanvas`, the film is built on the page instead.
+An imported image is always analysed on the page.
+
+## Walls of pictures
+
+Scenes placed with `at: [x, y]` share one wall, in millimetres from its top left corner, instead of each being centred on its own.
+With `worker: true`, each picture of such a wall is cut in its own worker.
+The wall is drawn from the moment the first picture is ready, and the others join it as they finish; `controller.ready` resolves once all of them have.
+`setView({ frame: { x, y, w } })` looks straight at part of the wall, in the wall's millimetres, instead of following the scene's camera.
+A frame can also be a function, read once for every frame drawn, so a page can follow its own scroll; `requestFrame()` draws once on the next animation frame.
+A picture whose config sets `rows: true` lists its stones by height, so each frame draws only the stones within reach of its view.
+Pictures without it keep their own drawing order and their exact pixels.
+
+The project page is such a wall.
+`home/wall.js` sets the nocturne at the top, unchanged, and paints a second picture of the page around it from the page's measured layout: tablets and emblems become gold-framed openings, headings rest on level courses, and the material samples are medallions in the wall itself.
+`home/main.js` measures the layout, has both pictures cut in workers, keeps a canvas one viewport tall (plus a margin) moving with the scroll, and cuts the wall again when a new width reflows the page.
 Images imported through that studio are processed locally.
 An application that loads remote image URLs still needs the server's normal cross-origin permission to read those images.
 
 ## Reproducible frames and live input
 
 Exported frames are evaluated from explicit time, source, seed, and render settings.
-Live pointer easing is separate state used for interactive preview.
+Live pointer input is kept as timestamped samples, separate from film time.
+Each stone answers the pointer's last 0.6 seconds as a damped spring of its own: it rises under the pointer, trails it, and rocks back into the mortar once the pointer has passed.
+A resting pointer holds the plain curl, and drawing stops once the stones are still.
 `seek(time)` pauses live playback and clears unrecorded pointer input.
 An explicit pointer state or recorded trace can be passed when interaction is part of a reproducible render.
 Stone rendering and shadow rendering use the same movement transform.

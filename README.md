@@ -97,12 +97,14 @@ For example, after serving the build at `/mosaic/`, embed the complete studio wi
 
 For a custom interface, import `createMosaic` from `engine/runtime.js` and attach it to your own canvas.
 The [architecture guide](docs/architecture.md) explains the controller and how to keep the stones, lighting, pointer response, and exports in sync.
+It also covers cutting stones in a worker and walls of several pictures that a page scrolls across, as the project page does.
 
 ## What this alpha does
 
 - Original key pictures with shaped stones, contour-following courses, physical materials, and lighting.
 - Image conversion with a bounded palette and controllable stone size and material.
 - Pointer-responsive websites, deterministic still capture, and scene-based film rendering.
+- Pages laid as one live wall, cut around their own layout in background workers.
 - A shared portable skill and reproducible distributions with source hashes and license notices.
 
 Continuous video stylization is deferred.
@@ -123,7 +125,8 @@ npm run test:browser
 npm run build
 ```
 
-The project page's pictures and film are rendered from `examples/` by the same engine.
+The project page is itself a live wall, cut in the visitor's browser around the page's own layout.
+Its few pictures, the method plate, the film, the share image, and the still shown without WebGL2, are rendered from `examples/` by the same engine.
 Run `npm run media` after a visual change to render them again; it needs the same Chromium and FFmpeg as capture.
 
 Builds copy the canonical source rather than maintaining a second renderer.

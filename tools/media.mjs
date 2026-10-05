@@ -1,7 +1,8 @@
 #!/usr/bin/env node
-// Renders every picture on the project page from the examples, through the same engine:
-// the hero's first and last frames, the four-stage method plate, the material samples,
-// and the short film. Run it after a visual change to the engine or the examples.
+// Renders the pictures the project page shows beside its live wall, from the examples and
+// through the same engine: the laid nocturne, which stands in for the wall without WebGL2
+// and makes the share image, the four-stage method plate, and the short film. Run it after
+// a visual change to the engine or the examples.
 import { spawnSync } from 'node:child_process';
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
@@ -12,7 +13,6 @@ import { inspectProject } from './cli.mjs';
 import { ROOT, startServer } from './server.mjs';
 
 const OUT = path.join(ROOT, 'home/media');
-const MATERIALS = ['glass', 'gold', 'silver', 'marble', 'basalt', 'limestone', 'terracotta', 'light'];
 const PLATE = { width: 2400, height: 1350 };
 // Where one stage ends and the next begins, in panel millimetres: the heron stays whole
 // in the flow band, and the moon is split between its cut stones and its lit ones.
@@ -143,12 +143,8 @@ async function main() {
   try {
     await mkdir(OUT, { recursive: true });
 
-    const start = await still(work, 'examples/laid.json', 0, 1920, 'hero-start');
     const end = await still(work, 'examples/laid.json', 8.98, 1920, 'hero-end');
-    for (const [name, file] of [['hero-start', start], ['hero-end', end]]) {
-      webp(file, path.join(OUT, `${name}.webp`));
-      webp(file, path.join(OUT, `${name}-960.webp`), { width: 960 });
-    }
+    webp(end, path.join(OUT, 'hero-end.webp'));
     // Link previews want a 1200 by 630 JPEG.
     ffmpeg(['-i', end, '-vf', 'scale=1200:-2:flags=lanczos,crop=1200:630', '-frames:v', '1', '-q:v', '3', path.join(OUT, 'social.jpg')]);
 
@@ -163,9 +159,6 @@ async function main() {
     webp(method, path.join(OUT, 'method.webp'));
     webp(method, path.join(OUT, 'method-1200.webp'), { width: 1200 });
 
-    for (const [i, name] of MATERIALS.entries()) {
-      webp(await still(work, 'examples/materials.json', i, 720, `material-${name}`), path.join(OUT, `material-${name}.webp`));
-    }
 
     const { file, project } = await inspectProject(path.join(ROOT, 'examples/film.json'));
     const master = path.join(work, 'film.mp4');

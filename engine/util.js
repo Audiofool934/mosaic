@@ -149,6 +149,8 @@ export function halton(i, b) {
 }
 
 export function makeCanvas(w, h) {
+  // A worker has no document; its pictures paint on an OffscreenCanvas.
+  if (typeof document === "undefined") return new OffscreenCanvas(w, h);
   const c = document.createElement("canvas");
   c.width = w;
   c.height = h;

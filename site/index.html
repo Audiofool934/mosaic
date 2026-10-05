@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#eeece5">
+  <meta name="theme-color" content="#0f2531">
   <meta name="description" content="An open studio for tactile mosaic art. Shape an image into real stone geometry, explore the light, and make it move.">
-  <title>mosAIc - Stone by stone</title>
+  <title>mosAIc studio</title>
   <link rel="icon" href="./mark.svg" type="image/svg+xml">
   <link rel="stylesheet" href="./style.css">
 </head>
@@ -15,13 +15,20 @@
       <svg class="mark" viewBox="0 0 32 32" aria-hidden="true"><path d="m2 3 12-1-1 13-11-2Zm16 0 12 2-2 11-12-2ZM3 17l11 1 1 12-13-2Zm15 1 11 1 1 11-12-1Z" fill="currentColor"/></svg>
       <span>mosAIc</span>
     </a>
-    <span class="masthead-note">An open mosaic studio <span class="edition">/ 001</span></span>
+    <nav class="nav" aria-label="Project">
+      <a href="../#method">How it works</a>
+      <a href="../#materials">Materials</a>
+      <a href="../#work">Work</a>
+      <a href="../#use">Use it</a>
+      <a class="nav-source" href="https://github.com/Audiofool934/mosaic">GitHub</a>
+      <a class="nav-studio" href="./" aria-current="page">Studio</a>
+    </nav>
   </header>
 
   <main>
     <section class="introduction" aria-labelledby="page-title">
-      <div><p class="eyebrow">A little light. A thousand small things.</p><h1 id="page-title">Stone by stone.</h1></div>
-      <p class="intro-copy">Pictures you can almost touch. <br>Move across the mosaic, find a different light, <br class="desktop-break">or begin with an image of your own.</p>
+      <h1 id="page-title">Stone by stone.</h1>
+      <p class="intro-copy">Move across the mosaic, find a different light, or begin with an image of your own. Every stone is cut and lit in your browser.</p>
     </section>
 
     <section class="studio" aria-label="Mosaic artwork studio">
@@ -33,12 +40,12 @@
             <span id="loading-label">Laying the first stones</span>
             <button id="retry" class="text-button" type="button" hidden>Try again</button>
           </div>
-          <span class="gesture-note" id="gesture-note"><span class="gesture-dot"></span>Move slowly. The stones will follow.</span>
+          <span class="gesture-note" id="gesture-note">Move slowly. The stones will follow.</span>
         </div>
       </div>
 
       <div class="caption">
-        <div class="caption-title"><span class="work-number" id="work-number">01</span><h2 id="art-title">Moon over still water</h2><span class="material-note" id="material-note">Glass, marble & gold</span></div>
+        <p class="caption-title"><span class="work-number" id="work-number">01</span> <span class="art-title" id="art-title">Moon over still water</span> <span class="material-note" id="material-note">Glass, marble &amp; gold</span></p>
         <span class="stone-count" id="stone-count">An original composition</span>
       </div>
 
@@ -48,11 +55,11 @@
         <output id="film-clock" for="film-time">0:00 / 0:08</output>
       </div>
 
-      <div class="tools" aria-label="Artwork controls">
+      <div class="tablet tools" aria-label="Artwork controls">
         <div class="source-tools">
           <button class="button button-dark" id="import-button" type="button"><svg viewBox="0 0 18 18" aria-hidden="true"><path d="M9 12V3m-4 4 4-4 4 4M3 12v3h12v-3"/></svg>Bring an image</button>
           <input type="file" id="image-input" accept="image/png,image/jpeg,image/webp,image/avif,image/gif" hidden>
-          <button class="text-button" id="reset-button" type="button" title="Restore the original artwork and view">Reset artwork <span aria-hidden="true">↗</span></button>
+          <button class="text-button" id="reset-button" type="button" title="Restore the original artwork and view">Reset the artwork</button>
         </div>
         <div class="range-control">
           <label for="light"><span>Light</span><output id="light-value" for="light">Natural</output></label>
@@ -69,8 +76,8 @@
         <button class="button button-outline" id="save-button" type="button"><svg viewBox="0 0 18 18" aria-hidden="true"><path d="M9 3v9m-4-4 4 4 4-4M3 12v3h12v-3"/></svg>Save PNG</button>
       </div>
 
-      <div class="image-settings" id="image-settings">
-        <div class="settings-intro"><span class="settings-label">The stones</span><span id="settings-note">Import an image to choose its materials and scale.</span></div>
+      <div class="tablet image-settings" id="image-settings">
+        <div class="settings-intro"><h2 class="settings-label">The stones</h2><span id="settings-note">Import an image to choose its materials and scale.</span></div>
         <div class="select-control"><label for="material">Material</label><select id="material" disabled><option value="glass">Colored glass</option><option value="stone">Natural stone</option><option value="gold">Gold leaf</option></select></div>
         <div class="select-control"><label for="detail">Stone size</label><select id="detail" disabled><option value="8">Fine</option><option value="12" selected>Balanced</option><option value="18">Bold</option></select></div>
         <p class="local-note">Your images stay in your browser.</p>
@@ -78,7 +85,10 @@
       <p class="feedback" id="feedback" role="status" aria-live="polite"></p>
     </section>
 
-    <footer class="footer"><p>Made of small things.<br><span>An open canvas for people and agents.</span></p><p>Contours become courses.<br>Light brings them to life.</p><a href="../" class="text-button">Explore the project <span aria-hidden="true">↗</span></a></footer>
+    <footer class="footer">
+      <p class="footer-mark"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="m2 3 12-1-1 13-11-2Zm16 0 12 2-2 11-12-2ZM3 17l11 1 1 12-13-2Zm15 1 11 1 1 11-12-1Z" fill="currentColor"/></svg> mosAIc studio</p>
+      <p>Contours become courses, and light brings them to life. <a href="../">See the whole wall</a></p>
+    </footer>
   </main>
   <script type="module" src="./app.js"></script>
 </body>

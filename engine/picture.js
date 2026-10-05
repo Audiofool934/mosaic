@@ -27,8 +27,16 @@ function tray(list, mat, emit) {
   });
 }
 
+// source: a module path, a module-like object, an analysed picture, or { module, export,
+// args }, a function in a module that returns a module-like object from plain arguments.
+// That last form keeps a project plain data, so a worker can build it.
 export async function loadPicture(source, baseURL = globalThis.location?.href) {
   if (source?.label && source?.regions) return { ...source };
+  if (typeof source?.module === "string") {
+    const factory = (await import(new URL(source.module, baseURL).href))[source.export || "default"];
+    if (typeof factory !== "function") throw new Error(`${source.module}: no picture function ${source.export || "default"}.`);
+    return loadPicture(await factory(source.args), baseURL);
+  }
   const path = typeof source === "string" ? new URL(source, baseURL).href : "inline picture";
   const mod = typeof source === "string" ? await import(path) : source;
   if (!mod?.config?.panel || typeof mod.regions !== "function") throw new Error(`${path}: expected config, regions(), and draw().`);

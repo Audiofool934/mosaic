@@ -69,9 +69,11 @@ An imported image is always analysed on the page.
 
 ## Sound
 
-`controller.onContact(listener)` hears each live frame's contacts: stones the pointer lets fall back into their mortar, by the same spring they are drawn with, and laid stones reaching their seats in view.
-Each contact has its kind, material, size in millimetres, strength from 0 to 1, and position on the canvas.
-`engine/sound.js` turns them into sound with `createStoneSound()`: each strike is a few damped partials and a burst of filtered noise, tuned by material and size and played in a small synthesised room, with nothing recorded or downloaded.
+`controller.onContact(listener)` hears each live frame's contacts: the pointer sliding over a stone, in every frame it moves; a stone it catches now and then as it slides; and now and then a laid stone reaching its seat in view.
+A sliding pointer catches its first stone as soon as it moves, then more often the faster it moves, but never more than a few times a second, so the stones never clatter.
+Each contact has its kind (`slide`, `touch`, or `lay`), material, size in millimetres, strength from 0 to 1, and position on the canvas.
+`engine/sound.js` turns them into sound with `createStoneSound()`: a soft hush follows the sliding pointer and stops with it, and each caught or laid stone is a short, low knock, a tone and a quieter overtone over a breath of grit, tuned by material and size.
+Everything is kept below the sharp range and played in a small synthesised room, with nothing recorded or downloaded.
 Browsers start audio only from a click or a key, so pages keep it off until asked for and call `start()` from that click.
 Contacts come only from live input; seeks, replays, and exports are silent.
 

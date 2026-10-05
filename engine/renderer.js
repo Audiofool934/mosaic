@@ -25,7 +25,7 @@ export const TRAIL = 24;
 export const TRAIL_STEP = 0.025;
 // Each stone's spring under the pointer: natural frequency (rad/s), damping ratio, and
 // how far each stone's own frequency strays from it.
-export const SPRING = { omega: 16, zeta: 0.55, spread: 0.15 };
+const SPRING = { omega: 16, zeta: 0.55, spread: 0.15 };
 
 const GLSL_COMMON = `
 // Hash without Sine: David Hoskins, via David A Roberts MIT port.

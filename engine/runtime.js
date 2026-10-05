@@ -201,25 +201,25 @@ export async function createMosaic(canvas, options = {}) {
   }
   const redraw = () => render(time, frameInput, frameInput === live ? clock() : frameClock);
   function schedule() { if (!raf && !disposed && !lost) raf = requestAnimationFrame(tick); }
-  // Listeners hear the stones the pointer touches and the stones that meet each other or their
-  // mortar, in each live frame.
+  // Listeners hear the stones the pointer slides over and the stones being laid, in each live
+  // frame.
   const listeners = new Set();
-  let hear = null, heardAt = 0;
+  let hear = null, heardAt = -Infinity;
   function heard(from, c) {
     hear ??= createContacts();
     const cam = timeline.cameraAt(time), w = cam.w / 1000;
-    // The pointer's own path since the last frame, both ends seen through this frame's camera,
-    // so a scroll under a still pointer is not a touch. A fingertip reaches 0.28% of the view,
-    // about one course of stones.
-    const since = Math.max(heardAt, c - .05), p0 = live(since), p1 = live(c);
+    // How far the pointer moved between the newest input heard in the last frame and in this
+    // one, whenever in the frame it arrived, seen on the screen, so a scroll under a still
+    // pointer is not a slide. A fingertip reaches 0.28% of the view, about one course of stones.
+    const newest = input.at(-1)?.t ?? -Infinity, since = Math.max(heardAt, newest - .05);
+    const p0 = live(since), p1 = live(newest);
     let touch = null;
-    if (p0.strength > 0 && p1.strength > 0 && c > since) {
-      const m = unproject(cam);
+    if (p0.strength > 0 && p1.strength > 0 && newest > since) {
       const moved = Math.hypot(p1.x - p0.x, (p1.y - p0.y) * height / width);
-      touch = { a: onWall(m, p0), b: onWall(m, p1), reach: w * .0028, speed: moved / (c - since), dt: c - since };
+      touch = { at: onWall(unproject(cam), p1), reach: w * .0028, moved, speed: moved / (newest - since) };
     }
-    heardAt = c;
-    const events = hear({ layers: base.layersAt(time), pointer: pointerTrail(time), touch, time, from, clock: c,
+    heardAt = newest;
+    const events = hear({ layers: base.layersAt(time), touch, time, from, clock: c,
       view: { x: cam.target[0], y: cam.target[1], w, h: w / (width / height) } });
     if (events.length) for (const listener of listeners) listener(events);
   }
@@ -271,9 +271,10 @@ export async function createMosaic(canvas, options = {}) {
     },
     // Draws once on the next animation frame, for a view that reads its frame as it draws.
     requestFrame() { ensure(); schedule(); },
-    // listener(events) hears each live frame's contacts: stones the pointer lets fall back into
-    // their mortar ('settle') and laid stones reaching their seats in view ('lay'), each with
-    // its material, size in millimetres, strength from 0 to 1, and x and y on the canvas.
+    // listener(events) hears each live frame's contacts: the pointer sliding over a stone
+    // ('slide', in every frame it moves), a stone it catches now and then as it slides
+    // ('touch'), and now and then a laid stone reaching its seat in view ('lay'), each with its
+    // material, size in millimetres, strength from 0 to 1, and x and y on the canvas.
     onContact(listener) { listeners.add(listener); return () => listeners.delete(listener); },
     getState() { return { time, view: { ...view }, pointer: normalized(input.at(-1)), playing }; },
     startRecording() { ensure(); record = []; recordStart = clock(); if (input.length) record.push({ ...input.at(-1), t: 0 }); },

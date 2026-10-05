@@ -28,15 +28,34 @@ export function wallScale(width) {
   return clamp(width * DESKTOP, 880, PANEL.w) / width;
 }
 
-// Where the nocturne sits on the wall: cropped about its focus, at the foot of the hero.
-export function heroAt({ width, hero, scale }) {
+// Where the nocturne sits on the wall: at the very top, cropped about its focus.
+export function heroAt({ width, scale }) {
   const W = width * scale;
-  return [W / 2 - clamp(PANEL.focus, W / 2, PANEL.w - W / 2), Math.max(0, hero * scale - PANEL.h)];
+  return [W / 2 - clamp(PANEL.focus, W / 2, PANEL.w - W / 2), 0];
 }
 
-// The nocturne, drawn by rows so the page only draws the stones near its view.
+// Where the nocturne's picture ends and the page's begins: a long, low wave below the
+// drawing, so the two pictures meet like two bodies of water instead of along a straight cut.
+const TAIL = 130;
+function shoreline(x0, x1) {
+  const pts = [];
+  for (let x = x0; x <= x1; x += 20) pts.push([x, PANEL.h + 62 + 26 * Math.sin(x / 260 + 0.8) + 12 * Math.sin(x / 97 + 2.1)]);
+  return pts;
+}
+
+// The nocturne as drawn, with its water and the foot of its island carried on below the
+// drawing to the shoreline, and drawn by rows so the page only draws the stones near its view.
 export function heroPicture() {
-  return { ...nocturne, config: { ...nocturne.config, rows: true } };
+  return {
+    ...nocturne,
+    config: { ...nocturne.config, panel: { w: PANEL.w, h: PANEL.h + TAIL }, rows: true },
+    draw(g, mode, D) {
+      D.fill(box(-10, PANEL.h - 20, PANEL.w + 20, TAIL + 30), "water", "#173b4b");
+      nocturne.draw(g, mode, D);
+      D.fill(ellipse(558, PANEL.h - 4, 292, 34), "shore", "#34484c");
+      D.fill(poly([...shoreline(-20, PANEL.w + 20), [PANEL.w + 20, PANEL.h + TAIL + 10], [-20, PANEL.h + TAIL + 10]]), "none", "#bdb3a2");
+    }
+  };
 }
 
 // A current: a wavy band between two wavy edges. Some cross the whole wall; others rise
@@ -85,11 +104,9 @@ export function wallPicture(layout) {
 
   const medallions = blocks.filter((b) => b.kind === "medallion");
   const sample = (name) => SAMPLES.find((s) => s.name === name) || SAMPLES[0];
-  const sky = nocturne.regions().find((r) => r.name === "sky");
   const shore = nocturne.regions().find((r) => r.name === "shore");
 
   const regions = () => [
-    { ...sky, size: 13 * k },
     { ...shore, size: 12 * k },
     { name: "deep", size: deep, mode: "contour", mat: "glass", tray: ["#0e2633", "#12303f", "#173a4a", "#1d4456", "#235066"] },
     { name: "drift", size: Math.min(deep, 13 * k), mode: "contour", mat: "glass", tray: ["#1d3f4d", "#28515e", "#356471", "#467683"] },
@@ -108,12 +125,8 @@ export function wallPicture(layout) {
   ];
 
   function draw(g, mode, D) {
-    // Night sky above the nocturne, for the masthead; the nocturne itself is its own picture.
-    D.fill(box(-10, -10, W + 20, seam + 10), "sky", "#142835");
-    // The water deepens from the nocturne's own colour at the seam.
-    D.fill(box(-10, seam, W + 20, H - seam + 10), "deep", D.linear(0, seam, 0, seam + 700 * k, [[0, "#235066"], [0.5, "#1a3e4f"], [1, "#12303f"]]));
-    // The nocturne's island runs on below its panel instead of stopping at the seam.
-    D.fill(ellipse(ox + 558, seam - 6, 290, 46), "shore", "#34484c");
+    // The water deepens from the nocturne's own colour at the shoreline.
+    D.fill(box(-10, seam, W + 20, H - seam + 10), "deep", D.linear(0, seam, 0, seam + 900 * k, [[0, "#173b4b"], [1, "#12303f"]]));
     for (const c of currents) {
       D.fill(c.path, "drift", "#356471");
       if (c.crest) D.line(poly(c.crest.filter((_, i) => i % 2 === 0), false), 4.5 * k, "spray", "#5d8792");
@@ -134,8 +147,8 @@ export function wallPicture(layout) {
         D.fill(box(b.x, b.y, b.w, b.h), "none", "#bdb3a2");
       }
     }
-    // The nocturne's panel is left bare here: its own stones fill it.
-    D.fill(box(ox, oy, PANEL.w, PANEL.h), "none", "#bdb3a2");
+    // The nocturne's picture fills everything above the shoreline with its own stones.
+    D.fill(poly([[ox - 20, oy - 10], [ox + PANEL.w + 20, oy - 10], ...shoreline(-20, PANEL.w + 20).map(([x, y]) => [x + ox, y + oy]).reverse()]), "none", "#bdb3a2");
   }
 
   return {
@@ -147,14 +160,14 @@ export function wallPicture(layout) {
       // The page only ever shows a stretch of the wall, so its stones are drawn by rows.
       rows: true,
       camera: { keys: [[0, W / 2, Math.min(H, PANEL.h) / 2, W]], tilt: 0, yaw: 0, aperture: 0.004, drift: 0 },
-      sinopia: { groups: [["sky"], ["deep", "drift", "spray", "band"]] },
-      // Laid from the sky over the moon while the nocturne is laid, then on down the page.
+      sinopia: { groups: [["deep", "drift", "spray", "band"]] },
+      // Laid from below the moon while the nocturne is laid, then on down the page.
       build: {
-        origin: [ox + 1110, Math.max(1, oy * 0.5)],
+        origin: [ox + 1110, seam + 120],
         start: 0.6,
         end: 9.5,
         rise: 0.08,
-        speeds: { sky: 2.6, frame: 2.4, band: 1.6, "face-*": 1.8, "heart-*": 1.8 }
+        speeds: { frame: 2.4, band: 1.6, "face-*": 1.8, "heart-*": 1.8 }
       }
     },
     regions,

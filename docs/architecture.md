@@ -67,6 +67,14 @@ A scene's picture can therefore be a module path, or `{ module, export, args }`:
 If a worker cannot start, or the browser cannot paint on an `OffscreenCanvas`, the film is built on the page instead.
 An imported image is always analysed on the page.
 
+## Sound
+
+`controller.onContact(listener)` hears each live frame's contacts: stones the pointer lets fall back into their mortar, by the same spring they are drawn with, and laid stones reaching their seats in view.
+Each contact has its kind, material, size in millimetres, strength from 0 to 1, and position on the canvas.
+`engine/sound.js` turns them into sound with `createStoneSound()`: each strike is a few damped partials and a burst of filtered noise, tuned by material and size and played in a small synthesised room, with nothing recorded or downloaded.
+Browsers start audio only from a click or a key, so pages keep it off until asked for and call `start()` from that click.
+Contacts come only from live input; seeks, replays, and exports are silent.
+
 ## Walls of pictures
 
 Scenes placed with `at: [x, y]` share one wall, in millimetres from its top left corner, instead of each being centred on its own.
@@ -89,6 +97,7 @@ Exported frames are evaluated from explicit time, source, seed, and render setti
 Live pointer input is kept as timestamped samples, separate from film time.
 Each stone answers the pointer's last 0.6 seconds as a damped spring of its own: it rises under the pointer, trails it, and rocks back into the mortar once the pointer has passed.
 A resting pointer holds the plain curl, and drawing stops once the stones are still.
+The mortar under a stone answers the same motion: as a stone moves off its bed, the footprint it left there, tinted and shadowed, gives way to plain lime lit by the scene and shaded by the stone above it.
 `seek(time)` pauses live playback and clears unrecorded pointer input.
 An explicit pointer state or recorded trace can be passed when interaction is part of a reproducible render.
 Stone rendering and shadow rendering use the same movement transform.

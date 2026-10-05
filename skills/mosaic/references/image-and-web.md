@@ -50,6 +50,8 @@ Replay with `seek(t, {trace: recording.points})` or supply an explicit `pointer`
 Traces use their own elapsed seconds; align the project time with the recording start when replaying moving films.
 PNG export uses the current view and time with no live pointer unless a trace or pointer is explicitly supplied.
 
+To hear the stones, create `createStoneSound()` from `engine/sound.js`, call its `start()` from a click, and pass `artwork.onContact(events => sound.play(events))` its contacts; keep sound off until the viewer asks for it.
+
 A page that scrolls across a wall can keep one viewport-sized canvas moving with the scroll and give `setView({ frame })` a function returning `{ x, y, w }` in panel millimetres for the stretch in view; call `requestFrame()` on scroll.
 Scenes placed with `at: [x, y]` form one wall of several pictures, each cut in its own worker and drawn as soon as it is ready; `controller.ready` resolves when all have joined.
 The project page in the mosAIc source repository, `home/main.js` and `home/wall.js`, is a complete example: the page measures its own layout and has a picture painted around it.

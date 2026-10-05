@@ -17,7 +17,6 @@
   --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   --gutter: clamp(20px, 5vw, 72px);
   --measure: 1240px;
-  --masthead: 72px;
   /* The nocturne fills the page width up to 1440 pixels, a fixed height below that, and a
      closer crop on phones; home/wall.js uses the same scale. */
   --nocturne: max(min(102.27vw, 811px), 56.25vw);
@@ -46,8 +45,8 @@ code { font: 400 0.86em / 1 var(--mono); }
 .wall { position: absolute; inset: 0; overflow: clip; pointer-events: none; }
 .wall canvas { position: absolute; top: 0; left: 0; width: 100%; display: block; will-change: transform; visibility: hidden; }
 .wall[data-state="live"] canvas { visibility: visible; }
-.wall[data-state="still"] { background: url("media/hero-end.webp") center var(--masthead) / max(100%, var(--nocturne) * 1.7778) auto no-repeat, #12303f; }
-.masthead, main, .colophon { position: relative; }
+.wall[data-state="still"] { background: url("media/hero-end.webp") center top / max(100%, var(--nocturne) * 1.7778) auto no-repeat, #12303f; }
+main, .colophon { position: relative; }
 
 /* Words set straight on the stones; the level band under them hugs the words themselves. */
 [data-wall="band"] { text-shadow: var(--lift); }
@@ -65,22 +64,29 @@ h1[data-wall="band"], h2[data-wall="band"] { width: fit-content; }
 .emblem { margin: 0; background: #0e1d24; }
 .emblem img, .emblem video { display: block; width: 100%; height: auto; }
 
-/* Masthead */
-.masthead {
-  display: flex; align-items: center; justify-content: space-between; gap: 24px;
-  height: var(--masthead); width: min(100% - 2 * var(--gutter), var(--measure)); margin-inline: auto; text-shadow: var(--lift);
+/* Sound is off until asked for: the stones are heard only after this is pressed. */
+.sound {
+  position: fixed; right: clamp(14px, 2vw, 28px); bottom: clamp(14px, 2vw, 28px); z-index: 2;
+  display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 14px 0 11px; border: 1px solid rgb(239 235 225 / 0.28); border-radius: 20px;
+  background: rgb(9 22 30 / 0.55); color: var(--light-muted); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+  font: 500 13px / 1 var(--sans);
 }
-.wordmark { display: inline-flex; align-items: center; gap: 10px; font: 600 24px / 1 var(--serif); letter-spacing: -0.02em; text-decoration: none; }
-.wordmark svg { width: 21px; height: 21px; }
-.nav { display: flex; align-items: center; gap: clamp(16px, 2.4vw, 32px); font: 500 14px / 1 var(--sans); }
-.nav a { color: var(--light-muted); text-decoration: none; }
-.nav a:hover { color: var(--light); }
-.nav .nav-studio { color: var(--light); border: 1px solid rgb(239 235 225 / 0.7); border-radius: 2px; padding: 10px 14px; background: rgb(10 22 29 / 0.25); }
-.nav .nav-studio:hover { background: var(--light); color: var(--ink); text-shadow: none; }
+.sound:hover, .sound[aria-pressed="true"] { color: var(--light); border-color: rgb(239 235 225 / 0.55); }
+.sound svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.sound .speaker { fill: currentColor; stroke: none; }
+.sound .waves, .sound[aria-pressed="false"] .waves { display: none; }
+.sound[aria-pressed="true"] .waves { display: inline; }
+.sound[aria-pressed="true"] .mute { display: none; }
 
-/* The first screen is the nocturne itself. */
+/* The first screen is the nocturne itself, from the very top of the page: no bar, only the
+   work's signature in its sky and its caption on its shore. */
 .hero { position: relative; }
 .hero-art { height: var(--nocturne); }
+.signature {
+  position: absolute; top: clamp(18px, 2.4vw, 34px); left: 0; right: 0; margin: 0 auto;
+  display: flex; align-items: center; gap: 10px; font: 600 22px / 1 var(--serif); letter-spacing: -0.02em; text-shadow: var(--lift);
+}
+.signature svg { width: 19px; height: 19px; filter: drop-shadow(0 1px 2px rgb(8 18 24 / 0.55)); }
 .hero-foot { position: absolute; left: 0; right: 0; bottom: 18px; display: flex; align-items: baseline; justify-content: space-between; gap: 8px 32px; flex-wrap: wrap; }
 .hero-note { margin: 0; font: 400 14px / 1.5 var(--sans); color: var(--light-muted); }
 .work-title { font: italic 400 16px / 1.5 var(--serif); color: var(--light); margin-right: 10px; }
@@ -96,6 +102,7 @@ h1 { grid-column: 1 / span 7; margin: 0; font: 400 clamp(46px, 6.4vw, 96px) / 0.
 .lede { grid-column: 8 / span 5; }
 .lede p { margin: 0 0 24px; text-wrap: pretty; }
 .lede .actions { display: flex; flex-wrap: wrap; gap: 12px; margin: 0; }
+.lede .source { margin: 22px 0 0; font: 400 15px / 1.5 var(--sans); color: var(--muted); }
 
 .button {
   display: inline-flex; align-items: center; justify-content: center; min-height: 46px; padding: 0 20px;
@@ -184,9 +191,7 @@ h3 { margin: 0; font: 600 20px / 1.25 var(--serif); letter-spacing: -0.005em; }
 }
 
 @media (max-width: 720px) {
-  :root { font-size: 17px; --masthead: 60px; --gutter: 22px; }
-  .nav a:not(.nav-studio, .nav-source) { display: none; }
-  .wordmark { font-size: 22px; }
+  :root { font-size: 17px; --gutter: 22px; }
   h1, .lede { grid-column: 1 / -1; }
   .tablet { padding: 22px 22px; }
   .stages { grid-template-columns: minmax(0, 1fr); }
@@ -197,6 +202,8 @@ h3 { margin: 0; font: 600 20px / 1.25 var(--serif); letter-spacing: -0.005em; }
   .film .emblem, .film figcaption, .agents-note, .agents figure { grid-column: 1 / -1; }
   .colophon { grid-template-columns: 1fr; }
   /* The nocturne is short on a phone, so its caption follows it instead of covering it. */
-  .hero-foot { position: static; padding-top: 14px; }
-  .intro { padding-top: 72px; }
+  /* The nocturne is short on a phone, so its caption hangs below it, in space kept for it, and
+     never moves the layout the wall was cut around when its text changes. */
+  .hero-foot { top: 100%; bottom: auto; padding-top: 14px; }
+  .intro { padding-top: 168px; }
 }

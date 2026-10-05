@@ -1,6 +1,7 @@
 import { loadFilm, makeTimeline, unpackFilm, FOVY } from './timeline.js';
 import { createRenderer, TRAIL, TRAIL_STEP } from './renderer.js';
 import { imageToPicture } from './image.js';
+import { createContacts } from './contact.js';
 import { clamp, hexRgb, toLinear, invert, lookAt, mat4Mul, perspective, xform } from './util.js';
 
 const finite = (n, fallback) => Number.isFinite(Number(n)) ? Number(n) : fallback;
@@ -195,14 +196,26 @@ export async function createMosaic(canvas, options = {}) {
   }
   const redraw = () => render(time, frameInput, frameInput === live ? clock() : frameClock);
   function schedule() { if (!raf && !disposed && !lost) raf = requestAnimationFrame(tick); }
+  // Listeners hear the stones that meet their mortar in each live frame.
+  const listeners = new Set();
+  let hear = null;
+  function heard(from, dt) {
+    hear ??= createContacts();
+    const cam = timeline.cameraAt(time), w = cam.w / 1000;
+    const events = hear({ layers: base.layersAt(time), pointer: pointerTrail(time), time, from, dt,
+      view: { x: cam.target[0], y: cam.target[1], w, h: w / (width / height) } });
+    if (events.length) for (const listener of listeners) listener(events);
+  }
   function tick(now) {
     raf = 0;
     if (disposed || lost) return;
     const dt = lastNow ? Math.min(.1, (now - lastNow) / 1000) : 1 / 60;
     lastNow = now;
+    const from = time;
     if (playing) { time += dt; if (time >= duration - 1 / film.fps) playing = false; }
     const c = clock();
     render(time, live, c);
+    if (listeners.size) heard(from, dt);
     // The stones keep moving until the newest input has passed through the whole trail.
     if (playing || c - (input.at(-1)?.t ?? -Infinity) < settleTime) schedule(); else lastNow = 0;
   }
@@ -241,6 +254,10 @@ export async function createMosaic(canvas, options = {}) {
     },
     // Draws once on the next animation frame, for a view that reads its frame as it draws.
     requestFrame() { ensure(); schedule(); },
+    // listener(events) hears each live frame's contacts: stones the pointer lets fall back into
+    // their mortar ('settle') and laid stones reaching their seats in view ('lay'), each with
+    // its material, size in millimetres, strength from 0 to 1, and x and y on the canvas.
+    onContact(listener) { listeners.add(listener); return () => listeners.delete(listener); },
     getState() { return { time, view: { ...view }, pointer: normalized(input.at(-1)), playing }; },
     startRecording() { ensure(); record = []; recordStart = clock(); if (input.length) record.push({ ...input.at(-1), t: 0 }); },
     stopRecording() { const result = record || []; record = null; return { version: 2, points: result }; },
@@ -253,7 +270,7 @@ export async function createMosaic(canvas, options = {}) {
       try { return await new Promise((resolve, reject) => canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('PNG export failed.')), 'image/png')); }
       finally { if (!disposed && !lost) { render(previousTime, ...previous); if (wasPlaying) controller.play(); } }
     },
-    dispose() { if (disposed) return; controller.pause(); disposed = true; record = null; renderer?.dispose(); canvas.removeEventListener('webglcontextlost', contextLost); canvas.removeEventListener('webglcontextrestored', contextRestored); }
+    dispose() { if (disposed) return; controller.pause(); disposed = true; record = null; listeners.clear(); renderer?.dispose(); canvas.removeEventListener('webglcontextlost', contextLost); canvas.removeEventListener('webglcontextrestored', contextRestored); }
   };
   progress('Ready');
   return controller;

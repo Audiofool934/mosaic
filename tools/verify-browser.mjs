@@ -154,13 +154,22 @@ try {
     // Live input draws while the stones move and stops once they rest under a still pointer.
     const { createMosaic } = await import('/engine/runtime.js');
     const live = await createMosaic(document.createElement('canvas'), { project: '/examples/nocturne.json', width: 320, height: 180, samples: 1 });
+    const heard = [];
+    live.onContact(events => heard.push(...events));
     live.seek(2);
-    live.setPointer({ x: 0.5, y: 0.5, active: true });
+    for (const x of [0.3, 0.4, 0.5, 0.6]) {
+      live.setPointer({ x, y: 0.5, active: true });
+      await new Promise(resolve => setTimeout(resolve, 40));
+    }
     require(window.__animationProbe().pending > 0, 'Pointer input did not schedule an animation callback.');
     await new Promise(resolve => setTimeout(resolve, 900));
     require(window.__animationProbe().pending === 0, 'The animation loop kept running under a resting pointer.');
+    live.setPointer({ active: false });
+    await new Promise(resolve => setTimeout(resolve, 900));
+    require(window.__animationProbe().pending === 0, 'The animation loop kept running after the pointer left.');
+    require(heard.some(e => e.kind === 'settle' && typeof e.material === 'string' && e.size > 0 && e.strength > 0), 'Stones the pointer lifted were not heard settling.');
     live.dispose();
-    checks.push('live input stops drawing once the stones rest');
+    checks.push('live input stops drawing once the stones rest', 'stones the pointer lets fall are heard settling');
 
     // A wall of two pictures side by side, each cut in its own worker: the wall is drawn
     // once the first is ready, the second joins it, and a frame can look at either.

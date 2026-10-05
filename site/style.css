@@ -100,6 +100,7 @@ input[type="range"]::-moz-range-thumb { width: 10px; height: 10px; border: 2px s
 .film-controls input[type="range"] { background: #4f6a73; accent-color: var(--light); }
 .film-controls input[type="range"]::-webkit-slider-thumb { border-color: var(--night); box-shadow: 0 0 0 1px var(--light); background: var(--light); }
 .flow-control { display: flex; flex-direction: column; gap: 10px; }
+.flow-control #sound { margin-top: 4px; }
 .switch { display: flex; gap: 10px; align-items: center; border: 0; padding: 0; background: transparent; font-size: 15px; white-space: nowrap; }
 .switch-track { display: block; width: 30px; height: 16px; border-radius: 8px; background: #a6a99e; padding: 3px; transition: background .2s; }
 .switch-track span { display: block; width: 10px; height: 10px; border-radius: 50%; background: var(--paper); transform: translateX(0); transition: transform .2s; }

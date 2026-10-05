@@ -1,4 +1,5 @@
 import { createMosaic } from "../engine/runtime.js";
+import { createStoneSound } from "../engine/sound.js";
 import { heroAt, wallScale } from "./wall.js";
 
 const $ = (id) => document.getElementById(id);
@@ -142,6 +143,7 @@ async function build() {
   live = { mosaic, canvas, scale: layout.scale, view, width: layout.width, height: layout.height };
   lastLog = log;
   mosaic.setView({ frame: framing(canvas, layout.scale, view) });
+  listen();
   if (previous) {
     previous.mosaic.dispose();
     previous.canvas.remove();
@@ -166,6 +168,23 @@ async function build() {
   wall.dataset.state = "live";
   updateControls();
 }
+
+// The stones are heard only once asked for, and only while sound is on.
+const sound = createStoneSound();
+const soundButton = $("sound");
+let unhear = null;
+function listen() {
+  unhear?.();
+  unhear = live && soundButton.getAttribute("aria-pressed") === "true" ? live.mosaic.onContact((events) => sound.play(events)) : null;
+}
+soundButton.addEventListener("click", async () => {
+  const on = soundButton.getAttribute("aria-pressed") !== "true";
+  soundButton.setAttribute("aria-pressed", String(on));
+  soundButton.querySelector(".sound-label").textContent = on ? "Sound on" : "Sound";
+  if (on) await sound.start();
+  else await sound.stop();
+  listen();
+});
 
 replay.addEventListener("click", () => {
   if (!live) return;

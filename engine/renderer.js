@@ -25,7 +25,7 @@ export const TRAIL = 24;
 export const TRAIL_STEP = 0.025;
 // Each stone's spring under the pointer: natural frequency (rad/s), damping ratio, and
 // how far each stone's own frequency strays from it.
-const SPRING = { omega: 16, zeta: 0.55, spread: 0.15 };
+export const SPRING = { omega: 16, zeta: 0.55, spread: 0.15 };
 
 const GLSL_COMMON = `
 // Hash without Sine: David Hoskins, via David A Roberts MIT port.
@@ -141,6 +141,54 @@ vec3 shade(vec3 P, vec3 N, vec3 V, vec3 albedo, float metal, float rough, vec3 F
 }
 `;
 
+// The pointer's recent path, as the stones answer it. The stones and the mortar under them
+// read the same motion.
+const POINTER_CURL = `
+// Cull centre xy and cull radius of the trail, and the curl radius (m); no input culls everything.
+uniform vec4 uPointer;
+// Wall xy and strength of each trail sample (k + 0.5) * TRAIL_STEP seconds ago.
+uniform vec4 uTrail[${TRAIL}];
+// How the pointer's recent path moves the stone seated at seat: its sideways shift and its
+// turn, both still to be scaled, and its lift as a share of the full curl. Each stone answers
+// the path as a damped spring of its own, so it rises under the hand, trails it, and rocks
+// back into the mortar once the hand has passed. A resting pointer holds the plain curl.
+bool pointerCurl(vec2 seat, float seed, out vec2 shift, out vec3 turn, out float lift) {
+  shift = vec2(0.0);
+  turn = vec3(0.0);
+  lift = 0.0;
+  if (uPointer.z <= 0.0 || distance(seat, uPointer.xy) >= uPointer.z) return false;
+  float radius = uPointer.w;
+  float w0 = ${SPRING.omega.toFixed(3)} * (1.0 + ${SPRING.spread.toFixed(3)} * (2.0 * fract(seed * 71.3) - 1.0));
+  float ed = exp(-${SPRING.zeta.toFixed(3)} * w0 * ${TRAIL_STEP});
+  float wd = ${Math.sqrt(1 - SPRING.zeta ** 2).toFixed(4)} * w0 * ${TRAIL_STEP};
+  vec2 turnStep = vec2(cos(wd), sin(wd));
+  // The spring's impulse response at each sample's age, stepped by recurrence.
+  float env = sqrt(ed);
+  vec2 phase = vec2(cos(0.5 * wd), sin(0.5 * wd));
+  float norm = 0.0;
+  for (int k = 0; k < ${TRAIL}; k++) {
+    float g = env * phase.y;
+    norm += g;
+    env *= ed;
+    phase = vec2(phase.x * turnStep.x - phase.y * turnStep.y, phase.x * turnStep.y + phase.y * turnStep.x);
+    vec4 s = uTrail[k];
+    vec2 delta = seat - s.xy;
+    float d = length(delta);
+    float q = clamp(1.0 - d / radius, 0.0, 1.0);
+    float weight = q * q * (3.0 - 2.0 * q) * s.z * g;
+    if (weight == 0.0) continue;
+    vec2 tangent = vec2(-delta.y, delta.x) / max(d, radius * 0.15);
+    shift += tangent * weight;
+    turn += normalize(vec3(tangent.y, -tangent.x, 0.25)) * weight;
+    lift += weight;
+  }
+  shift /= norm;
+  turn /= norm;
+  lift /= norm;
+  return true;
+}
+`;
+
 // Where a stone is, and how it is turned, at uTime.
 const STONE_POSE = `
 uniform highp sampler2D uInst;
@@ -148,10 +196,7 @@ uniform mat4 uVP;
 uniform float uTime;
 uniform vec4 uRipple;
 uniform float uFlicker;
-// Cull centre xy and cull radius of the trail, and the curl radius (m); no input culls everything.
-uniform vec4 uPointer;
-// Wall xy and strength of each trail sample (k + 0.5) * TRAIL_STEP seconds ago.
-uniform vec4 uTrail[${TRAIL}];
+${POINTER_CURL}
 vec4 iA;
 vec4 iB;
 vec4 iC;
@@ -268,42 +313,12 @@ void stonePose(out mat3 R, out vec3 off, out float flight) {
     off.xy += d * (v * tt + 2.6 * v * tt * tt);
     R = rotAxis(axis, (spin == 0.0 ? 1.2 : spin) * (tt * 9.0 + tt * tt * 14.0)) * R;
   }
-  // A bounded curl around the pointer. Each stone answers the pointer's recent path as a
-  // damped spring of its own, so it rises under the hand, trails it, and rocks back into
-  // the mortar once the hand has passed. A resting pointer holds the plain curl.
-  // The shadow pass shares this pose.
-  if (uPointer.z > 0.0 && uTime >= T && uTime < iG.x && distance(iA.xy, uPointer.xy) < uPointer.z) {
+  // A bounded curl around the pointer. The shadow pass shares this pose.
+  vec2 shift;
+  vec3 turn;
+  float lift;
+  if (uTime >= T && uTime < iG.x && pointerCurl(iA.xy, seed, shift, turn, lift)) {
     float radius = uPointer.w;
-    float w0 = ${SPRING.omega.toFixed(3)} * (1.0 + ${SPRING.spread.toFixed(3)} * (2.0 * fract(seed * 71.3) - 1.0));
-    float ed = exp(-${SPRING.zeta.toFixed(3)} * w0 * ${TRAIL_STEP});
-    float wd = ${Math.sqrt(1 - SPRING.zeta ** 2).toFixed(4)} * w0 * ${TRAIL_STEP};
-    vec2 turnStep = vec2(cos(wd), sin(wd));
-    // The spring's impulse response at each sample's age, stepped by recurrence.
-    float env = sqrt(ed);
-    vec2 phase = vec2(cos(0.5 * wd), sin(0.5 * wd));
-    vec2 shift = vec2(0.0);
-    vec3 turn = vec3(0.0);
-    float lift = 0.0;
-    float norm = 0.0;
-    for (int k = 0; k < ${TRAIL}; k++) {
-      float g = env * phase.y;
-      norm += g;
-      env *= ed;
-      phase = vec2(phase.x * turnStep.x - phase.y * turnStep.y, phase.x * turnStep.y + phase.y * turnStep.x);
-      vec4 s = uTrail[k];
-      vec2 delta = iA.xy - s.xy;
-      float d = length(delta);
-      float q = clamp(1.0 - d / radius, 0.0, 1.0);
-      float weight = q * q * (3.0 - 2.0 * q) * s.z * g;
-      if (weight == 0.0) continue;
-      vec2 tangent = vec2(-delta.y, delta.x) / max(d, radius * 0.15);
-      shift += tangent * weight;
-      turn += normalize(vec3(tangent.y, -tangent.x, 0.25)) * weight;
-      lift += weight;
-    }
-    shift /= norm;
-    turn /= norm;
-    lift /= norm;
     off.xy += shift * radius * 0.12;
     // The rebound rocks the stone; the mortar keeps it from sinking more than half a millimetre.
     off.z += radius * 0.085 * max(lift, -0.02);
@@ -614,6 +629,8 @@ uniform vec3 uCoat;
 uniform vec3 uSinopia;
 out vec4 o;
 ${GLSL_COMMON}
+${POINTER_CURL}
+vec4 seatA(highp sampler2D inst, int id) { return texelFetch(inst, ivec2((id % ${PER_ROW}) * ${TEXELS}, id / ${PER_ROW}), 0); }
 float seatT(highp sampler2D inst, int id) { return texelFetch(inst, ivec2((id % ${PER_ROW}) * ${TEXELS}, id / ${PER_ROW}), 0).z; }
 float liftU(highp sampler2D inst, int id) { return texelFetch(inst, ivec2((id % ${PER_ROW}) * ${TEXELS} + 6, id / ${PER_ROW}), 0).x; }
 vec3 stoneRgb(highp sampler2D inst, int id) { return texelFetch(inst, ivec2((id % ${PER_ROW}) * ${TEXELS} + 3, id / ${PER_ROW}), 0).rgb; }
@@ -649,16 +666,24 @@ void layer(highp sampler2D inst, highp sampler2D own0, highp sampler2D own2, sam
     float T = seatT(inst, id);
     float U = liftU(inst, id);
     float seated = smoothstep(T - 0.01, T + 0.08, uTime) * (1.0 - smoothstep(U, U + 0.06, uTime));
+    // Mortar that a stone has been moved off is bare lime, lit and shaded only by the stone
+    // above it, instead of the tinted, shadowed footprint the stone left in it.
+    float moved = 0.0;
+    vec4 seat = seatA(inst, id);
+    vec2 shift;
+    vec3 turn;
+    float lift;
+    if (seated > 0.0 && pointerCurl(seat.xy, seat.w, shift, turn, lift)) moved = smoothstep(0.03, 0.5, lift) * seated;
     float wet = smoothstep(T - wetT.x, T - wetT.x * 0.4, uTime);
     float dry = smoothstep(T + 0.3, T + wetT.y, uTime);
     sheen = wet * (1.0 - dry);
     // The lime spread ahead of a stone is plain. Once the stone is set, the grout pressed
     // in round it is tinted to suit it, darker under dark glass.
     float set = smoothstep(T - 0.01, T + 0.12, uTime);
-    vec3 tint = mix(grout, mix(grout, stoneRgb(inst, id), 0.9), set);
+    vec3 tint = mix(grout, mix(grout, stoneRgb(inst, id), 0.9), set * (1.0 - moved));
     vec3 bed = mix(tint * 0.62, tint, dry);
     albedo = mix(coat, bed, wet);
-    ao = 1.0 - seated * 0.5 * exp(-e / 0.4);
+    ao = 1.0 - seated * (1.0 - moved) * 0.5 * exp(-e / 0.4);
     alive = uTime < U + 0.05;
   }
 }
@@ -1280,6 +1305,9 @@ export function createRenderer(gl, opts) {
       setBed(u, "B", B, 8);
       setBed(u, "A", A || B, 12);
       gl.uniform1i(u.uHasA, A ? 1 : 0);
+      const pointer = opts.pointerAt?.(t);
+      gl.uniform4fv(u.uPointer, pointer?.head || [0, 0, 0, 1]);
+      gl.uniform4fv(u.uTrail, pointer?.trail || noTrail);
       gl.uniform3fv(u.uCoat, opts.coat);
       gl.uniform3fv(u.uSinopia, opts.sinopia);
       gl.bindVertexArray(bedVao);

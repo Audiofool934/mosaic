@@ -1,4 +1,5 @@
 import { createMosaic } from "../engine/runtime.js";
+import { createStoneSound } from "../engine/sound.js";
 
 const $ = (id) => document.getElementById(id);
 const canvas = $("mosaic");
@@ -139,6 +140,7 @@ async function loadArtwork(file = null, { resetView = true } = {}) {
     if (disposed || token !== generation) { created.dispose(); return; }
     controller = created;
     currentFile = file;
+    listen();
     if (!file && Number.isFinite(created.info?.aspect) && Math.abs(aspect - created.info.aspect) > 0.001) {
       setAspect(created.info.aspect);
       const size = renderDimensions();
@@ -174,6 +176,21 @@ async function loadArtwork(file = null, { resetView = true } = {}) {
     console.error("Mosaic artwork failed:", error);
   }
 }
+
+// The stones are heard only once asked for: a click starts the sound, as browsers require.
+const sound = createStoneSound();
+let unhear = null;
+function listen() {
+  unhear?.();
+  unhear = controller && $("sound").getAttribute("aria-checked") === "true" ? controller.onContact((events) => sound.play(events)) : null;
+}
+$("sound").addEventListener("click", async () => {
+  const on = $("sound").getAttribute("aria-checked") !== "true";
+  $("sound").setAttribute("aria-checked", String(on));
+  if (on) await sound.start();
+  else await sound.stop();
+  listen();
+});
 
 $("import-button").addEventListener("click", () => fileInput.click());
 fileInput.addEventListener("change", () => {

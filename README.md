@@ -7,6 +7,7 @@ Thousands of individually cut stones follow the contours of a picture, catch the
 Glass, marble, gold, and mortar share one WebGL2 engine across the browser studio, still images, and animated films.
 
 The project includes an interactive studio and a portable **mosAIc** agent skill.
+See them at [mosaic.audiofool.ai](https://mosaic.audiofool.ai).
 Start from a deliberately composed key picture or bring an image of your own.
 
 ## Try the studio
@@ -79,7 +80,8 @@ Its wrapper is `node <skill-directory>/scripts/mosaic.mjs` and supports the same
 
 ## Put it on a website
 
-Serve the contents of `dist/site/` from any static HTTP host.
+The `Pages` workflow tests and builds every push to `main` and publishes `dist/site/` to [mosaic.audiofool.ai](https://mosaic.audiofool.ai) with GitHub Pages.
+To host it elsewhere, serve the contents of `dist/site/` from any static HTTP host.
 The root is the project page and the studio lives at `site/`.
 The build keeps all asset URLs relative, so the site can live under a subdirectory.
 For example, after serving the build at `/mosaic/`, embed the complete studio with:

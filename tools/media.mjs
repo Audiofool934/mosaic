@@ -149,6 +149,8 @@ async function main() {
       webp(file, path.join(OUT, `${name}.webp`));
       webp(file, path.join(OUT, `${name}-960.webp`), { width: 960 });
     }
+    // Link previews want a 1200 by 630 JPEG.
+    ffmpeg(['-i', end, '-vf', 'scale=1200:-2:flags=lanczos,crop=1200:630', '-frames:v', '1', '-q:v', '3', path.join(OUT, 'social.jpg')]);
 
     // Each band of the method plate is one stage of the same frame.
     const light = await still(work, 'examples/nocturne.json', 2, PLATE.width, 'light');

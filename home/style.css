@@ -134,11 +134,12 @@ h3 { margin: 0; font: 600 20px / 1.25 var(--serif); letter-spacing: -0.005em; }
 .route > p { margin: 12px 0 0; color: var(--muted); text-wrap: pretty; }
 .route > p:has(.button) { margin-top: 24px; }
 .route .aside { font: 400 14px / 1.55 var(--sans); }
-.code { position: relative; margin-top: 24px; background: var(--paper-deep); border-radius: 2px; }
-.code pre { margin: 0; padding: 18px 20px; overflow-x: auto; font: 400 13px / 1.75 var(--mono); }
+/* The copy button sits on its own row so it never covers a long first line. */
+.code { display: flex; flex-direction: column; margin-top: 24px; background: var(--paper-deep); border-radius: 2px; }
+.code pre { order: 2; margin: 0; padding: 4px 18px 18px; overflow-x: auto; font: 400 12.5px / 1.75 var(--mono); }
 .code pre code { font: inherit; }
 .copy {
-  position: absolute; top: 8px; right: 8px; padding: 5px 9px; border: 1px solid var(--rule); border-radius: 2px;
+  order: 1; align-self: flex-end; margin: 8px 8px 0 0; padding: 5px 9px; border: 1px solid var(--rule); border-radius: 2px;
   background: var(--paper); font: 500 12px / 1 var(--sans); color: var(--muted);
 }
 .copy:hover { color: var(--ink); border-color: var(--muted); }
@@ -150,7 +151,8 @@ h3 { margin: 0; font: 600 20px / 1.25 var(--serif); letter-spacing: -0.005em; }
   font: 400 14px / 1.6 var(--sans); color: var(--muted);
 }
 .colophon p { margin: 0; text-wrap: pretty; }
-.colophon-mark { display: flex; align-items: center; align-self: start; gap: 8px; color: var(--ink); font-weight: 500; }
+.colophon-mark { display: grid; gap: 6px; align-self: start; }
+.colophon-mark p:first-child { display: flex; align-items: center; gap: 8px; color: var(--ink); font-weight: 500; }
 .colophon-mark svg { width: 15px; height: 15px; }
 
 @media (max-width: 1080px) {
@@ -168,7 +170,7 @@ h3 { margin: 0; font: 600 20px / 1.25 var(--serif); letter-spacing: -0.005em; }
 
 @media (max-width: 720px) {
   :root { font-size: 17px; --masthead: 56px; }
-  .nav a:not(.nav-studio) { display: none; }
+  .nav a:not(.nav-studio, .nav-source) { display: none; }
   .wordmark { font-size: 22px; }
   .panel { width: 100%; min-width: 0; }
   .plate-caption { padding-top: 12px; }

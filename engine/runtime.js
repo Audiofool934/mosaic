@@ -124,6 +124,14 @@ export async function createMosaic(canvas, options = {}) {
 
   // The pointer's recent path on the wall, newest first, seen through this subframe's camera.
   const head = new Float32Array(4), trail = new Float32Array(TRAIL * 4);
+  // Where a point on the canvas falls on the wall, through the camera unprojected by m.
+  function onWall(m, p) {
+    const nx = p.x * 2 - 1, ny = 1 - p.y * 2;
+    const a = xform(m, [nx, ny, -1]), b = xform(m, [nx, ny, 1]);
+    const z0 = a[2] / a[3], z1 = b[2] / b[3], u = -z0 / (z1 - z0);
+    return [a[0] / a[3] + (b[0] / b[3] - a[0] / a[3]) * u, a[1] / a[3] + (b[1] / b[3] - a[1] / a[3]) * u];
+  }
+  const unproject = c => invert(mat4Mul(perspective(FOVY, width / height, Math.max(.004, c.dist * .04), Math.min(8, c.dist * 4 + .5)), lookAt(c.eye, c.target, c.up)));
   function pointerTrail(t) {
     const at = frameClock + (t - time);
     let c = null, m = null, x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
@@ -133,12 +141,9 @@ export async function createMosaic(canvas, options = {}) {
       if (!(p.strength > 0)) continue;
       if (!m) {
         c = timeline.cameraAt(t);
-        m = invert(mat4Mul(perspective(FOVY, width / height, Math.max(.004, c.dist * .04), Math.min(8, c.dist * 4 + .5)), lookAt(c.eye, c.target, c.up)));
+        m = unproject(c);
       }
-      const nx = p.x * 2 - 1, ny = 1 - p.y * 2;
-      const a = xform(m, [nx, ny, -1]), b = xform(m, [nx, ny, 1]);
-      const z0 = a[2] / a[3], z1 = b[2] / b[3], u = -z0 / (z1 - z0);
-      const x = a[0] / a[3] + (b[0] / b[3] - a[0] / a[3]) * u, y = a[1] / a[3] + (b[1] / b[3] - a[1] / a[3]) * u;
+      const [x, y] = onWall(m, p);
       trail[k * 4] = x; trail[k * 4 + 1] = y;
       x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y);
     }
@@ -196,13 +201,25 @@ export async function createMosaic(canvas, options = {}) {
   }
   const redraw = () => render(time, frameInput, frameInput === live ? clock() : frameClock);
   function schedule() { if (!raf && !disposed && !lost) raf = requestAnimationFrame(tick); }
-  // Listeners hear the stones that meet their mortar in each live frame.
+  // Listeners hear the stones the pointer touches and the stones that meet each other or their
+  // mortar, in each live frame.
   const listeners = new Set();
-  let hear = null;
-  function heard(from, dt) {
+  let hear = null, heardAt = 0;
+  function heard(from, c) {
     hear ??= createContacts();
     const cam = timeline.cameraAt(time), w = cam.w / 1000;
-    const events = hear({ layers: base.layersAt(time), pointer: pointerTrail(time), time, from, dt,
+    // The pointer's own path since the last frame, both ends seen through this frame's camera,
+    // so a scroll under a still pointer is not a touch. A fingertip reaches 0.28% of the view,
+    // about one course of stones.
+    const since = Math.max(heardAt, c - .05), p0 = live(since), p1 = live(c);
+    let touch = null;
+    if (p0.strength > 0 && p1.strength > 0 && c > since) {
+      const m = unproject(cam);
+      const moved = Math.hypot(p1.x - p0.x, (p1.y - p0.y) * height / width);
+      touch = { a: onWall(m, p0), b: onWall(m, p1), reach: w * .0028, speed: moved / (c - since), dt: c - since };
+    }
+    heardAt = c;
+    const events = hear({ layers: base.layersAt(time), pointer: pointerTrail(time), touch, time, from, clock: c,
       view: { x: cam.target[0], y: cam.target[1], w, h: w / (width / height) } });
     if (events.length) for (const listener of listeners) listener(events);
   }
@@ -215,7 +232,7 @@ export async function createMosaic(canvas, options = {}) {
     if (playing) { time += dt; if (time >= duration - 1 / film.fps) playing = false; }
     const c = clock();
     render(time, live, c);
-    if (listeners.size) heard(from, dt);
+    if (listeners.size) heard(from, c);
     // The stones keep moving until the newest input has passed through the whole trail.
     if (playing || c - (input.at(-1)?.t ?? -Infinity) < settleTime) schedule(); else lastNow = 0;
   }

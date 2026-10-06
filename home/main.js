@@ -65,7 +65,8 @@ function updateControls() {
 
 // The scenes behind the name: the wall plays until its next rest, where the page holds the
 // scene for a while, then plays on into the next. It holds while the first screen is out of
-// view, and stops when paused.
+// view, and stops when paused. While it is first laid, it waits at the gate until every
+// picture has joined it, so none appears half laid.
 let cycling = false;
 let holding = 0;
 let held = false;
@@ -84,7 +85,9 @@ function hold(seconds) {
 }
 
 function advance() {
-  if (!live || !cycling || held || !heroInView || live.mosaic.getState().playing) return;
+  if (!live || !cycling || held || !heroInView) return;
+  const { time, playing } = live.mosaic.getState();
+  if (playing || (!live.joined && time >= live.gate)) return;
   live.mosaic.play();
   watch();
 }
@@ -100,6 +103,11 @@ function watch() {
     if (!live) return;
     const { time, playing } = live.mosaic.getState();
     if (!playing) return;
+    if (!live.joined && time >= live.gate) {
+      live.mosaic.pause();
+      checked = time;
+      return;
+    }
     const looped = time < checked;
     if (looped || live.rests.some((r) => checked < r && time >= r)) {
       // The first rest, once the wall is first laid, is shorter.
@@ -149,7 +157,7 @@ async function build() {
   // is named rather than passed, so workers cut them while the page stays live, and the name
   // is laid as soon as it is ready.
   const module = new URL("./wall.js", import.meta.url).href;
-  const { project, loop, rests } = wallFilm(layout, { module, laid: first && !reduceMotion.matches, band: view.px });
+  const { project, loop, gate, rests } = wallFilm(layout, { module, laid: first && !reduceMotion.matches, band: view.px });
   let mosaic;
   try {
     mosaic = await createMosaic(canvas, { project, loop, width: view.px[0], height: view.px[1], samples: 1, interactive: true, worker: true, onProgress: (line) => log.push(line) });
@@ -168,7 +176,8 @@ async function build() {
     return;
   }
   const previous = live;
-  live = { mosaic, canvas, scale: layout.scale, view, width: layout.width, height: layout.height, rests };
+  // A wall cut again has every picture before it is shown; the first joins them as they come.
+  live = { mosaic, canvas, scale: layout.scale, view, width: layout.width, height: layout.height, rests, gate, joined: !first };
   lastLog = log;
   mosaic.setView({ frame: framing(canvas, layout.scale, view) });
   listen();
@@ -188,6 +197,8 @@ async function build() {
   note.textContent = "Laying the stones cut in your browser.";
   mosaic.ready.then(() => {
     if (live?.mosaic !== mosaic) return;
+    live.joined = true;
+    advance();
     const seconds = ((performance.now() - started) / 1000).toFixed(1);
     note.textContent = `${mosaic.info.stoneCount.toLocaleString("en-US")} stones of glass, marble, limestone, basalt, and gold, cut around this page in your browser in ${seconds} seconds.`;
   });

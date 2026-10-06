@@ -102,6 +102,7 @@ Each scene is drawn on a stage 1600 by 900 millimetres, scaled to the first scre
 Below the first screen the scene runs on to a long wave, where a second picture takes over, painted from the page's measured layout: tablets and emblems become gold-framed openings, headings rest on level courses, and the material samples are medallions in the wall itself.
 The name's letters are drawn as shapes in `examples/letters.js` rather than set in a typeface, so the word is cut the same in every browser; `examples/inscription.json` is the same first screen as a film of its own.
 `home/main.js` measures the layout, has the pictures cut in workers, keeps a canvas one viewport tall (plus a margin) moving with the scroll, and cuts the wall again when a new width reflows the page.
+The name is laid first, and the page waits there until every picture has been cut before the first scene and the page are laid around it, so none appears half laid.
 Once laid, the wall plays in a loop that ends where the first scene flows back in, and the page pauses it at each scene's rest for a few seconds, so nothing is drawn while the stones are still and nothing flows while the first screen is out of view.
 Images imported through that studio are processed locally.
 An application that loads remote image URLs still needs the server's normal cross-origin permission to read those images.

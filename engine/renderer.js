@@ -698,8 +698,8 @@ void layer(highp sampler2D inst, highp sampler2D own0, highp sampler2D own2, sam
     float T = seatT(inst, id);
     float U = liftU(inst, id);
     float seated = smoothstep(T - 0.01, T + 0.08, uTime) * (1.0 - smoothstep(U, U + 0.06, uTime));
-    // Mortar that a stone has been moved off is bare lime, lit and shaded only by the stone
-    // above it, instead of the tinted, shadowed footprint the stone left in it.
+    // Mortar that a stone has been moved off is lit and shaded only by the stone above it,
+    // instead of the shadowed footprint the stone left in it.
     float moved = 0.0;
     vec4 seat = seatA(inst, id);
     vec2 shift;
@@ -711,9 +711,10 @@ void layer(highp sampler2D inst, highp sampler2D own0, highp sampler2D own2, sam
     float dry = smoothstep(T + 0.3, T + wetT.y, uTime);
     sheen = wet * (1.0 - dry);
     // The lime spread ahead of a stone is plain. Once the stone is set, the grout pressed
-    // in round it is tinted to suit it, darker under dark glass.
+    // in round it is tinted to suit it, darker under dark glass, and the bed a stone is lifted
+    // off is a deeper shade of the same, so a lifted stone floats over its own colour.
     float set = smoothstep(T - 0.01, T + 0.12, uTime);
-    vec3 tint = mix(grout, mix(grout, stoneRgb(inst, id), 0.9), set * (1.0 - moved));
+    vec3 tint = mix(grout, mix(grout, stoneRgb(inst, id), 0.9), set) * mix(1.0, 0.5, moved);
     vec3 bed = mix(tint * 0.62, tint, dry);
     albedo = mix(coat, bed, wet);
     ao = 1.0 - seated * (1.0 - moved) * 0.5 * exp(-e / 0.4);

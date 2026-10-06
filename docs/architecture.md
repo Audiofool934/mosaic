@@ -119,7 +119,7 @@ Each stone answers the pointer's last 0.6 seconds as a damped spring of its own:
 A resting pointer holds the plain curl, and drawing stops once the stones are still.
 On a page that follows its own scroll, each point of that trail is where the pointer was over the wall at that moment, through the view as it was then, so a wall scrolling under a still pointer ripples the stones as a moving pointer does and they settle into the same resting curl.
 Exports and replays have no such view, so their frames are unchanged.
-The mortar under a stone answers the same motion: as a stone moves off its bed, the footprint it left there, tinted and shadowed, gives way to plain lime lit by the scene and shaded by the stone above it.
+The mortar under a stone answers the same motion: as a stone moves off its bed, the shadowed footprint it left there gives way to a deeper shade of the stone's own grout, lit by the scene and shaded by the stone above it, so a lifted stone floats over its own colour.
 `seek(time)` pauses live playback and clears unrecorded pointer input.
 An explicit pointer state or recorded trace can be passed when interaction is part of a reproducible render.
 Stone rendering and shadow rendering use the same movement transform.

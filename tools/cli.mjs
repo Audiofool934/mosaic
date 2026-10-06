@@ -60,13 +60,15 @@ export async function inspectProject(projectFile) {
   catch (error) { throw new Error(`Cannot read project ${path.basename(file)}: ${error.message}`); }
   const project = validateProject(source);
   for (const scene of project.scenes) {
-    if (typeof scene.picture !== 'string') throw new Error(`${scene.id}: a saved project must reference a scene module by path.`);
-    if (/^[a-z][a-z\d+.-]*:/i.test(scene.picture) || scene.picture.startsWith('/')) throw new Error(`${scene.id}: use a relative local scene module path.`);
-    const target = path.resolve(path.dirname(file), scene.picture);
+    // A scene module by path, or a picture function in one, called with plain arguments.
+    const module = typeof scene.picture === 'string' ? scene.picture : scene.picture?.module;
+    if (typeof module !== 'string') throw new Error(`${scene.id}: a saved project must reference a scene module by path, or { module, export, args }.`);
+    if (/^[a-z][a-z\d+.-]*:/i.test(module) || module.startsWith('/')) throw new Error(`${scene.id}: use a relative local scene module path.`);
+    const target = path.resolve(path.dirname(file), module);
     const relative = path.relative(path.dirname(file), target);
     if (relative.startsWith('..' + path.sep) || relative === '..') throw new Error(`${scene.id}: scene modules must be inside the project directory.`);
     try { await readFile(target); }
-    catch { throw new Error(`${scene.id}: scene module not found: ${scene.picture}`); }
+    catch { throw new Error(`${scene.id}: scene module not found: ${module}`); }
   }
   return { file, project, metadata: {
     title: project.title || 'Untitled mosaic', version: project.version, seed: project.seed,

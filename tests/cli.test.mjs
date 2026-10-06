@@ -59,6 +59,14 @@ test('inspect validates local manifests without executing a scene module', async
     assert.equal(JSON.parse(result.stdout).seed, 42);
     await writeFile(path.join(directory, 'project.json'), JSON.stringify({ ...project, scenes: [{ ...project.scenes[0], picture: '../escape.js' }] }));
     await assert.rejects(inspectProject(path.join(directory, 'project.json')), /inside the project/);
+    // A picture can also be a function in a local module, called with plain arguments.
+    const named = (module) => ({ ...project, scenes: [{ ...project.scenes[0], picture: { module, export: 'scene', args: { name: 'night' } } }] });
+    await writeFile(path.join(directory, 'project.json'), JSON.stringify(named('./scene.js')));
+    assert.deepEqual((await inspectProject(path.join(directory, 'project.json'))).metadata.scenes[0].picture.args, { name: 'night' });
+    await writeFile(path.join(directory, 'project.json'), JSON.stringify(named('../escape.js')));
+    await assert.rejects(inspectProject(path.join(directory, 'project.json')), /inside the project/);
+    await writeFile(path.join(directory, 'project.json'), JSON.stringify({ ...project, scenes: [{ ...project.scenes[0], picture: { export: 'scene' } }] }));
+    await assert.rejects(inspectProject(path.join(directory, 'project.json')), /by path/);
   } finally { await rm(directory, { recursive: true, force: true }); }
 });
 

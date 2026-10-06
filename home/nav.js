@@ -10,7 +10,7 @@ const READ = 0.4;
 export function createBar(nav, { reduceMotion, onReady = () => {} }) {
   const links = ITEMS.map((it) => nav.querySelector(`a[href="#${it.id}"]`));
   const sections = ITEMS.map((it) => document.getElementById(it.id));
-  let live = null, current = -1, width = 0, generation = 0, timer = 0, spying = 0, over = false;
+  let live = null, current = -1, width = 0, generation = 0, timer = 0, spying = 0;
 
   // The section in view: the last one whose top has passed the reading line.
   function inView() {
@@ -88,19 +88,6 @@ export function createBar(nav, { reduceMotion, onReady = () => {} }) {
 
   addEventListener("scroll", () => {
     if (!spying) spying = requestAnimationFrame(() => { spying = 0; show(inView()); });
-  }, { passive: true });
-
-  // The pointer lifts the bar's stones too, while it is over the bar.
-  addEventListener("pointermove", (event) => {
-    if (!live || reduceMotion.matches) return;
-    const r = live.canvas.getBoundingClientRect();
-    if (event.clientX >= r.left && event.clientX <= r.right && event.clientY >= r.top && event.clientY <= r.bottom) {
-      live.mosaic.setPointer({ x: (event.clientX - r.left) / r.width, y: (event.clientY - r.top) / r.height, active: true });
-      over = true;
-    } else if (over) {
-      live.mosaic.setPointer({ active: false });
-      over = false;
-    }
   }, { passive: true });
 
   // A new width lays the names out again, so the bar is cut again for it.

@@ -17,9 +17,8 @@
   --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   --gutter: clamp(20px, 5vw, 72px);
   --measure: 1240px;
-  /* The first screen spans the page width, as high as 900 millimetres of wall at the scale
-     home/wall.js uses: a fixed height up to 1440 pixels wide, and in proportion past it. */
-  --hero: max(min(102.27vw, 811px), 56.25vw);
+  /* The first screen fills the screen, like every room under it. */
+  --hero: 100svh;
   --lift: 0 1px 2px rgb(8 18 24 / 0.55), 0 0 18px rgb(8 18 24 / 0.35);
   /* The bar floats this far below the top of the screen; home/nav.js sets its height. */
   --bar-top: clamp(10px, 1.6vw, 22px);
@@ -32,9 +31,9 @@
 }
 
 * { box-sizing: border-box; }
-/* Sections settle just under the bar when a scroll ends near their start. */
-html { scroll-padding-top: calc(var(--bar-top) + var(--bar-h, 45px) + 14px); scroll-snap-type: y proximity; }
-main > section { scroll-snap-align: start; }
+/* The page settles on one room at a time; on a screen too short for a room, only near one. */
+html { scroll-snap-type: y mandatory; }
+@media (max-height: 540px) { html { scroll-snap-type: y proximity; } }
 @media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
 body { position: relative; display: flow-root; margin: 0; background: var(--plaster); overflow-x: clip; }
 a { color: inherit; text-decoration-thickness: 1px; text-underline-offset: 3px; }
@@ -82,7 +81,10 @@ h1[data-wall="band"], h2[data-wall="band"] { width: fit-content; }
 }
 .bar[data-state="live"] { visibility: visible; }
 .bar canvas { position: absolute; inset: 0; display: block; width: 100%; height: 100%; border-radius: inherit; }
+/* The bar's stones stay still under the pointer, so it is plain which name it is on; the name
+   under it brightens instead. */
 .bar a { position: absolute; border-radius: 6px; }
+.bar a:hover { background: rgb(239 235 225 / 0.1); }
 .bar a:focus-visible { outline: 2px solid var(--gilt); outline-offset: -3px; }
 .bar[data-state="still"] {
   visibility: visible; width: auto; height: auto; display: flex; gap: 4px 22px; flex-wrap: wrap; justify-content: center; padding: 10px 22px;
@@ -111,14 +113,12 @@ h1[data-wall="band"], h2[data-wall="band"] { width: fit-content; }
 .sound[aria-pressed="true"] .waves { display: inline; }
 .sound[aria-pressed="true"] .mute { display: none; }
 
-/* The first screen is the name set in stone, from the very top of the page, with only the bar
-   over it and no words of the page's own type. */
-.hero { position: relative; }
+/* The first screen is the name set in stone, a whole screen high, with only the bar over it
+   and no words of the page's own type. */
+.hero { position: relative; scroll-snap-align: start; scroll-snap-stop: always; }
 .hero-art { height: var(--hero); }
-/* On a screen much taller than it is wide, the first screen fills most of it, and the name
-   is set in two lines. */
+/* On a screen much taller than it is wide, the name is set in two lines. */
 @media (max-aspect-ratio: 4/5) {
-  :root { --hero: clamp(102.27vw, 100svh - 120px, 200vw); }
   .wall[data-state="still"] { background: url("media/hero-tall.webp") center top / 100% auto no-repeat, #12303f; }
 }
 .work-title { font: italic 400 16px / 1.5 var(--serif); color: var(--light); margin-right: 6px; }
@@ -126,18 +126,35 @@ h1[data-wall="band"], h2[data-wall="band"] { width: fit-content; }
 .text-button:hover { color: var(--gilt); }
 .tablet .text-button:hover { color: var(--gold); }
 
-/* What the page is, on one tablet under the first screen, with a note on the wall under it.
-   The note keeps room for two lines, so the layout the wall was cut around never moves when
-   its words change. */
-.intro { padding-block: clamp(96px, 12vw, 176px) clamp(64px, 8vw, 120px); }
-.lede { width: min(100%, 680px); margin-inline: auto; }
-.wall-note {
-  width: min(100%, 680px); min-height: 3em; margin: 22px auto 0; text-align: center; text-shadow: var(--lift);
-  font: 400 14px / 1.5 var(--sans); color: var(--light-muted); text-wrap: balance;
+/* Rooms: under the first screen, each part of the page is a room a screen high, which the
+   page settles on, with its words clear of the bar above and the controls below. A room's
+   pages are of a piece with it, except on a phone. */
+.room {
+  display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: 24px; row-gap: clamp(18px, 3.4vh, 40px); align-content: center;
+  width: min(100% - 2 * var(--gutter), var(--measure)); min-height: 100svh; margin-inline: auto;
+  padding-block: calc(var(--bar-top) + var(--bar-h, 45px) + clamp(16px, 4vh, 44px)) clamp(76px, 11vh, 104px);
+  scroll-snap-align: start; scroll-snap-stop: always;
 }
+.page { display: contents; }
+.room > *, .page > * { grid-column: 1 / -1; min-width: 0; }
+
+.section-head { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: 24px; row-gap: 16px; align-items: end; }
+h2 { grid-column: 1 / span 6; justify-self: start; margin: 0; font: 400 clamp(32px, min(4.4vw, 6.6vh), 60px) / 1.02 var(--serif); letter-spacing: -0.025em; text-wrap: balance; }
+.section-head p { grid-column: 8 / span 5; margin: 0; color: var(--muted); text-wrap: pretty; }
+h3 { margin: 0; font: 600 20px / 1.25 var(--serif); letter-spacing: -0.005em; }
+
+/* What the page is, on one tablet, with a note on the wall under it that keeps room for two
+   lines, so the layout the wall was cut around never moves when its words change. */
+.intro { justify-items: center; }
+.lede { width: min(100%, 720px); }
 .lede p { margin: 0 0 24px; text-wrap: pretty; }
+.lede p:first-child { font-size: clamp(18px, 1.5vw, 21px); }
 .lede .actions { display: flex; flex-wrap: wrap; gap: 12px; margin: 0; }
 .lede .source { margin: 22px 0 0; font: 400 15px / 1.5 var(--sans); color: var(--muted); }
+.wall-note {
+  width: min(100%, 680px); min-height: 3em; margin: 0; text-align: center; text-shadow: var(--lift);
+  font: 400 14px / 1.5 var(--sans); color: var(--light-muted); text-wrap: balance;
+}
 
 .button {
   display: inline-flex; align-items: center; justify-content: center; min-height: 46px; padding: 0 20px;
@@ -147,47 +164,35 @@ h1[data-wall="band"], h2[data-wall="band"] { width: fit-content; }
 .button.primary { background: var(--ink); color: var(--paper); }
 .button.primary:hover { background: #33464a; color: var(--paper); }
 
-/* Sections: rooms along the wall, with water between them. */
-.section { padding-block: clamp(80px, 10vw, 160px); }
-.section-head {
-  display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: 24px; row-gap: 24px; align-items: end;
-  margin-bottom: clamp(48px, 6vw, 88px);
-}
-h2 { grid-column: 1 / span 6; justify-self: start; margin: 0; font: 400 clamp(36px, 4.6vw, 62px) / 1.02 var(--serif); letter-spacing: -0.025em; text-wrap: balance; }
-.section-head p { grid-column: 8 / span 5; margin: 0; color: var(--muted); text-wrap: pretty; }
-h3 { margin: 0; font: 600 20px / 1.25 var(--serif); letter-spacing: -0.005em; }
-
-/* The method plate and its four stages. */
+/* Method: the plate beside its four stages, no taller than the room has room for. */
+.strip { grid-column: 1 / span 7; align-self: center; width: min(100%, calc((100svh - 300px) * 1.7778)); }
 .strip img { background: #0e1d24; }
-.stages { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 24px 32px; margin-top: 48px; list-style: none; }
-.stages h3 { margin-bottom: 8px; }
+.stages { grid-column: 8 / span 5; align-self: center; display: grid; gap: 16px; margin: 0; list-style: none; }
+.stages h3 { margin-bottom: 4px; font-size: 18px; }
 .numeral { color: var(--gold); font-weight: 400; margin-right: 4px; }
-.stages p { margin: 0; font-size: 16px; line-height: 1.55; color: var(--muted); text-wrap: pretty; }
+.stages p { margin: 0; font-size: 15px; line-height: 1.5; color: var(--muted); text-wrap: pretty; }
 
-/* Materials: live medallions in the wall. */
-.tray { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 72px 32px; margin: 0; padding: 0; list-style: none; }
-.tray li { display: grid; justify-items: center; gap: 30px; text-align: center; }
-.medallion { width: min(100%, 220px); aspect-ratio: 1; border-radius: 50%; }
-.label h3 { font-size: 21px; }
-.label p { margin: 6px 0 0; font: 400 15px / 1.5 var(--sans); color: var(--light-muted); text-wrap: balance; }
+/* Materials: two rows of four medallions in the wall, each named beside it. */
+.tray { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: clamp(18px, 3.4vh, 36px) 28px; margin: 0; padding: 0; list-style: none; }
+.tray li { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 18px; }
+.medallion { width: clamp(72px, 13vh, 132px); aspect-ratio: 1; border-radius: 50%; }
+.label h3 { font-size: 19px; }
+.label p { margin: 4px 0 0; font: 400 14px / 1.45 var(--sans); color: var(--light-muted); text-wrap: balance; }
 
-/* Work */
-.film { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: 40px; row-gap: 32px; align-items: end; margin: 0 0 clamp(80px, 9vw, 140px); }
-.film .emblem { grid-column: 1 / span 8; }
+/* Work: the film beside its caption, then the two pieces made by agents side by side. */
+.film { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: 40px; row-gap: 24px; align-items: end; margin: 0; }
+.film .emblem { grid-column: 1 / span 8; width: min(100%, calc((100svh - 320px) * 1.7778)); }
 .film video { aspect-ratio: 16 / 9; background: #0f222c; }
 .film figcaption { grid-column: 9 / span 4; display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
 .film figcaption h3 { font-style: italic; font-weight: 400; font-size: 22px; }
 .film figcaption p { margin: 0; font: 400 15px / 1.55 var(--sans); color: var(--muted); }
-.agents { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 48px 40px; align-items: start; }
-.agents-note { grid-column: 1 / span 4; }
-.agents-note p { margin: 12px 0 0; color: var(--muted); text-wrap: pretty; }
-.agents figure { grid-column: span 4; margin: 0; }
-.agents img { aspect-ratio: 1; }
-.agents figcaption { margin-top: 26px; font: 400 14px / 1.55 var(--sans); color: var(--light-muted); justify-self: start; width: fit-content; }
+.pieces { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 40px; justify-items: center; }
+.pieces figure { margin: 0; width: min(100%, calc(100svh - 430px)); }
+.pieces img { aspect-ratio: 1; }
+.pieces figcaption { margin-top: 18px; font: 400 14px / 1.55 var(--sans); color: var(--light-muted); width: fit-content; }
 
-/* Use */
-.routes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 56px 40px; align-items: start; }
-.route { min-width: 0; }
+/* Use it: three routes side by side. */
+.route { grid-column: span 4; min-width: 0; }
 .route > p { margin: 12px 0 0; color: var(--muted); text-wrap: pretty; }
 .route > p:has(.button) { margin-top: 24px; }
 .route .aside { font: 400 14px / 1.55 var(--sans); }
@@ -201,10 +206,9 @@ h3 { margin: 0; font: 600 20px / 1.25 var(--serif); letter-spacing: -0.005em; }
 }
 .copy:hover { color: var(--ink); border-color: var(--muted); }
 
-/* Colophon */
+/* The colophon closes the page in a room of its own. */
 .colophon {
-  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 24px 32px;
-  margin: clamp(40px, 6vw, 96px) auto clamp(96px, 12vw, 180px); padding: 32px 36px;
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 24px 32px; margin: 0; padding: 32px 36px;
   font: 400 14px / 1.6 var(--sans); color: var(--muted);
 }
 .colophon p { margin: 0; text-wrap: pretty; }
@@ -215,23 +219,29 @@ h3 { margin: 0; font: 600 20px / 1.25 var(--serif); letter-spacing: -0.005em; }
 @media (max-width: 1080px) {
   h2, .section-head p { grid-column: 1 / -1; }
   .section-head p { max-width: 60ch; }
-  .tray { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .routes { grid-template-columns: minmax(0, 1fr); max-width: 720px; }
-  .stages { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .agents-note { grid-column: 1 / -1; max-width: 60ch; }
-  .agents figure { grid-column: span 6; }
-  .film .emblem, .film figcaption { grid-column: 1 / -1; }
+  .tray li { grid-template-columns: minmax(0, 1fr); justify-items: center; align-content: start; text-align: center; gap: 12px; }
   .colophon { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
+/* On a phone, a room too full for one screen is set as pages, each a screen of its own. */
 @media (max-width: 720px) {
   :root { font-size: 17px; --gutter: 22px; }
   .tablet { padding: 22px 22px; }
-  .stages { grid-template-columns: minmax(0, 1fr); }
-  .tray { gap: 56px 20px; }
-  .medallion { width: min(100%, 150px); }
-  .label p { font-size: 14px; }
-  .film, .agents, .section-head { grid-template-columns: minmax(0, 1fr); }
-  .film .emblem, .film figcaption, .agents-note, .agents figure { grid-column: 1 / -1; }
+  .room { grid-template-columns: minmax(0, 1fr); column-gap: 0; row-gap: 20px; padding-bottom: 84px; }
+  .room > *, .page > *, .strip, .stages, .route, .film .emblem, .film figcaption { grid-column: 1 / -1; }
+  .room:has(> .page) { display: block; min-height: 0; padding-block: 0; scroll-snap-align: none; }
+  .page {
+    display: grid; grid-template-columns: minmax(0, 1fr); row-gap: 20px; align-content: center; min-height: 100svh;
+    padding-block: calc(var(--bar-top) + var(--bar-h, 62px) + 18px) 84px; scroll-snap-align: start; scroll-snap-stop: always;
+  }
+  .section-head { grid-template-columns: minmax(0, 1fr); row-gap: 14px; }
+  .strip, .film .emblem, .pieces figure { width: 100%; }
+  .stages { gap: 14px; }
+  .tray { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 16px; }
+  .tray li { gap: 8px; }
+  .medallion { width: min(100%, 92px); }
+  .label p { font-size: 13px; }
+  .film { grid-template-columns: minmax(0, 1fr); row-gap: 18px; }
+  .pieces { gap: 16px; }
   .colophon { grid-template-columns: 1fr; }
 }

@@ -212,20 +212,27 @@ export const SCENE_NAMES = Object.keys(SCENES);
 // The stage every scene is drawn on, in millimetres: the shape of a desktop's first screen.
 export const STAGE = { w: 1600, h: 900 };
 
+// How the stage fills a first screen `w` wide and `screen` high, the way a cover image fills a
+// frame: scaled evenly until it covers the screen, so a narrower screen cuts its sides and a
+// wider one its foot. `h` is how high the scaled stage is; the name is set in its band.
+export function stageOn(w, screen) {
+  const scale = Math.max(w / STAGE.w, screen / STAGE.h);
+  return { scale, h: STAGE.h * scale };
+}
+
 // A scene as a picture `w` by `h` millimetres whose first screen is `screen` high, in the
-// house light, its camera looking straight at the whole panel. The stage fills the first
-// screen the way a cover image fills a frame: scaled to its height and, on a narrower panel,
-// cut around the scene's focus, or on a wider one stretched across it; below the first
-// screen the scene runs on to the panel's foot. Its stones are `k` times their size on a
-// desktop page, and it leaves a hole where the name is set unless `hole` is false. `build`
-// says how it is laid, if it is, straight onto the bare plaster, with no sinopia drawn first.
+// house light, its camera looking straight at the whole panel. The stage covers the first
+// screen, cut around the scene's focus at the sides, and below it the scene runs on to the
+// panel's foot. Its stones are `k` times their size on a desktop page, and it leaves a hole
+// where the name is set unless `hole` is false. `build` says how it is laid, if it is,
+// straight onto the bare plaster, with no sinopia drawn first.
 export function scene({ name, w, h, screen = h, stack, k = 1, hole = true, build }) {
   const s = SCENES[name];
   if (!s) throw new Error(`No scene ${name}.`);
-  const sy = screen / STAGE.h, sx = Math.max(w / STAGE.w, sy);
+  const { scale, h: band } = stageOn(w, screen), sx = scale, sy = scale;
   const tx = clamp(w / 2 - (s.focus ?? 0.5) * STAGE.w * sx, w - STAGE.w * sx, 0);
   const regions = () => s.regions(STAGE.w, STAGE.h).map((r) => ({ ...r, size: r.size * k, ...(r.center && { center: [tx + r.center[0] * sx, r.center[1] * sy] }) }));
-  const set = nameAt(w, screen, stack);
+  const set = nameAt(w, band, stack);
   return {
     config: { panel: { w, h }, res: 1, background: s.regions(STAGE.w, STAGE.h)[0].name, camera: { keys: [[0, w / 2, h / 2, w]], tilt: 0, yaw: 0, aperture: 0.004, drift: 0 }, light: house.light, sinopia: false, ...(build && { build }) },
     regions,

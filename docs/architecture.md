@@ -100,9 +100,11 @@ The mortar is drawn once for each pair of pictures, the newest two last, and a l
 
 The project page is such a wall.
 `home/wall.js` sets the name on the first screen, in white marble with its AI inlaid in gold, in front of four scenes from `examples/landscapes.js` that flow into one another in turn: moonlit water, dunes at dusk, sweeping currents, and peaks at first light.
-Each scene is drawn on a stage 1600 by 900 millimetres, scaled to the first screen the way a cover image fills a frame and cut around its focus on a narrow screen, where the name is set as MOS over AIC.
+Each scene is drawn on a stage 1600 by 900 millimetres, scaled evenly until it covers the first screen, the way a cover image fills a frame: a narrow screen cuts its sides around the scene's focus, and there the name is set as MOS over AIC, while a wide one cuts its foot.
 Below the first screen the scene runs on to a long wave, where a second picture takes over, painted from the page's measured layout: tablets and emblems become gold-framed openings, headings rest on level courses, and the material samples are medallions in the wall itself.
-The name's letters are drawn as shapes in `examples/letters.js` rather than set in a typeface, so the word is cut the same in every browser, and the line under it is set in stone type as a picture of its own; `examples/inscription.json` is the same first screen as a film of its own.
+The page is a column of rooms, each a screen high, which the browser settles on one at a time; on a phone, a room too full for one screen is set as pages, each a screen of its own.
+`home/rooms.js` makes sure a deliberate turn of the wheel always reaches the next room where a browser would snap a short scroll back, and leaves scrolling itself to the browser.
+The name's letters are drawn as shapes in `examples/letters.js` rather than set in a typeface, so the word is cut the same in every browser; `examples/inscription.json` is the same first screen as a film of its own.
 `home/bar.js` and `home/nav.js` set a bar of stone over the top of the page, naming its sections in stone type, in a small canvas of its own at the screen's full resolution, with a link over each name.
 The section in view is inlaid in gold, and the bar's own film flows the gold from name to name as the page moves.
 `home/main.js` measures the layout, has the pictures cut in workers, keeps a canvas one viewport tall (plus a margin) moving with the scroll, and cuts the wall again when a new width reflows the page.

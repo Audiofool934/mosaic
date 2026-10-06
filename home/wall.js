@@ -2,8 +2,8 @@
 // that flow into one another behind it, and the page picture runs its water on down the
 // page around every tablet, emblem, band, and medallion the page marks out, so the courses
 // follow the page the way they follow a drawing.
-import { nameAlone, nameAt, taglineAlone } from "../examples/inscription.js";
-import { SCENE_NAMES, scene } from "../examples/landscapes.js";
+import { nameAlone, nameAt } from "../examples/inscription.js";
+import { SCENE_NAMES, scene, stageOn } from "../examples/landscapes.js";
 import { config as house } from "../examples/nocturne.js";
 import { SAMPLES } from "../examples/materials.js";
 import { circle, poly } from "../engine/paint.js";
@@ -30,11 +30,13 @@ export function wallScale(width) {
   return clamp(width * DESKTOP, 880, WIDEST) / width;
 }
 
-// The first screen in millimetres of wall: its width, its height down to the hero's foot,
-// where its middle is, and how much larger stones are than on a desktop page.
+// The first screen in millimetres of wall: its width, its height down to the hero's foot, how
+// high the scenes' stage stands on it, where the name's middle is, and how much larger stones
+// are than on a desktop page.
 function firstScreen(layout) {
   const m = layout.scale ?? wallScale(layout.width), W = layout.width * m, screen = layout.hero * m;
-  return { W, screen, middle: nameAt(W, screen).middle, k: m / DESKTOP };
+  const band = stageOn(W, screen).h;
+  return { W, screen, band, middle: nameAt(W, band).middle, k: m / DESKTOP };
 }
 
 // Where the scenes end and the page's picture begins: a long, low wave below the first
@@ -59,8 +61,7 @@ const GATE = 2.4, WORLD = GATE + 0.6, LAID = 6.4, LEAD = 0.1, FLOW = 2.4, SETTLE
 // by name, so workers can cut them; the loop it plays in; the time by which every picture
 // must have joined it; and the times it rests at.
 export function wallFilm(layout, { module, laid = true, band }) {
-  const { W, screen, middle } = firstScreen(layout);
-  const { frame } = nameAt(W, screen).tag;
+  const { W, middle } = firstScreen(layout);
   const arrive = laid ? { type: "laid", bed: 0 } : { type: "settled" };
   const names = [...SCENE_NAMES, SCENE_NAMES[0]];
   const from = (i) => LAID + LEAD + (i - 1) * (FLOW + SETTLE + LEAD);
@@ -78,7 +79,6 @@ export function wallFilm(layout, { module, laid = true, band }) {
     version: 1, title: "mosAIc", seed: 42, fps: [60, 1], frames: Math.ceil(end * 60) + 1, band, look: [[0, 1], [end, 1]],
     scenes: [
       { id: "name", picture: { module, export: "namePicture", args: layout }, start: 0, end, at: [0, 0], in: arrive, front: true },
-      { id: "tagline", picture: { module, export: "taglinePicture", args: layout }, start: 0, end, at: [frame.x, frame.y], in: arrive, front: true },
       { id: "page", picture: { module, export: "wallPicture", args: layout }, start: 0, end, at: [0, 0], in: arrive },
       ...scenes
     ]
@@ -88,17 +88,9 @@ export function wallFilm(layout, { module, laid = true, band }) {
 
 // The name alone, its letters set on the first screen, laid quickly from its middle.
 export function namePicture(layout) {
-  const { W, screen, middle } = firstScreen(layout);
-  const p = nameAlone({ w: W, h: screen, screen });
+  const { W, screen, band, middle } = firstScreen(layout);
+  const p = nameAlone({ w: W, h: screen, screen: band });
   return { ...p, config: { ...p.config, rows: true, build: { origin: [W / 2, middle], start: 0.2, end: GATE } } };
-}
-
-// The line under the name, laid from its middle as the name is finished.
-export function taglinePicture(layout) {
-  const { W, screen } = firstScreen(layout);
-  const p = taglineAlone({ w: W, screen });
-  const { w, h } = p.config.panel;
-  return { ...p, config: { ...p.config, rows: true, build: { origin: [w / 2, h / 2], start: GATE - 0.9, end: GATE } } };
 }
 
 // A scene behind the name, on the first screen and on down to the shoreline. The first is

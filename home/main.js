@@ -1,6 +1,7 @@
 import { createMosaic } from "../engine/runtime.js";
 import { createStoneSound } from "../engine/sound.js";
 import { createBar } from "./nav.js";
+import { watchRooms } from "./rooms.js";
 import { wallFilm, wallScale } from "./wall.js";
 
 const $ = (id) => document.getElementById(id);
@@ -229,6 +230,7 @@ function listen() {
   unhear = () => offs.forEach((off) => off());
 }
 const bar = createBar($("bar"), { reduceMotion, onReady: listen });
+watchRooms(".hero, .room, .page", { reduceMotion });
 soundButton.addEventListener("click", async () => {
   const on = soundButton.getAttribute("aria-pressed") !== "true";
   soundButton.setAttribute("aria-pressed", String(on));

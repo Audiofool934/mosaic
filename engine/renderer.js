@@ -1407,15 +1407,19 @@ export function createRenderer(gl, opts) {
       // own, shaded only by its own stones.
       const back = layers.filter((layer) => !layer.scene.front), pairs = [];
       for (let i = back.length; i > 0; i -= 2) pairs.unshift([back[i - 1], i > 1 ? back[i - 2] : null]);
+      // With no picture behind those set in front, the first of them lays the bare bed under
+      // them all first.
+      if (!pairs.length && front.length) pairs.push([front[0], null, true]);
       for (const layer of front) pairs.push([layer, null]);
-      pairs.forEach(([B, A], k) => {
+      pairs.forEach(([B, A, bare], k) => {
+        const inFront = B.scene.front && !bare;
         setBed(u, "B", B, 8);
         setBed(u, "A", A || B, 12);
         gl.uniform1i(u.uHasA, A ? 1 : 0);
         gl.uniform1i(u.uOver, k ? 1 : 0);
-        gl.uniform1i(u.uFront, B.scene.front ? 1 : 0);
+        gl.uniform1i(u.uFront, inFront ? 1 : 0);
         gl.activeTexture(gl.TEXTURE5);
-        gl.bindTexture(gl.TEXTURE_2D, B.scene.front ? frontSh.t : keySh.t);
+        gl.bindTexture(gl.TEXTURE_2D, inFront ? frontSh.t : keySh.t);
         gl.drawArrays(gl.TRIANGLES, 0, 6);
       });
       if (lensOut) {

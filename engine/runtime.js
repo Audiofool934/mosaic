@@ -210,7 +210,7 @@ export async function createMosaic(canvas, options = {}) {
     base = makeTimeline(film, width, height);
     renderer = createRenderer(gl, { W: width, H: height, FOVY: fovy, timeline, pointerAt: pointerTrail, lampAt: lampNow,
       shadowSize: options.shadowSize || 2048, shutter: .5 / film.fps, aperture: .03,
-      coat: hexRgb('#bdb3a2').map(toLinear), sinopia: hexRgb('#7a2a18').map(toLinear) });
+      coat: hexRgb(options.coat || '#bdb3a2').map(toLinear), sinopia: hexRgb('#7a2a18').map(toLinear) });
     for (const l of film.layers) renderer.addLayer(l);
     info.width = width; info.height = height;
   }

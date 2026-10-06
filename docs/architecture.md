@@ -103,6 +103,8 @@ Exported frames are evaluated from explicit time, source, seed, and render setti
 Live pointer input is kept as timestamped samples, separate from film time.
 Each stone answers the pointer's last 0.6 seconds as a damped spring of its own: it rises under the pointer, trails it, and rocks back into the mortar once the pointer has passed.
 A resting pointer holds the plain curl, and drawing stops once the stones are still.
+On a page that follows its own scroll, each point of that trail is where the pointer was over the wall at that moment, through the view as it was then, so a wall scrolling under a still pointer ripples the stones as a moving pointer does and they settle into the same resting curl.
+Exports and replays have no such view, so their frames are unchanged.
 The mortar under a stone answers the same motion: as a stone moves off its bed, the footprint it left there, tinted and shadowed, gives way to plain lime lit by the scene and shaded by the stone above it.
 `seek(time)` pauses live playback and clears unrecorded pointer input.
 An explicit pointer state or recorded trace can be passed when interaction is part of a reproducible render.

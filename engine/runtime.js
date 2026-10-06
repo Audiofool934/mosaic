@@ -99,6 +99,9 @@ export async function createMosaic(canvas, options = {}) {
   const live = c => pointerAtTime(input, c);
   const replay = state => state?.trace ? c => pointerAtTime(state.trace, c) : state?.pointer ? () => normalized(state.pointer) : () => IDLE;
   const settleTime = TRAIL * TRAIL_STEP + .05;
+  // On a page that follows its own scroll, where the view looked in each live frame, and when
+  // the wall last moved under the pointer, so its trail can be traced back over the wall.
+  let looked = [], slidAt = -Infinity;
   const gl = canvas.getContext('webgl2', { alpha: false, antialias: false, depth: false, preserveDrawingBuffer: true, powerPreference: 'high-performance' });
   if (!gl) throw new Error('This artwork needs WebGL2. Try a browser with hardware acceleration enabled.');
   let renderer, base;
@@ -132,18 +135,37 @@ export async function createMosaic(canvas, options = {}) {
     return [a[0] / a[3] + (b[0] / b[3] - a[0] / a[3]) * u, a[1] / a[3] + (b[1] / b[3] - a[1] / a[3]) * u];
   }
   const unproject = c => invert(mat4Mul(perspective(FOVY, width / height, Math.max(.004, c.dist * .04), Math.min(8, c.dist * 4 + .5)), lookAt(c.eye, c.target, c.up)));
+  // A point under the pointer now, moved to where the pointer was over the wall at clock s,
+  // through the view as it looked then. Such views look straight at the wall, so they differ
+  // only in where they look and how much of it they take in. The view moved steadily into
+  // each frame over the time since the last, or the last tenth of a second of a longer pause,
+  // and before that stood still.
+  function lookedBack(s, c, x, y) {
+    let i = looked.length - 1;
+    while (i > 0 && looked[i].at > s) i--;
+    const a = looked[i], b = looked[i + 1] || a, from = Math.max(a.at, b.at - .1);
+    const u = b === a || s <= from ? 0 : (s - from) / (b.at - from);
+    // Written so that a view that has not moved leaves the point exactly where it is.
+    const k = (a.w + (b.w - a.w) * u) / c.w - 1, dx = a.x + (b.x - a.x) * u - c.target[0], dy = a.y + (b.y - a.y) * u - c.target[1];
+    return [x + dx + (x - c.target[0]) * k, y + dy + (y - c.target[1]) * k];
+  }
   function pointerTrail(t) {
     const at = frameClock + (t - time);
+    // Live on a page that follows its own scroll, each point of the trail is where the pointer
+    // was over the wall at that moment, so a wall moving under a still pointer ripples as a
+    // moving pointer does.
+    const traced = frameInput === live && typeof view.frame === 'function' && looked.length > 1;
     let c = null, m = null, x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
     for (let k = 0; k < TRAIL; k++) {
-      const p = frameInput(at - (k + .5) * TRAIL_STEP);
+      const s = at - (k + .5) * TRAIL_STEP, p = frameInput(s);
       trail[k * 4 + 2] = p.strength;
       if (!(p.strength > 0)) continue;
       if (!m) {
         c = timeline.cameraAt(t);
         m = unproject(c);
       }
-      const [x, y] = onWall(m, p);
+      let [x, y] = onWall(m, p);
+      if (traced) [x, y] = lookedBack(s, c, x, y);
       trail[k * 4] = x; trail[k * 4 + 1] = y;
       x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y);
     }
@@ -153,6 +175,7 @@ export async function createMosaic(canvas, options = {}) {
     return { head, trail };
   }
   function setup() {
+    looked = [];
     renderer?.dispose();
     canvas.width = width; canvas.height = height;
     base = makeTimeline(film, width, height);
@@ -196,10 +219,21 @@ export async function createMosaic(canvas, options = {}) {
     frameInput = source; frameClock = at ?? time;
     // A page that follows its own scroll gives a function, read once for each frame drawn.
     frameNow = typeof view.frame === 'function' ? view.frame() : view.frame;
+    if (source === live && typeof view.frame === 'function') look();
     renderer.render(time, samples);
     return time;
   }
   const redraw = () => render(time, frameInput, frameInput === live ? clock() : frameClock);
+  // Notes where the view looks in this live frame, keeping enough to trace the whole trail
+  // back, and when the wall moved under an active pointer.
+  function look() {
+    const c = timeline.cameraAt(time), last = looked.at(-1);
+    if (last && (c.target[0] !== last.x || c.target[1] !== last.y || c.w !== last.w) && live(frameClock).strength > 0) slidAt = frameClock;
+    looked.push({ at: frameClock, x: c.target[0], y: c.target[1], w: c.w });
+    let old = 0;
+    while (old < looked.length - 1 && looked[old + 1].at < frameClock - settleTime) old++;
+    looked.splice(0, old);
+  }
   function schedule() { if (!raf && !disposed && !lost) raf = requestAnimationFrame(tick); }
   // Listeners hear the stones the pointer touches as it slides over them, in each live frame.
   const listeners = new Set();
@@ -237,8 +271,9 @@ export async function createMosaic(canvas, options = {}) {
     const c = clock();
     render(time, live, c);
     if (listeners.size) heard(c);
-    // The stones keep moving until the newest input has passed through the whole trail.
-    if (playing || c - (input.at(-1)?.t ?? -Infinity) < settleTime) schedule(); else lastNow = 0;
+    // The stones keep moving until the newest input, and the wall's last move under the
+    // pointer, have passed through the whole trail.
+    if (playing || c - Math.max(input.at(-1)?.t ?? -Infinity, slidAt) < settleTime) schedule(); else lastNow = 0;
   }
   const contextLost = event => { event.preventDefault(); lost = true; playing = false; renderer?.dispose(); cancelAnimationFrame(raf); raf = 0; progress('Graphics context interrupted. Restoring the artwork…'); };
   const contextRestored = () => { if (disposed) return; lost = false; try { setup(); redraw(); progress('Artwork restored'); } catch (e) { progress(e.message); } };
@@ -252,7 +287,7 @@ export async function createMosaic(canvas, options = {}) {
     info,
     // Resolves once every picture of a wall has joined it.
     ready: Promise.allSettled(parts.map(p => p.then(join, error => progress(`A picture could not be built: ${error.message}`)))).then(() => controller),
-    seek(t, state = {}) { ensure(); controller.pause(); input = []; return render(t, replay(state)); },
+    seek(t, state = {}) { ensure(); controller.pause(); input = []; looked = []; return render(t, replay(state)); },
     play() { ensure(); playing = true; lastNow = 0; schedule(); },
     pause() { playing = false; cancelAnimationFrame(raf); raf = 0; lastNow = 0; },
     setPointer(p) {

@@ -192,6 +192,38 @@ try {
     live.dispose();
     checks.push('live input stops drawing once the stones rest', 'a sliding pointer sets off stones as it goes, and a resting one none', 'a wall moving under a still pointer is heard, and a jump of the view is not');
 
+    // On a page that follows its own scroll, a still pointer over the wall moving under it
+    // ripples the stones as a moving pointer would, drawing on until they settle into the very
+    // pose of a pointer that never moved.
+    const pageCanvas = document.createElement('canvas');
+    const scrolling = await createMosaic(pageCanvas, { project: '/examples/nocturne.json', width: 320, height: 180, samples: 1 });
+    const pageGl = pageCanvas.getContext('webgl2');
+    const pageHash = () => {
+      const pixels = new Uint8Array(320 * 180 * 4);
+      pageGl.readPixels(0, 0, 320, 180, pageGl.RGBA, pageGl.UNSIGNED_BYTE, pixels);
+      return sha256(pixels);
+    };
+    let scrollY = 450;
+    scrolling.seek(2);
+    scrolling.setView({ frame: () => ({ x: 800, y: scrollY, w: 400 }) });
+    scrolling.setPointer({ x: 0.5, y: 0.5, active: true });
+    await new Promise(resolve => setTimeout(resolve, 900));
+    for (let k = 0; k < 12; k++) {
+      scrollY += 3;
+      scrolling.requestFrame();
+      await new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve, 0)));
+    }
+    const rippling = await pageHash();
+    require(window.__animationProbe().pending > 0, 'The stones stopped as soon as the wall did.');
+    await new Promise(resolve => setTimeout(resolve, 900));
+    require(window.__animationProbe().pending === 0, 'The animation loop kept running after the stones settled.');
+    const settled = await pageHash();
+    scrolling.setView({ frame: { x: 800, y: scrollY, w: 400 } });
+    require(rippling !== settled, 'A wall moving under a still pointer did not ripple the stones.');
+    require(settled === await pageHash(), 'The stones did not settle into the pose of a pointer at rest.');
+    scrolling.dispose();
+    checks.push('a wall moving under a still pointer ripples the stones and settles into the resting pose');
+
     // Every material is heard, softly and without clipping.
     const { createStoneSound } = await import('/engine/sound.js');
     const materials = ['glass', 'gold', 'silver', 'emit', 'marble', 'basalt', 'limestone', 'terracotta'];

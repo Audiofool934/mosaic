@@ -216,7 +216,8 @@ addEventListener("pointerup", (event) => { if (event.pointerType !== "mouse") se
 addEventListener("blur", settle);
 
 // A new width reflows the page, so the wall is cut again around the new layout. A taller
-// viewport, as when a phone's toolbar hides, only needs a taller canvas.
+// viewport, as when a phone's toolbar hides or a window is made taller, only needs a taller
+// canvas; it resizes nothing on the page, so it is heard from the window itself.
 function relayout() {
   if (!live) return;
   const width = document.documentElement.clientWidth;
@@ -230,10 +231,12 @@ function relayout() {
     live.mosaic.setView({ frame: framing(live.canvas, live.scale, view) });
   }
 }
-new ResizeObserver(() => {
+function relayoutSoon() {
   clearTimeout(resizeTimer);
   resizeTimer = setTimeout(relayout, 250);
-}).observe(document.body);
+}
+new ResizeObserver(relayoutSoon).observe(document.body);
+addEventListener("resize", relayoutSoon);
 
 window.addEventListener("pagehide", () => {
   cancelAnimationFrame(watching);

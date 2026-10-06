@@ -575,15 +575,17 @@ export async function loadFilm(source, opts = {}) {
       continue;
     }
     const kind = (s.in && s.in.type) || "laid";
-    if (kind === "flow" && prev) {
+    if (s.at) {
+      // Pictures placed with at share one wall, whose top left corner is the world origin,
+      // and keep their place when they flow in from the picture before them.
+      L.world = [s.at[0] / 1000, -s.at[1] / 1000];
+      if (kind === "flow" && prev) flowInto(film, prev, L, s.in);
+    } else if (kind === "flow" && prev) {
       // The incoming picture is placed so its camera picks up where the last one is.
       const tc = s.in.launch[0];
       const [ax, ay] = toWorld(prev, prev.cam.X(tc), prev.cam.Y(tc));
       L.world = [ax - L.cam.X(tc) / 1000, ay + L.cam.Y(tc) / 1000];
       flowInto(film, prev, L, s.in);
-    } else if (s.at) {
-      // Pictures placed with at share one wall, whose top left corner is the world origin.
-      L.world = [s.at[0] / 1000, -s.at[1] / 1000];
     } else {
       L.world = [-L.W / 2000, L.H / 2000];
     }
@@ -730,7 +732,10 @@ function hilbert(n, x, y) {
   return d;
 }
 
+// The stretch of a picture in view at t, padded. A picture placed on a wall with at is
+// framed by the page rather than its own camera, so all of it counts as in view.
 function viewRect(film, L, t, pad) {
+  if (L.scene.at) return [L.world[0], L.world[0] + L.W / 1000, L.world[1] - L.H / 1000, L.world[1]];
   const w = L.cam.W(t) / 1000;
   const h = w / film.aspect;
   const [cx, cy] = toWorld(L, L.cam.X(t), L.cam.Y(t));

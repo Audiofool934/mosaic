@@ -83,10 +83,25 @@ export async function createMosaic(canvas, options = {}) {
   // A wall of pictures placed with at is built one worker for each picture. It is drawn from
   // the moment the first is ready, and the others join it as they finish.
   const scenes = project.scenes;
-  const parts = options.worker && Array.isArray(scenes) && scenes.length > 1 && scenes.every(s => s.at) ? scenes.map(s => build([s.id])) : [build()];
+  // A wall of pictures is cut a picture at a time, each in its own worker, except that a
+  // picture flowing in from the one before it is cut with it.
+  const groups = [];
+  if (options.worker && Array.isArray(scenes) && scenes.every(s => s.at)) {
+    for (const s of scenes) {
+      if (s.in?.type === 'flow' && groups.length) groups.at(-1).push(s.id);
+      else groups.push([s.id]);
+    }
+  }
+  const parts = groups.length > 1 ? groups.map(ids => build(ids)) : [build()];
   let film = await Promise.any(parts).catch(errors => { throw errors.errors[0]; });
   if (!film.layers.length || !film.layers.some(l => l.count)) throw new Error('The picture contains no visible stones.');
   const duration = film.table.frames / film.fps;
+  // A film played with a loop runs from wherever it is to the loop's end, and from there
+  // again from the loop's start, until paused.
+  const loop = options.loop ?? null;
+  if (loop && !(Array.isArray(loop) && loop.length === 2 && loop.every(Number.isFinite) && loop[0] >= 0 && loop[0] < loop[1] && loop[1] <= duration - 1 / film.fps)) {
+    throw new Error('A loop must be [from, to] within the film.');
+  }
   let width = size(options.width, 1280), height = size(options.height, width / film.aspect);
   let samples = Math.round(clamp(finite(options.samples, 1), 1, 16));
   let view = { zoom: 1, light: 0, frame: null }, frameNow = null;
@@ -267,7 +282,11 @@ export async function createMosaic(canvas, options = {}) {
     if (disposed || lost) return;
     const dt = lastNow ? Math.min(.1, (now - lastNow) / 1000) : 1 / 60;
     lastNow = now;
-    if (playing) { time += dt; if (time >= duration - 1 / film.fps) playing = false; }
+    if (playing) {
+      time += dt;
+      if (loop && time >= loop[1]) time = loop[0] + (time - loop[1]) % (loop[1] - loop[0]);
+      else if (time >= duration - 1 / film.fps) playing = false;
+    }
     const c = clock();
     render(time, live, c);
     if (listeners.size) heard(c);

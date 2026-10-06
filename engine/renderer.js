@@ -593,8 +593,28 @@ out vec4 o;
 void main() { o = vec4(1.0); }
 `;
 
+// Clears the depth wherever a picture set in front has a stone or its mortar, so that both,
+// drawn next, stay in front of any stone flying past.
+const CLEAR_FS = `#version 300 es
+precision highp float;
+in vec3 vP;
+uniform highp sampler2D uOwnB;
+uniform vec4 uPanelB;
+out vec4 o;
+void main() {
+  vec2 uv = vec2((vP.x - uPanelB.x) * 1000.0, (uPanelB.y - vP.y) * 1000.0) / uPanelB.zw;
+  if (uv.x < 0.0 || uv.y < 0.0 || uv.x > 1.0 || uv.y > 1.0) discard;
+  vec4 ow = texelFetch(uOwnB, ivec2(uv * vec2(textureSize(uOwnB, 0))), 0);
+  if (int(ow.r * 255.0 + 0.5) + 256 * int(ow.g * 255.0 + 0.5) >= 65535) discard;
+  o = vec4(0.0);
+  gl_FragDepth = 1.0;
+}
+`;
+
 // The bed. One quad over the wall; per pixel it decides whose mortar it is: the
-// outgoing picture's while its stone is still seated there, the incoming one's after.
+// outgoing picture's while its stone is still seated there, the incoming one's after. A wall
+// of more than two pictures draws it again for each further pair, newest last, where that
+// pair has a stone or a seat, and once more for each picture set in front.
 const BED_VS = `#version 300 es
 precision highp float;
 layout(location=0) in vec2 aP;
@@ -611,6 +631,7 @@ precision highp float;
 in vec3 vP;
 uniform float uTime;
 uniform int uHasA;
+uniform int uOver;
 uniform highp sampler2D uInstA;
 uniform highp sampler2D uOwnA;
 uniform highp sampler2D uOwn2A;
@@ -639,13 +660,14 @@ vec2 panelMM(vec4 pan) { return vec2((vP.x - pan.x) * 1000.0, (pan.y - vP.y) * 1
 // One picture's mortar at this point. alive is true while a stone of this picture
 // still sits here, which is what decides whose mortar shows during a re-lay.
 void layer(highp sampler2D inst, highp sampler2D own0, highp sampler2D own2, sampler2D sinTex, vec4 pan, vec3 grout, vec2 wetT,
-           out vec3 albedo, out float ao, out float sheen, out bool alive) {
+           out vec3 albedo, out float ao, out float sheen, out bool alive, out bool owned) {
   vec2 mm = panelMM(pan);
   vec2 uv = mm / pan.zw;
   albedo = uCoat;
   ao = 1.0;
   sheen = 0.0;
   alive = false;
+  owned = false;
   if (uv.x < 0.0 || uv.y < 0.0 || uv.x > 1.0 || uv.y > 1.0) return;
   // The sinopia's brush coverage, baked with the stroke's wandering width and pressure.
   float a = texture(sinTex, uv).r;
@@ -663,6 +685,7 @@ void layer(highp sampler2D inst, highp sampler2D own0, highp sampler2D own2, sam
     e = texture(own2, uv).b * 255.0 / 48.0;
   }
   if (id < 65535) {
+    owned = true;
     float T = seatT(inst, id);
     float U = liftU(inst, id);
     float seated = smoothstep(T - 0.01, T + 0.08, uTime) * (1.0 - smoothstep(U, U + 0.06, uTime));
@@ -693,19 +716,23 @@ void main() {
   float ao;
   float sheen;
   bool alive;
-  layer(uInstB, uOwnB, uOwn2B, uSinB, uPanelB, uGroutB, uWetB, albedo, ao, sheen, alive);
+  bool owned;
+  layer(uInstB, uOwnB, uOwn2B, uSinB, uPanelB, uGroutB, uWetB, albedo, ao, sheen, alive, owned);
+  bool alive2 = false;
   if (uHasA == 1) {
     vec3 a2;
     float ao2;
     float sh2;
-    bool alive2;
-    layer(uInstA, uOwnA, uOwn2A, uSinA, uPanelA, uGroutA, uWetA, a2, ao2, sh2, alive2);
+    bool owned2;
+    layer(uInstA, uOwnA, uOwn2A, uSinA, uPanelA, uGroutA, uWetA, a2, ao2, sh2, alive2, owned2);
     if (alive2) {
       albedo = a2;
       ao = ao2;
       sheen = sh2;
     }
   }
+  // A later pair leaves the mortar of the pairs before it wherever it has no stone.
+  if (uOver == 1 && !owned && !alive2) discard;
   vec2 mm = vP.xy * 1000.0;
   float fp = max(length(fwidth(mm)), 1e-4);
   float f1 = 1.0 - smoothstep(0.06, 0.25, fp);
@@ -982,8 +1009,11 @@ export function createRenderer(gl, opts) {
     own("Program", tileProg.p);
     const shadowProg = program(gl, SHADOW_VS, SHADOW_FS);
     own("Program", shadowProg.p);
+
     const bedProg = program(gl, BED_VS, BED_FS);
     own("Program", bedProg.p);
+    const clearProg = program(gl, BED_VS, CLEAR_FS);
+    own("Program", clearProg.p);
     const accProg = program(gl, QUAD_VS, ACC_FS);
     own("Program", accProg.p);
     const prepProg = program(gl, QUAD_VS, PREP_FS);
@@ -1093,6 +1123,7 @@ export function createRenderer(gl, opts) {
     }
     const SH = opts.shadowSize || 4096;
     const keySh = depthTarget(SH);
+    let frontSh = null;
 
     function colorTarget(w, h, withDepth, attachments) {
       const fb = own("Framebuffer", gl.createFramebuffer());
@@ -1253,6 +1284,15 @@ export function createRenderer(gl, opts) {
       gl.viewport(0, 0, SH, SH);
       gl.clear(gl.DEPTH_BUFFER_BIT);
       for (const layer of layers) drawStones(shadowProg, layer, layer.gpu.casters, keyM, t, [fp[2], fp[3]]);
+      // A picture set in front is shaded only by its own stones, never by the stones flying
+      // past behind it.
+      const front = layers.filter((layer) => layer.scene.front);
+      if (front.length) {
+        frontSh ??= depthTarget(SH);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, frontSh.fb);
+        gl.clear(gl.DEPTH_BUFFER_BIT);
+        for (const layer of front) drawStones(shadowProg, layer, layer.gpu.casters, keyM, t, [fp[2], fp[3]]);
+      }
       gl.disable(gl.POLYGON_OFFSET_FILL);
       return L;
     }
@@ -1289,29 +1329,60 @@ export function createRenderer(gl, opts) {
       gl.useProgram(tileProg.p);
       setLights(tileProg, L);
       gl.uniform1f(tileProg.u.uEmit, 1.0);
-      for (const layer of layers) drawStones(tileProg, layer, layer.gpu.stones, C.vp, t, [L.footprint[2], L.footprint[3]]);
-      gl.disable(gl.CULL_FACE);
+      const span = [L.footprint[2], L.footprint[3]];
+      for (const layer of layers) if (!layer.scene.front) drawStones(tileProg, layer, layer.gpu.stones, C.vp, t, span);
       // The bed covers the footprint of the view.
       const fp = L.footprint;
       gl.bindBuffer(gl.ARRAY_BUFFER, bedBuf);
       gl.bufferSubData(gl.ARRAY_BUFFER, 0, new Float32Array([fp[0], fp[2], fp[1], fp[2], fp[1], fp[3], fp[0], fp[2], fp[1], fp[3], fp[0], fp[3]]));
+      // A picture set in front stays in front of every stone that flies past it.
+      const front = layers.filter((layer) => layer.scene.front);
+      if (front.length) {
+        gl.disable(gl.CULL_FACE);
+        gl.depthFunc(gl.ALWAYS);
+        gl.colorMask(false, false, false, false);
+        gl.useProgram(clearProg.p);
+        gl.uniformMatrix4fv(clearProg.u.uVP, false, C.vp);
+        gl.bindVertexArray(bedVao);
+        for (const layer of front) {
+          setBed(clearProg.u, "B", layer, 8);
+          gl.drawArrays(gl.TRIANGLES, 0, 6);
+        }
+        gl.colorMask(true, true, true, true);
+        gl.depthFunc(gl.LEQUAL);
+        gl.enable(gl.CULL_FACE);
+        gl.activeTexture(gl.TEXTURE5);
+        gl.bindTexture(gl.TEXTURE_2D, frontSh.t);
+        for (const layer of front) drawStones(tileProg, layer, layer.gpu.stones, C.vp, t, span);
+        gl.activeTexture(gl.TEXTURE5);
+        gl.bindTexture(gl.TEXTURE_2D, keySh.t);
+      }
+      gl.disable(gl.CULL_FACE);
       gl.useProgram(bedProg.p);
       setLights(bedProg, L);
       const u = bedProg.u;
       gl.uniformMatrix4fv(u.uVP, false, C.vp);
       gl.uniform1f(u.uTime, t);
-      const B = layers[layers.length - 1];
-      const A = layers.length > 1 ? layers[layers.length - 2] : null;
-      setBed(u, "B", B, 8);
-      setBed(u, "A", A || B, 12);
-      gl.uniform1i(u.uHasA, A ? 1 : 0);
       const pointer = opts.pointerAt?.(t);
       gl.uniform4fv(u.uPointer, pointer?.head || [0, 0, 0, 1]);
       gl.uniform4fv(u.uTrail, pointer?.trail || noTrail);
       gl.uniform3fv(u.uCoat, opts.coat);
       gl.uniform3fv(u.uSinopia, opts.sinopia);
       gl.bindVertexArray(bedVao);
-      gl.drawArrays(gl.TRIANGLES, 0, 6);
+      // The pictures in pairs, the newest two last, and then each picture set in front on its
+      // own, shaded only by its own stones.
+      const back = layers.filter((layer) => !layer.scene.front), pairs = [];
+      for (let i = back.length; i > 0; i -= 2) pairs.unshift([back[i - 1], i > 1 ? back[i - 2] : null]);
+      for (const layer of front) pairs.push([layer, null]);
+      pairs.forEach(([B, A], k) => {
+        setBed(u, "B", B, 8);
+        setBed(u, "A", A || B, 12);
+        gl.uniform1i(u.uHasA, A ? 1 : 0);
+        gl.uniform1i(u.uOver, k ? 1 : 0);
+        gl.activeTexture(gl.TEXTURE5);
+        gl.bindTexture(gl.TEXTURE_2D, B.scene.front ? frontSh.t : keySh.t);
+        gl.drawArrays(gl.TRIANGLES, 0, 6);
+      });
       if (lensOut) {
         const fpx = (H / 2) / Math.tan(opts.FOVY / 2);
         lensOut.near = C.near;

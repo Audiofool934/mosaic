@@ -51,7 +51,7 @@ test('input samples replay the gesture: arrivals start in place, rests hold, rel
   addInput(points, { t: 1, x: .1, y: .1, active: true });
   assert.ok(points.every((p, i) => !i || p.t >= points[i - 1].t));
 });
-test('pictures placed on one wall need a position and cannot flow in', () => {
+test('pictures placed on one wall need a position, and keep it when they flow in', () => {
   const p = project();
   p.scenes.push({ id: 'two', picture: './two.js', start: 0, end: 8, at: [1600, 0], in: { type: 'laid' } });
   p.scenes[0].at = [0, 0];
@@ -63,7 +63,17 @@ test('pictures placed on one wall need a position and cannot flow in', () => {
   }
   const q = structuredClone(p);
   q.scenes[1].in = { type: 'flow', launch: [0, 1], land: [1, 2] };
-  assert.throws(() => validateProject(q), /cannot flow/);
+  assert.doesNotThrow(() => validateProject(q));
+});
+test('a picture is set in front of the others only when asked, plainly', () => {
+  const p = project();
+  p.scenes[0].front = true;
+  assert.doesNotThrow(() => validateProject(p));
+  for (const front of ['yes', 1, null]) {
+    const q = structuredClone(p);
+    q.scenes[0].front = front;
+    assert.throws(() => validateProject(q), /front must be/);
+  }
 });
 test('a built film crosses to the page as plain data and comes back whole', () => {
   const cfg = { camera: { keys: [[0, 50, 40, 100], [1, 60, 40, 90]] }, light: { exposure: 0.5 } };

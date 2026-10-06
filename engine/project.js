@@ -20,7 +20,7 @@ export function validateProject(input) {
     if (s.in && !['laid', 'flow', 'settled'].includes(s.in.type)) throw new Error(`${s.id}: unknown entry type.`);
     if (s.in?.type === 'flow' && (!Array.isArray(s.in.launch) || !Array.isArray(s.in.land))) throw new Error(`${s.id}: flow requires launch and land intervals.`);
     if (s.at !== undefined && (!Array.isArray(s.at) || s.at.length !== 2 || !s.at.every(Number.isFinite))) throw new Error(`${s.id}: at must be [x, y] in millimetres.`);
-    if (s.at !== undefined && s.in?.type === 'flow') throw new Error(`${s.id}: a picture placed with at cannot flow in.`);
+    if (s.front !== undefined && typeof s.front !== 'boolean') throw new Error(`${s.id}: front must be true or false.`);
   }
   if (p.scenes[0].start !== 0) throw new Error('The first scene must start at zero.');
   return p;

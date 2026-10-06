@@ -65,7 +65,11 @@ Lighting supports a directional key and fill, ambient sky/ground, point lights, 
 `"laid"` schedules stones into the mortar using the picture's `build` configuration.
 The bundled `examples/laid.json` lays the nocturne outward from the moon while the camera pulls back; `"bed": 0` shows the bare mortar and its sinopia from the first frame.
 `"flow"` pairs outgoing stones with an incoming picture; its `launch` and `land` intervals are on the project clock.
-Scenes with `"at": [x, y]` are placed side by side on one wall, in millimetres from its top left corner, and can share the same clock; they cannot flow in.
+Scenes with `"at": [x, y]` are placed side by side on one wall, in millimetres from its top left corner, and can share the same clock.
+A scene placed with `at` can flow in from the scene before it and keeps its place; the whole picture flows, since on a wall the page frames the view rather than the picture's own camera.
+`"front": true` keeps a scene's stones and mortar in front of every stone flying past it, so a name or emblem stays clear while the pictures behind it flow; give the pictures behind it a hole in its shape.
+The bundled `examples/inscription.json` sets the mosAIc name in front of four scenes that flow in turn, and `examples/inscription-tall.json` is the same film on a tall screen.
+A scene's `picture` can be a module path, or `{ "module": "./scenes.js", "export": "scene", "args": { ... } }`, a function in a local module that returns a picture from plain arguments, so one module can draw a family of pictures.
 For a first film, inspect the timeline implementation and adapt a small two-scene test before scaling to a long sequence.
 Scenes can also export `events` for ignition, dissolution, and bursts, or `arrivals` for separately tessellated figures.
 These are advanced authored effects, not inferred motion from a source image.

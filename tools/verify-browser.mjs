@@ -265,6 +265,53 @@ try {
     pair.dispose();
     checks.push('a wall of pictures is cut in workers and joins as each is ready');
 
+    // The name set in front of a scene that flows into another: the stones flying past go
+    // behind its letters, so every pixel bright with marble or gold at rest stays bright.
+    const frontCanvas = document.createElement('canvas');
+    const scene = (name) => ({ module: '/examples/landscapes.js', export: 'scene', args: { name, w: 800, h: 450 } });
+    const front = await createMosaic(frontCanvas, {
+      project: { version: 1, seed: 42, fps: [60, 1], frames: 240, band: [320, 180], scenes: [
+        { id: 'name', picture: { module: '/examples/inscription.js', export: 'nameAlone', args: { w: 800, h: 450 } }, start: 0, end: 4, at: [0, 0], front: true, in: { type: 'settled' } },
+        { id: 'night', picture: scene('night'), start: 0, end: 3.5, at: [0, 0], in: { type: 'settled' } },
+        { id: 'dunes', picture: scene('dunes'), start: 1, end: 4, at: [0, 0], in: { type: 'flow', launch: [1, 1.8], land: [2, 3.4], focus: [400, 211] } }
+      ] },
+      width: 320, height: 180, samples: 1, worker: true, loop: [0.5, 1]
+    });
+    await front.ready;
+    const frontGl = frontCanvas.getContext('webgl2');
+    const pixelsAt = (time) => {
+      front.seek(time);
+      const pixels = new Uint8Array(320 * 180 * 4);
+      frontGl.readPixels(0, 0, 320, 180, frontGl.RGBA, frontGl.UNSIGNED_BYTE, pixels);
+      return pixels;
+    };
+    const bright = (p, i) => p[i] + p[i + 1] + p[i + 2] > 360;
+    const rest = pixelsAt(0.5), flight = pixelsAt(1.9);
+    let letters = 0, covered = 0, moved = 0;
+    for (let i = 0; i < rest.length; i += 4) {
+      // Only the band the name is set in, clear of the moon above it and its reflection
+      // below; the rows are read from the bottom up.
+      const row = Math.floor(i / 4 / 320), inBand = row > 180 * 0.33 && row < 180 * 0.7;
+      if (inBand && bright(rest, i)) { letters++; if (!bright(flight, i)) covered++; }
+      else if (Math.abs(rest[i] - flight[i]) + Math.abs(rest[i + 1] - flight[i + 1]) + Math.abs(rest[i + 2] - flight[i + 2]) > 60) moved++;
+    }
+    require(letters > 1500 && moved > 3000, `The name or the flow behind it did not show: ${letters} bright, ${moved} moved.`);
+    require(covered < letters * 0.03, `Stones flying past covered ${covered} of the ${letters} bright pixels of the name.`);
+    checks.push('a picture set in front stays in front of the stones flying past it');
+
+    // Played with a loop, a film runs on from the loop's end at its start, and keeps playing.
+    front.seek(0.9);
+    front.play();
+    await new Promise(resolve => setTimeout(resolve, 400));
+    const looped = front.getState();
+    require(looped.playing && looped.time >= 0.5 && looped.time < 1, `The loop did not wrap: ${looped.time} s, playing ${looped.playing}.`);
+    front.dispose();
+    let refused = false;
+    try { await createMosaic(document.createElement('canvas'), { project: '/examples/nocturne.json', width: 32, height: 18, samples: 1, loop: [2, 1] }); }
+    catch (error) { refused = /loop/i.test(error.message); }
+    require(refused, 'A loop that ends before it starts was accepted.');
+    checks.push('a film played with a loop wraps to the loop start and keeps playing');
+
     mosaic.play();
     require(mosaic.getState().playing, 'Playback did not start for the disposal check.');
     require(window.__animationProbe().pending > 0, 'Playback did not schedule an animation callback.');

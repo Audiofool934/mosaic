@@ -1,5 +1,6 @@
 import { createMosaic } from "../engine/runtime.js";
 import { createStoneSound } from "../engine/sound.js";
+import { createBar } from "./nav.js";
 import { wallFilm, wallScale } from "./wall.js";
 
 const $ = (id) => document.getElementById(id);
@@ -60,7 +61,10 @@ function framing(canvas, scale, view) {
 function updateControls() {
   if (!live) return;
   replay.hidden = reduceMotion.matches;
-  replay.textContent = cycling ? "Pause" : "Play";
+  replay.dataset.state = cycling ? "playing" : "paused";
+  const label = cycling ? "Pause the scenes" : "Play the scenes";
+  replay.setAttribute("aria-label", label);
+  replay.title = label;
 }
 
 // The scenes behind the name: the wall plays until its next rest, where the page holds the
@@ -200,7 +204,7 @@ async function build() {
     live.joined = true;
     advance();
     const seconds = ((performance.now() - started) / 1000).toFixed(1);
-    note.textContent = `${mosaic.info.stoneCount.toLocaleString("en-US")} stones of glass, marble, limestone, basalt, and gold, cut around this page in your browser in ${seconds} seconds.`;
+    note.textContent = `${mosaic.info.stoneCount.toLocaleString("en-US")} stones, cut around this page in your browser in ${seconds} seconds.`;
   });
   if (reduceMotion.matches) mosaic.seek(rests[0]);
   else {
@@ -213,14 +217,18 @@ async function build() {
   updateControls();
 }
 
-// The stones are heard only once asked for, and only while sound is on.
+// The stones are heard only once asked for, and only while sound is on: the wall's, and the
+// bar's.
 const sound = createStoneSound();
 const soundButton = $("sound");
 let unhear = null;
 function listen() {
   unhear?.();
-  unhear = live && soundButton.getAttribute("aria-pressed") === "true" ? live.mosaic.onContact((events) => sound.play(events)) : null;
+  const on = soundButton.getAttribute("aria-pressed") === "true";
+  const offs = on ? [live?.mosaic, bar.mosaic].filter(Boolean).map((m) => m.onContact((events) => sound.play(events))) : [];
+  unhear = () => offs.forEach((off) => off());
 }
+const bar = createBar($("bar"), { reduceMotion, onReady: listen });
 soundButton.addEventListener("click", async () => {
   const on = soundButton.getAttribute("aria-pressed") !== "true";
   soundButton.setAttribute("aria-pressed", String(on));
@@ -341,5 +349,5 @@ for (const button of document.querySelectorAll(".copy")) {
 }
 
 // A small observable surface for browser verification.
-window.mosaicWall = { get mosaic() { return live?.mosaic; }, get log() { return lastLog; }, get building() { return building; } };
+window.mosaicWall = { get mosaic() { return live?.mosaic; }, get bar() { return bar.mosaic; }, get log() { return lastLog; }, get building() { return building; } };
 building = build().then(relayout);

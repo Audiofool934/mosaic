@@ -12,6 +12,7 @@ For an imported image, `engine/image.js` performs bounded image analysis and pro
 Regions describe material, stone size, palette, and how courses follow the picture.
 
 `engine/tessellate.js` uses region boundaries to construct an andamento field, lays courses through that field, and cuts stones along them.
+A region whose mode is `grid` is set instead as opus tessellatum, one square stone on each cell of a grid from its `origin`, for small lettering in the stone type of `examples/type.js`, where courses would lose the letters' shapes.
 The distance transform in `engine/util.js` supplies nearest-boundary distances and coordinates.
 The resulting geometry represents individual stones with thickness and bevels, not colored squares painted over an image.
 
@@ -92,15 +93,18 @@ A picture whose config sets `rows: true` lists its stones by height, so each fra
 Pictures without it keep their own drawing order and their exact pixels.
 A picture placed with `at` can flow in from the scene before it and keeps its place; the flow takes in the whole picture, since on a wall the page frames the view rather than the picture's own camera, and the pictures of such a chain are cut in one worker.
 A scene set `front: true` stays in front of every stone flying past it.
-Where it has stones or mortar the depth is cleared before its stones are drawn, it is shaded only by its own stones, and its mortar is laid last.
+Where its stones are seated the depth is cleared before they are drawn, it is shaded only by its own stones, and its mortar is laid last; where its stones have not landed yet, or have lifted off, whatever lies under them shows.
 The mortar is drawn once for each pair of pictures, the newest two last, and a later pair covers an earlier one only where it has a stone or a seat, so a wall of more than two pictures keeps every picture's mortar.
 `createMosaic(canvas, { loop: [from, to] })` plays on from `to` at `from` until paused.
+`play({ to, rate })` plays toward a time, backward if it lies behind, `rate` times as fast, and stops there.
 
 The project page is such a wall.
 `home/wall.js` sets the name on the first screen, in white marble with its AI inlaid in gold, in front of four scenes from `examples/landscapes.js` that flow into one another in turn: moonlit water, dunes at dusk, sweeping currents, and peaks at first light.
 Each scene is drawn on a stage 1600 by 900 millimetres, scaled to the first screen the way a cover image fills a frame and cut around its focus on a narrow screen, where the name is set as MOS over AIC.
 Below the first screen the scene runs on to a long wave, where a second picture takes over, painted from the page's measured layout: tablets and emblems become gold-framed openings, headings rest on level courses, and the material samples are medallions in the wall itself.
-The name's letters are drawn as shapes in `examples/letters.js` rather than set in a typeface, so the word is cut the same in every browser; `examples/inscription.json` is the same first screen as a film of its own.
+The name's letters are drawn as shapes in `examples/letters.js` rather than set in a typeface, so the word is cut the same in every browser, and the line under it is set in stone type as a picture of its own; `examples/inscription.json` is the same first screen as a film of its own.
+`home/bar.js` and `home/nav.js` set a bar of stone over the top of the page, naming its sections in stone type, in a small canvas of its own at the screen's full resolution, with a link over each name.
+The section in view is inlaid in gold, and the bar's own film flows the gold from name to name as the page moves.
 `home/main.js` measures the layout, has the pictures cut in workers, keeps a canvas one viewport tall (plus a margin) moving with the scroll, and cuts the wall again when a new width reflows the page.
 The name is laid first, and the page waits there until every picture has been cut before the first scene and the page are laid around it, so none appears half laid.
 Once laid, the wall plays in a loop that ends where the first scene flows back in, and the page pauses it at each scene's rest for a few seconds, so nothing is drawn while the stones are still and nothing flows while the first screen is out of view.

@@ -2,7 +2,7 @@
 // that flow into one another behind it, and the page picture runs its water on down the
 // page around every tablet, emblem, band, and medallion the page marks out, so the courses
 // follow the page the way they follow a drawing.
-import { nameAlone, nameAt } from "../examples/inscription.js";
+import { nameAlone, nameAt, taglineAlone } from "../examples/inscription.js";
 import { SCENE_NAMES, scene } from "../examples/landscapes.js";
 import { config as house } from "../examples/nocturne.js";
 import { SAMPLES } from "../examples/materials.js";
@@ -50,18 +50,20 @@ function shoreline(seam, x0, x1) {
 // joined the wall. The first scene and the page are laid around it from WORLD, late enough
 // that no lime is spread nor stone falls before the gate, and by LAID; then each scene flows
 // into the next in turn, the last into a copy of the first, from which the film loops back to
-// LAID. A flow takes FLOW seconds, and each scene settles for SETTLE before it rests, where
-// the page holds it as long as it likes.
-const GATE = 2.4, WORLD = GATE + 0.6, LAID = 6.4, FLOW = 2.4, SETTLE = 0.3;
+// LAID. A flow starts LEAD after the rest before it, since it starts each stone a few
+// hundredths early or late, and takes FLOW seconds; each scene settles for SETTLE before it
+// rests, where the page holds it as long as it likes.
+const GATE = 2.4, WORLD = GATE + 0.6, LAID = 6.4, LEAD = 0.1, FLOW = 2.4, SETTLE = 0.3;
 
 // The wall's film for a layout: its project, whose pictures this module, at `module`, draws
 // by name, so workers can cut them; the loop it plays in; the time by which every picture
 // must have joined it; and the times it rests at.
 export function wallFilm(layout, { module, laid = true, band }) {
-  const { W, middle } = firstScreen(layout);
+  const { W, screen, middle } = firstScreen(layout);
+  const { frame } = nameAt(W, screen).tag;
   const arrive = laid ? { type: "laid", bed: 0 } : { type: "settled" };
   const names = [...SCENE_NAMES, SCENE_NAMES[0]];
-  const from = (i) => LAID + (i - 1) * (FLOW + SETTLE + 0.1);
+  const from = (i) => LAID + LEAD + (i - 1) * (FLOW + SETTLE + LEAD);
   const rest = (i) => (i ? from(i) + FLOW + SETTLE : LAID);
   const end = rest(names.length - 1);
   const scenes = names.map((name, i) => ({
@@ -76,6 +78,7 @@ export function wallFilm(layout, { module, laid = true, band }) {
     version: 1, title: "mosAIc", seed: 42, fps: [60, 1], frames: Math.ceil(end * 60) + 1, band, look: [[0, 1], [end, 1]],
     scenes: [
       { id: "name", picture: { module, export: "namePicture", args: layout }, start: 0, end, at: [0, 0], in: arrive, front: true },
+      { id: "tagline", picture: { module, export: "taglinePicture", args: layout }, start: 0, end, at: [frame.x, frame.y], in: arrive, front: true },
       { id: "page", picture: { module, export: "wallPicture", args: layout }, start: 0, end, at: [0, 0], in: arrive },
       ...scenes
     ]
@@ -88,6 +91,14 @@ export function namePicture(layout) {
   const { W, screen, middle } = firstScreen(layout);
   const p = nameAlone({ w: W, h: screen, screen });
   return { ...p, config: { ...p.config, rows: true, build: { origin: [W / 2, middle], start: 0.2, end: GATE } } };
+}
+
+// The line under the name, laid from its middle as the name is finished.
+export function taglinePicture(layout) {
+  const { W, screen } = firstScreen(layout);
+  const p = taglineAlone({ w: W, screen });
+  const { w, h } = p.config.panel;
+  return { ...p, config: { ...p.config, rows: true, build: { origin: [w / 2, h / 2], start: GATE - 0.9, end: GATE } } };
 }
 
 // A scene behind the name, on the first screen and on down to the shoreline. The first is

@@ -21,6 +21,8 @@
      home/wall.js uses: a fixed height up to 1440 pixels wide, and in proportion past it. */
   --hero: max(min(102.27vw, 811px), 56.25vw);
   --lift: 0 1px 2px rgb(8 18 24 / 0.55), 0 0 18px rgb(8 18 24 / 0.35);
+  /* The bar floats this far below the top of the screen; home/nav.js sets its height. */
+  --bar-top: clamp(10px, 1.6vw, 22px);
   font: 400 18px / 1.6 var(--serif);
   color: var(--light);
   background: var(--plaster);
@@ -30,13 +32,18 @@
 }
 
 * { box-sizing: border-box; }
-html { scroll-padding-top: 24px; }
+/* Sections settle just under the bar when a scroll ends near their start. */
+html { scroll-padding-top: calc(var(--bar-top) + var(--bar-h, 45px) + 14px); scroll-snap-type: y proximity; }
+main > section { scroll-snap-align: start; }
+@media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
 body { position: relative; display: flow-root; margin: 0; background: var(--plaster); overflow-x: clip; }
 a { color: inherit; text-decoration-thickness: 1px; text-underline-offset: 3px; }
 button { font: inherit; color: inherit; cursor: pointer; }
 :focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }
 code { font: 400 0.86em / 1 var(--mono); }
 [hidden] { display: none !important; }
+/* Words kept for screen readers and search where the page shows them in stone. */
+.unseen { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
 .wrap { width: min(100% - 2 * var(--gutter), var(--measure)); margin-inline: auto; }
 
@@ -66,22 +73,46 @@ h1[data-wall="band"], h2[data-wall="band"] { width: fit-content; }
 .emblem { margin: 0; background: #0e1d24; }
 .emblem img, .emblem video { display: block; width: 100%; height: auto; }
 
-/* Sound is off until asked for: the stones are heard only after this is pressed. */
-.sound {
-  position: fixed; right: clamp(14px, 2vw, 28px); bottom: clamp(14px, 2vw, 28px); z-index: 2;
-  display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 14px 0 11px; border: 1px solid rgb(239 235 225 / 0.28); border-radius: 20px;
+/* The bar: a slab of stone set apart from the top edge, naming the sections. Its canvas is
+   cut to the slab's rounded corners, and a link over each name carries its words. Without
+   WebGL2 the words show on a plain dark bar instead. */
+.bar {
+  position: fixed; top: var(--bar-top); left: 50%; z-index: 3; width: var(--bar-w); height: var(--bar-h);
+  transform: translateX(-50%); border-radius: var(--bar-radius); visibility: hidden;
+}
+.bar[data-state="live"] { visibility: visible; }
+.bar canvas { position: absolute; inset: 0; display: block; width: 100%; height: 100%; border-radius: inherit; }
+.bar a { position: absolute; border-radius: 6px; }
+.bar a:focus-visible { outline: 2px solid var(--gilt); outline-offset: -3px; }
+.bar[data-state="still"] {
+  visibility: visible; width: auto; height: auto; display: flex; gap: 4px 22px; flex-wrap: wrap; justify-content: center; padding: 10px 22px;
+  border: 1px solid rgb(201 157 92 / 0.6); background: #10222a; border-radius: 12px; font: 500 13px / 1.4 var(--sans); letter-spacing: 0.08em; text-transform: uppercase;
+}
+.bar[data-state="still"] a { position: static; text-decoration: none; color: var(--light-muted); }
+.bar[data-state="still"] a[aria-current] { color: var(--gilt); }
+.bar[data-state="still"] .unseen { position: static; width: auto; height: auto; overflow: visible; clip-path: none; }
+
+/* The page's own controls: the scenes' pause, and sound, which is off until asked for, so
+   the stones are heard only after it is pressed. */
+.controls { position: fixed; right: clamp(14px, 2vw, 28px); bottom: clamp(14px, 2vw, 28px); z-index: 2; display: flex; gap: 10px; }
+.sound, .control {
+  display: flex; align-items: center; justify-content: center; gap: 8px; height: 40px; border: 1px solid rgb(239 235 225 / 0.28); border-radius: 20px;
   background: rgb(9 22 30 / 0.55); color: var(--light-muted); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
   font: 500 13px / 1 var(--sans);
 }
-.sound:hover, .sound[aria-pressed="true"] { color: var(--light); border-color: rgb(239 235 225 / 0.55); }
-.sound svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.sound { padding: 0 14px 0 11px; }
+.control { width: 40px; padding: 0; }
+.sound:hover, .sound[aria-pressed="true"], .control:hover { color: var(--light); border-color: rgb(239 235 225 / 0.55); }
+.sound svg, .control svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.control .play { fill: currentColor; stroke: none; }
+.control[data-state="playing"] .play, .control[data-state="paused"] .pause { display: none; }
 .sound .speaker { fill: currentColor; stroke: none; }
 .sound .waves, .sound[aria-pressed="false"] .waves { display: none; }
 .sound[aria-pressed="true"] .waves { display: inline; }
 .sound[aria-pressed="true"] .mute { display: none; }
 
-/* The first screen is the name set in stone, from the very top of the page: no bar, only its
-   caption by the shoreline. */
+/* The first screen is the name set in stone, from the very top of the page, with only the bar
+   over it and no words of the page's own type. */
 .hero { position: relative; }
 .hero-art { height: var(--hero); }
 /* On a screen much taller than it is wide, the first screen fills most of it, and the name
@@ -90,19 +121,20 @@ h1[data-wall="band"], h2[data-wall="band"] { width: fit-content; }
   :root { --hero: clamp(102.27vw, 100svh - 120px, 200vw); }
   .wall[data-state="still"] { background: url("media/hero-tall.webp") center top / 100% auto no-repeat, #12303f; }
 }
-.hero-foot { position: absolute; left: 0; right: 0; bottom: 18px; display: flex; align-items: baseline; justify-content: space-between; gap: 8px 32px; flex-wrap: wrap; }
-.hero-note { margin: 0; font: 400 14px / 1.5 var(--sans); color: var(--light-muted); }
-.work-title { font: italic 400 16px / 1.5 var(--serif); color: var(--light); margin-right: 10px; }
+.work-title { font: italic 400 16px / 1.5 var(--serif); color: var(--light); margin-right: 6px; }
 .text-button { padding: 0; border: 0; background: none; font: 500 14px / 1.5 var(--sans); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 4px; }
 .text-button:hover { color: var(--gilt); }
 .tablet .text-button:hover { color: var(--gold); }
 
-.intro {
-  display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: 24px; row-gap: 48px; align-items: end;
-  padding-block: clamp(96px, 12vw, 176px) clamp(64px, 8vw, 120px);
+/* What the page is, on one tablet under the first screen, with a note on the wall under it.
+   The note keeps room for two lines, so the layout the wall was cut around never moves when
+   its words change. */
+.intro { padding-block: clamp(96px, 12vw, 176px) clamp(64px, 8vw, 120px); }
+.lede { width: min(100%, 680px); margin-inline: auto; }
+.wall-note {
+  width: min(100%, 680px); min-height: 3em; margin: 22px auto 0; text-align: center; text-shadow: var(--lift);
+  font: 400 14px / 1.5 var(--sans); color: var(--light-muted); text-wrap: balance;
 }
-h1 { grid-column: 1 / span 7; margin: 0; font: 400 clamp(46px, 6.4vw, 96px) / 0.98 var(--serif); letter-spacing: -0.03em; text-wrap: balance; }
-.lede { grid-column: 8 / span 5; }
 .lede p { margin: 0 0 24px; text-wrap: pretty; }
 .lede .actions { display: flex; flex-wrap: wrap; gap: 12px; margin: 0; }
 .lede .source { margin: 22px 0 0; font: 400 15px / 1.5 var(--sans); color: var(--muted); }
@@ -181,7 +213,6 @@ h3 { margin: 0; font: 600 20px / 1.25 var(--serif); letter-spacing: -0.005em; }
 .colophon-mark svg { width: 15px; height: 15px; }
 
 @media (max-width: 1080px) {
-  h1, .lede { grid-column: 1 / span 10; }
   h2, .section-head p { grid-column: 1 / -1; }
   .section-head p { max-width: 60ch; }
   .tray { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -195,17 +226,12 @@ h3 { margin: 0; font: 600 20px / 1.25 var(--serif); letter-spacing: -0.005em; }
 
 @media (max-width: 720px) {
   :root { font-size: 17px; --gutter: 22px; }
-  h1, .lede { grid-column: 1 / -1; }
   .tablet { padding: 22px 22px; }
   .stages { grid-template-columns: minmax(0, 1fr); }
   .tray { gap: 56px 20px; }
   .medallion { width: min(100%, 150px); }
   .label p { font-size: 14px; }
-  .film, .agents, .intro, .section-head { grid-template-columns: minmax(0, 1fr); }
+  .film, .agents, .section-head { grid-template-columns: minmax(0, 1fr); }
   .film .emblem, .film figcaption, .agents-note, .agents figure { grid-column: 1 / -1; }
   .colophon { grid-template-columns: 1fr; }
-  /* On a phone the first screen's caption hangs below it, clear of the name, in space kept
-     for it, and never moves the layout the wall was cut around when its text changes. */
-  .hero-foot { top: 100%; bottom: auto; padding-top: 14px; }
-  .intro { padding-top: 168px; }
 }

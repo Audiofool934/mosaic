@@ -23,24 +23,25 @@
 <body>
   <!-- The page is one wall. Its stones are cut around the blocks marked data-wall. -->
   <div class="wall" id="wall" data-state="poster" aria-hidden="true"><canvas id="wall-canvas"></canvas></div>
+  <!-- The bar names the sections in stone. Each name has a link over it, with its own words. -->
+  <nav class="bar" id="bar" aria-label="Sections" data-state="poster">
+    <a href="#top"><span class="unseen">Home</span></a><a href="#method"><span class="unseen">Method</span></a><a href="#materials"><span class="unseen">Materials</span></a><a href="#work"><span class="unseen">Work</span></a><a href="#use"><span class="unseen">Use it</span></a>
+  </nav>
 
 
   <main>
-    <section class="hero" aria-label="mosAIc: the name set in white marble, with its AI inlaid in gold, laid live across the top of this page in front of mosaic scenes that flow into one another: moonlit water, dunes at dusk, sweeping currents, and peaks at first light">
-      <div class="hero-art" id="hero"></div>
-      <div class="hero-foot wrap">
-        <p class="hero-note"><span class="work-title">The name in stone</span> <span id="wall-note" role="status">Cutting the stones in your browser.</span></p>
-        <button class="text-button" id="wall-replay" type="button" hidden>Pause</button>
-      </div>
+    <section class="hero" id="top" aria-labelledby="title">
+      <h1 id="title" class="unseen">mosAIc, from a prompt to stone</h1>
+      <div class="hero-art" id="hero" role="img" aria-label="The name MOSAIC set in white marble, with its AI inlaid in gold and From a prompt to stone set in small stones under it, laid live across the top of this page in front of mosaic scenes that flow into one another: moonlit water, dunes at dusk, sweeping currents, and peaks at first light."></div>
     </section>
 
-    <section class="intro wrap" aria-labelledby="title">
-      <h1 id="title" data-wall="band">From a prompt to stone.</h1>
+    <section class="intro wrap" aria-label="What mosAIc is">
       <div class="tablet lede" data-wall="tablet">
         <p>mosAIc is an open mosaic engine and the agent skill that lays it. Your coding agent draws a picture, a film, or a whole page, and the engine cuts it into thousands of stones of glass, marble, and gold, sets them in mortar, and lights each one. This page is one of its walls, cut in your browser around the words you are reading.</p>
         <p class="actions"><a class="button primary" href="#use">Give your agent the skill</a> <a class="button" href="site/">Try the studio</a></p>
         <p class="source"><a href="https://github.com/Audiofool934/mosaic">The source is on GitHub</a>, under the MIT License.</p>
       </div>
+      <p class="wall-note"><span class="work-title">The name in stone.</span> <span id="wall-note" role="status">Cutting the stones in your browser.</span></p>
     </section>
 
     <section class="section wrap" id="method" aria-labelledby="method-title">
@@ -137,10 +138,15 @@ node tools/cli.mjs render art/project.json</code></pre><button class="copy" type
     </section>
   </main>
 
-  <button class="sound" id="sound" type="button" aria-pressed="false" title="Hear the stones">
-    <svg viewBox="0 0 24 24" aria-hidden="true"><path class="speaker" d="M4 9.5h3.5L12 6v12l-4.5-3.5H4z"/><path class="waves" d="M15.5 9.5a3.6 3.6 0 0 1 0 5M18 7a7.2 7.2 0 0 1 0 10"/><path class="mute" d="M16 10l4 4m0-4l-4 4"/></svg>
-    <span class="sound-label">Sound</span>
-  </button>
+  <div class="controls">
+    <button class="control" id="wall-replay" type="button" hidden aria-label="Pause the scenes" title="Pause the scenes" data-state="playing">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path class="pause" d="M8.5 6.5v11M15.5 6.5v11"/><path class="play" d="M8.5 6.2v11.6L18 12z"/></svg>
+    </button>
+    <button class="sound" id="sound" type="button" aria-pressed="false" title="Hear the stones">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path class="speaker" d="M4 9.5h3.5L12 6v12l-4.5-3.5H4z"/><path class="waves" d="M15.5 9.5a3.6 3.6 0 0 1 0 5M18 7a7.2 7.2 0 0 1 0 10"/><path class="mute" d="M16 10l4 4m0-4l-4 4"/></svg>
+      <span class="sound-label">Sound</span>
+    </button>
+  </div>
 
   <footer class="colophon wrap tablet" data-wall="tablet">
     <div class="colophon-mark">

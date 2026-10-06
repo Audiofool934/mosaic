@@ -172,8 +172,25 @@ try {
     require(heard.length && heard.every(e => e.kind === 'touch' && typeof e.material === 'string' && e.size > 0 && e.strength > 0), 'The stones under a sliding pointer were not heard.');
     require(heard.length >= 2 && heard.length <= 12, `A slide of a tenth of a second set off ${heard.length} stones.`);
     require(heard.length === slid, 'Stones were heard under a resting pointer.');
+    // A still pointer over a wall that moves under it, as when a page scrolls, slides over it
+    // too; a jump of most of a view, as when the view is cut again, does not.
+    const frameAt = async y => {
+      live.setView({ frame: { x: 800, y, w: 400 } });
+      live.requestFrame();
+      await new Promise(resolve => requestAnimationFrame(resolve));
+    };
+    await frameAt(450);
+    live.setPointer({ x: 0.5, y: 0.5, active: true });
+    await new Promise(resolve => setTimeout(resolve, 400));
+    const resting = heard.length;
+    for (let k = 1; k <= 20; k++) await frameAt(450 + k * 2);
+    const scrolled = heard.length;
+    require(scrolled - resting >= 2, `A wall moving under a still pointer set off ${scrolled - resting} stones.`);
+    await frameAt(190);
+    await frameAt(190);
+    require(heard.length === scrolled, 'A jump of the view was heard as a slide.');
     live.dispose();
-    checks.push('live input stops drawing once the stones rest', 'a sliding pointer sets off stones as it goes, and a resting one none');
+    checks.push('live input stops drawing once the stones rest', 'a sliding pointer sets off stones as it goes, and a resting one none', 'a wall moving under a still pointer is heard, and a jump of the view is not');
 
     // Every material is heard, softly and without clipping.
     const { createStoneSound } = await import('/engine/sound.js');

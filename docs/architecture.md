@@ -71,6 +71,7 @@ An imported image is always analysed on the page.
 
 `controller.onContact(listener)` hears the stones the pointer sets off as it slides, like a handful of small stones poured onto a table.
 A sliding pointer sets off stones near its path, about seventy for each width of the view it covers and at most sixty a second, the first as soon as it moves, and only where there are stones.
+The slide is measured over the wall, so a still pointer over a page that scrolls is heard as the wall moves under it, while a jump of the view, as when it is cut again, is not.
 Each contact has its kind (`touch`), the material and size in millimetres of its stone, a strength from 0 to 1 that grows with the pointer's speed, the seconds after now it is heard, and its position on the canvas.
 `engine/sound.js` turns them into sound with `createStoneSound()`: each stone is heard as its own material landing on something solid, most of them softly and a few hard.
 Each material's voice comes from published measurements of it: the speed of sound in it sets its pitch, its density how hard it lands, and its internal damping how long it rings.

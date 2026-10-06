@@ -203,21 +203,27 @@ export async function createMosaic(canvas, options = {}) {
   function schedule() { if (!raf && !disposed && !lost) raf = requestAnimationFrame(tick); }
   // Listeners hear the stones the pointer touches as it slides over them, in each live frame.
   const listeners = new Set();
-  let hear = null, heardAt = -Infinity;
+  // Where the pointer was on the wall when last heard, and when.
+  let hear = null, heardOn = null, heardAt = 0;
   function heard(c) {
     hear ??= createContacts();
     const cam = timeline.cameraAt(time), w = cam.w / 1000;
-    // How far the pointer moved between the newest input heard in the last frame and in this
-    // one, whenever in the frame it arrived, seen on the screen, so a scroll under a still
-    // pointer is not a slide. A fingertip reaches 0.28% of the view, about one course of stones.
-    const newest = input.at(-1)?.t ?? -Infinity, since = Math.max(heardAt, newest - .05);
-    const p0 = live(since), p1 = live(newest);
+    // How far the pointer has slid over the wall since the last frame, whether the hand moved
+    // or the wall moved under it, as when the page scrolls. The newest input is where the
+    // pointer is, whenever in the frame it arrived, and a jump of half a view, as when the view
+    // is cut again, is not a slide. A fingertip reaches 0.28% of the view, about one course of
+    // stones.
+    const p = live(input.at(-1)?.t ?? -Infinity);
     let touch = null;
-    if (p0.strength > 0 && p1.strength > 0 && newest > since) {
-      const moved = Math.hypot(p1.x - p0.x, (p1.y - p0.y) * height / width), m = unproject(cam);
-      touch = { from: onWall(m, p0), at: onWall(m, p1), reach: w * .0028, moved, dt: newest - since, speed: moved / (newest - since) };
-    }
-    heardAt = newest;
+    if (p.strength > 0) {
+      const at = onWall(unproject(cam), p);
+      if (heardOn) {
+        const moved = Math.hypot(at[0] - heardOn[0], at[1] - heardOn[1]) / w, dt = clamp(c - heardAt, 1e-3, .05);
+        if (moved < .5) touch = { from: heardOn, at, reach: w * .0028, moved, dt, speed: moved / dt };
+      }
+      heardOn = at;
+    } else heardOn = null;
+    heardAt = c;
     const events = hear({ layers: base.layersAt(time), touch, time, clock: c,
       view: { x: cam.target[0], y: cam.target[1], w, h: w / (width / height) } });
     if (events.length) for (const listener of listeners) listener(events);

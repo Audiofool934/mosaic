@@ -8,6 +8,7 @@ Only a few style settings, shared by every material, are tuned by ear, once, for
 ## How a stone is heard
 
 `engine/contact.js` sets off about seventy stones for each width of the view the pointer covers, at most sixty a second, the first as soon as it moves, and only where there are stones.
+It follows the pointer's slide over the wall rather than over the screen, so a still pointer over a page that scrolls sets off stones as the wall moves under it.
 Each contact carries the material and size of its stone, a strength that grows with the pointer's speed, and when and where it is heard.
 
 `engine/sound.js` renders each stone as a small square tile with free edges landing on a table.

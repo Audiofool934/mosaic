@@ -1,18 +1,20 @@
 // The sound of the stones under the hand, like a small pouch of stones poured onto a table: the
 // pointer sets off stones as it slides, and each one is heard as its own material striking
-// something solid. Stone and glass give a soft, dull knock; gold and silver ring like small
-// blocks of metal. Each is short and kept below the sharp range, with no hiss. All of it is
-// synthesised; nothing is recorded or downloaded. Browsers start audio only from a click or a
-// key, so call start() from one.
+// something solid. Stone gives a soft, dull knock, glass a clearer one that rings for a moment,
+// and gold and silver ring longer, like small blocks of metal. Each is kept below the sharp
+// range, with no hiss. All of it is synthesised; nothing is recorded or downloaded. Browsers
+// start audio only from a click or a key, so call start() from one.
 import { clamp, rng } from './util.js';
 
-// Versions of each sound, so a pour never repeats itself; how loud a stone is at full
-// strength, and how high it sounds, for each kind of material.
+// Versions of each sound, so a pour never repeats itself; and for each material that does
+// not sound like stone, its voice, how loud it is at full strength, and how high it sounds.
 const VARIANTS = 12;
 const KINDS = {
-  stone: { level: 0.5, pitch: 1 },
-  gold: { level: 0.18, pitch: 0.9, metal: true },
-  silver: { level: 0.18, pitch: 1.1, metal: true }
+  stone: { voice: 'stone', level: 0.5, pitch: 1 },
+  glass: { voice: 'glass', level: 0.28, pitch: 1 },
+  emit: { voice: 'glass', level: 0.28, pitch: 1.05 },
+  gold: { voice: 'metal', level: 0.22, pitch: 0.92 },
+  silver: { voice: 'metal', level: 0.18, pitch: 1.04 }
 };
 // At most this many sounds play at once.
 const VOICES = 32;
@@ -59,11 +61,19 @@ function stone(ctx, R) {
   return strike(ctx, 0.05, [[f, 1, 0.005 + 0.003 * R()], [f * (2.2 + 0.4 * R()), 0.12, 0.0025], [300 + 150 * R(), 0.4, 0.008 + 0.004 * R()]], 1800, 0.0007, 2500, R);
 }
 
-// A small block of metal on a table: a clear clink of partials out of tune with each other,
-// two of them close enough to shimmer, ringing for a fraction of a second over the table.
+// A small piece of glass on a table: a clearer, higher knock than stone that rings for a
+// moment, with a quieter overtone out of tune with it, over a lighter knock of the table.
+function glass(ctx, R) {
+  const f = 950 + 400 * R(), ring = 0.014 + 0.008 * R();
+  return strike(ctx, 0.1, [[f, 1, ring], [f * (2.6 + 0.3 * R()), 0.14, ring * 0.4], [320 + 140 * R(), 0.25, 0.008]], 2400, 0.0006, 2800, R);
+}
+
+// A small block of metal on a table: a warm clink of partials out of tune with each other,
+// two of them close enough to shimmer, ringing for a fraction of a second over the table, its
+// upper partials kept quiet so it is no brighter than the stones around it.
 function metal(ctx, R) {
-  const f = 1250 + 400 * R(), ring = 0.08 + 0.05 * R();
-  return strike(ctx, 0.4, [[f, 1, ring], [f * 1.012, 0.5, ring], [f * (1.72 + 0.06 * R()), 0.6, ring * 0.7], [f * (2.38 + 0.08 * R()), 0.35, ring * 0.5], [f * (2.95 + 0.1 * R()), 0.18, ring * 0.3], [380 + 120 * R(), 0.25, 0.01]], 4000, 0.0004, 5000, R);
+  const f = 950 + 300 * R(), ring = 0.07 + 0.04 * R();
+  return strike(ctx, 0.35, [[f, 1, ring], [f * 1.012, 0.5, ring], [f * (1.72 + 0.06 * R()), 0.4, ring * 0.7], [f * (2.38 + 0.08 * R()), 0.16, ring * 0.5], [f * (2.95 + 0.1 * R()), 0.06, ring * 0.3], [350 + 120 * R(), 0.25, 0.01]], 2600, 0.0006, 3200, R);
 }
 
 // context: an AudioContext to share, or an OfflineAudioContext to render sounds ahead.
@@ -90,7 +100,7 @@ export function createStoneSound({ volume = 0.5, context = null } = {}) {
     bus.gain.value = volume;
     bus.connect(soft);
     const R = rng(7001);
-    sounds = { stone: Array.from({ length: VARIANTS }, () => stone(ctx, R)), metal: Array.from({ length: VARIANTS }, () => metal(ctx, R)) };
+    sounds = Object.fromEntries(Object.entries({ stone, glass, metal }).map(([name, make]) => [name, Array.from({ length: VARIANTS }, () => make(ctx, R))]));
   }
   function voice(buffer, rate, gain, pan, at) {
     const source = ctx.createBufferSource();
@@ -120,7 +130,7 @@ export function createStoneSound({ volume = 0.5, context = null } = {}) {
       ends = ends.filter((end) => end > now);
       for (const e of events) {
         if (e.kind !== 'touch' || !(e.strength > 0) || ends.length >= VOICES) continue;
-        const kind = KINDS[e.material] || KINDS.stone, set = sounds[kind.metal ? 'metal' : 'stone'];
+        const kind = Object.hasOwn(KINDS, e.material) ? KINDS[e.material] : KINDS.stone, set = sounds[kind.voice];
         // Most stones in a pour land softly and a few land hard.
         const loud = kind.level * clamp(e.strength, 0, 1) * (0.25 + 0.75 * vary() ** 2);
         voice(set[Math.floor(vary() * VARIANTS)], kind.pitch * (0.9 + 0.2 * vary()), loud, (e.x * 2 - 1) * 0.5 + (vary() - 0.5) * 0.2, now + (e.delay || 0));

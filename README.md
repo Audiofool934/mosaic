@@ -105,7 +105,7 @@ It also covers cutting stones in a worker and walls of several pictures that a p
 - Image conversion with a bounded palette and controllable stone size and material.
 - Pointer-responsive websites, deterministic still capture, and scene-based film rendering.
 - Pages laid as one live wall, cut around their own layout in background workers.
-- The stones heard under the pointer like small stones poured onto a table, with gold and silver ringing like metal, synthesised in the browser and off until asked for.
+- The stones heard under the pointer like small stones poured onto a table, each material in its own voice, synthesised in the browser and off until asked for.
 - A shared portable skill and reproducible distributions with source hashes and license notices.
 
 Continuous video stylization is deferred.

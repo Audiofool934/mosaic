@@ -73,7 +73,8 @@ An imported image is always analysed on the page.
 A sliding pointer sets off stones near its path, about seventy for each width of the view it covers and at most sixty a second, the first as soon as it moves, and only where there are stones.
 Each contact has its kind (`touch`), the material and size in millimetres of its stone, a strength from 0 to 1 that grows with the pointer's speed, the seconds after now it is heard, and its position on the canvas.
 `engine/sound.js` turns them into sound with `createStoneSound()`: each stone is heard as its own material striking something solid, most of them softly and a few hard.
-Stone and glass give a soft, dull knock over the table's own low one, and gold and silver ring like small blocks of metal, gold lower than silver.
+Stone gives a soft, dull knock over the table's own low one, glass a clearer, higher knock that rings for a moment, and gold and silver ring longer, like small blocks of metal, gold lower than silver.
+Metal is told apart by its ring rather than by brightness, so it is no sharper than the stones around it.
 The sounds are short and kept below the sharp range, with no hiss, and they are synthesised, with nothing recorded or downloaded.
 Browsers start audio only from a click or a key, so pages keep it off until asked for and call `start()` from that click.
 Contacts come only from live input; seeks, replays, and exports are silent.

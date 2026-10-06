@@ -175,6 +175,21 @@ try {
     live.dispose();
     checks.push('live input stops drawing once the stones rest', 'a sliding pointer sets off stones as it goes, and a resting one none');
 
+    // Every material is heard, softly and without clipping.
+    const { createStoneSound } = await import('/engine/sound.js');
+    const materials = ['glass', 'gold', 'silver', 'emit', 'marble', 'basalt', 'limestone', 'terracotta'];
+    const offline = new OfflineAudioContext(1, 19200 * materials.length, 48000);
+    const sound = createStoneSound({ context: offline });
+    await sound.start();
+    materials.forEach((material, k) => sound.play([{ kind: 'touch', material, size: 10, strength: 1, delay: 0, x: 0.5, y: 0.5 }], k * 0.4));
+    const samples = (await offline.startRendering()).getChannelData(0);
+    materials.forEach((material, k) => {
+      let peak = 0;
+      for (let i = k * 19200; i < (k + 1) * 19200; i++) peak = Math.max(peak, Math.abs(samples[i]));
+      require(peak > 0.003 && peak < 0.9, `The ${material} sound peaked at ${peak}.`);
+    });
+    checks.push('every material is heard, softly and without clipping');
+
     // A wall of two pictures side by side, each cut in its own worker: the wall is drawn
     // once the first is ready, the second joins it, and a frame can look at either.
     const pairCanvas = document.createElement('canvas');

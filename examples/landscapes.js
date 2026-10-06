@@ -218,7 +218,7 @@ export const STAGE = { w: 1600, h: 900 };
 // cut around the scene's focus, or on a wider one stretched across it; below the first
 // screen the scene runs on to the panel's foot. Its stones are `k` times their size on a
 // desktop page, and it leaves a hole where the name is set unless `hole` is false. `build`
-// says how it is laid, if it is.
+// says how it is laid, if it is, straight onto the bare plaster, with no sinopia drawn first.
 export function scene({ name, w, h, screen = h, stack, k = 1, hole = true, build }) {
   const s = SCENES[name];
   if (!s) throw new Error(`No scene ${name}.`);
@@ -227,7 +227,7 @@ export function scene({ name, w, h, screen = h, stack, k = 1, hole = true, build
   const regions = () => s.regions(STAGE.w, STAGE.h).map((r) => ({ ...r, size: r.size * k, ...(r.center && { center: [tx + r.center[0] * sx, r.center[1] * sy] }) }));
   const set = nameAt(w, screen, stack);
   return {
-    config: { panel: { w, h }, res: 1, background: s.regions(STAGE.w, STAGE.h)[0].name, camera: { keys: [[0, w / 2, h / 2, w]], tilt: 0, yaw: 0, aperture: 0.004, drift: 0 }, light: house.light, ...(build && { build }) },
+    config: { panel: { w, h }, res: 1, background: s.regions(STAGE.w, STAGE.h)[0].name, camera: { keys: [[0, w / 2, h / 2, w]], tilt: 0, yaw: 0, aperture: 0.004, drift: 0 }, light: house.light, sinopia: false, ...(build && { build }) },
     regions,
     draw(g, mode, D) {
       g.save();

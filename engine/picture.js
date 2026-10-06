@@ -3,6 +3,7 @@
 //
 // pictures/<film>/<name>.js exports
 //   config     panel size (mm), camera, light, build order, glints, flicker, sinopia
+//              (the groups of regions it outlines, or false to lay onto bare plaster)
 //   regions()  every region with its stone size, course mode, material, and tray
 //   draw()     paints the picture; the same call paints labels and colour
 //   arrivals   figures that come in during the scene, tessellated apart

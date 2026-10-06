@@ -288,7 +288,8 @@ export function wallPicture(layout) {
       rows: true,
       camera: { keys: [[0, W / 2, Math.min(H, seam) / 2, W]], tilt: 0, yaw: 0, aperture: 0.004, drift: 0 },
       light: house.light,
-      sinopia: { groups: [["deep", "drift", "spray", "band"]] },
+      // Laid straight onto the bare plaster, like the name and the scenes.
+      sinopia: false,
       // Laid from below the first screen while the first scene is laid, then on down the
       // page, all before the scenes begin to flow.
       build: {

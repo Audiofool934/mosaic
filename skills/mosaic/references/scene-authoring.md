@@ -64,6 +64,7 @@ Lighting supports a directional key and fill, ambient sky/ground, point lights, 
 `in.type: "settled"` displays completed stonework immediately.
 `"laid"` schedules stones into the mortar using the picture's `build` configuration.
 The bundled `examples/laid.json` lays the nocturne outward from the moon while the camera pulls back; `"bed": 0` shows the bare mortar and its sinopia from the first frame.
+The sinopia outlines every region, or the groups of regions listed in the config's `sinopia: { groups }`; `sinopia: false` lays the stones straight onto bare plaster with no drawing first.
 `"flow"` pairs outgoing stones with an incoming picture; its `launch` and `land` intervals are on the project clock.
 Scenes with `"at": [x, y]` are placed side by side on one wall, in millimetres from its top left corner, and can share the same clock.
 A scene placed with `at` can flow in from the scene before it and keeps its place; the whole picture flows, since on a wall the page frames the view rather than the picture's own camera.

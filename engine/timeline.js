@@ -287,8 +287,9 @@ function buildInstances(layer, aspect) {
 // stone's edge), and the sinopia's brush coverage.
 // ---------------------------------------------------------------------------
 
-function bedData(layer) {
-  const pic = layer.pic;
+// The sinopia's brush coverage along the edges between a picture's regions, or between the
+// groups its config.sinopia names, written into `sin`.
+function drawSinopia(pic, sin) {
   const { GW, GH, res } = pic;
   const N = GW * GH;
   const groupOf = new Int32Array(pic.regions.length);
@@ -324,7 +325,6 @@ function bedData(layer) {
       prG[j * gw + i] = 0.62 + 0.45 * fbm((i * G) / 47 + 3, (j * G) / 47, 23, 3);
     }
   }
-  const sin = new Uint8Array(N);
   for (let y = 0; y < GH; y++) {
     const fy = (y + 0.5) / res / G;
     const j = Math.min(gh - 2, fy | 0);
@@ -343,7 +343,16 @@ function bedData(layer) {
       sin[i] = Math.round(255 * clamp01(a));
     }
   }
+}
 
+function bedData(layer) {
+  const pic = layer.pic;
+  const { GW, GH, res } = pic;
+  const N = GW * GH;
+  const label = pic.label;
+  // The sinopia, unless the picture is laid straight onto the bare plaster.
+  const sin = new Uint8Array(N);
+  if (pic.cfg.sinopia !== false) drawSinopia(pic, sin);
   // Ownership. Stones of an arrival own their patch once they start to land; before
   // that the stones they replace do, which is the same patch.
   const tiles = layer.tiles;

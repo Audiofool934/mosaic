@@ -45,12 +45,12 @@ export function nameHole(D, set) {
 // The name alone, as a picture `w` by `h` millimetres whose first screen is `screen` high:
 // its letters set as `nameAt` places them, each ringed first by dark stone, and nothing else.
 // Their stones are sized to the letters, so every stroke is about six stones across at any
-// size.
+// size, and they are laid straight onto the bare plaster, with no sinopia drawn first.
 export function nameAlone({ w, h, screen = h, stack }) {
   const set = nameAt(w, screen, stack);
   const s = set.cap * 0.03;
   return {
-    config: { panel: { w, h }, res: 1, background: "outline", camera: { keys: [[0, w / 2, h / 2, w]], tilt: 0, yaw: 0, aperture: 0.004, drift: 0 }, light: house.light },
+    config: { panel: { w, h }, res: 1, background: "outline", camera: { keys: [[0, w / 2, h / 2, w]], tilt: 0, yaw: 0, aperture: 0.004, drift: 0 }, light: house.light, sinopia: false },
     regions: () => [
       { name: "outline", size: s * 0.8, mode: "contour", mat: "basalt", tray: ["#0a171c", "#0f2228", "#132a31"] },
       { name: "marble", size: s, mode: "contour", mat: "marble", tray: ["#cfd2c2", "#e0dec4", "#ece6d0", "#f4eedb"] },

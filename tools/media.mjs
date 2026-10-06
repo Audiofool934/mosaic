@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 // Renders the pictures the project page shows beside its live wall, from the examples and
-// through the same engine: the laid nocturne, which stands in for the wall without WebGL2
-// and makes the share image, the four-stage method plate, and the short film. Run it after
-// a visual change to the engine or the examples.
+// through the same engine: the name in stone over the night, wide and tall, which stands in
+// for the wall without WebGL2 and makes the share image, the four-stage method plate, and
+// the short film. Run it after a visual change to the engine or the examples.
 import { spawnSync } from 'node:child_process';
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
@@ -143,8 +143,9 @@ async function main() {
   try {
     await mkdir(OUT, { recursive: true });
 
-    const end = await still(work, 'examples/laid.json', 8.98, 1920, 'hero-end');
+    const end = await still(work, 'examples/inscription.json', 2, 1920, 'hero-end');
     webp(end, path.join(OUT, 'hero-end.webp'));
+    webp(await still(work, 'examples/inscription-tall.json', 2, 1080, 'hero-tall'), path.join(OUT, 'hero-tall.webp'));
     // Link previews want a 1200 by 630 JPEG.
     ffmpeg(['-i', end, '-vf', 'scale=1200:-2:flags=lanczos,crop=1200:630', '-frames:v', '1', '-q:v', '3', path.join(OUT, 'social.jpg')]);
 

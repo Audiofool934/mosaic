@@ -90,10 +90,19 @@ The wall is drawn from the moment the first picture is ready, and the others joi
 A frame can also be a function, read once for every frame drawn, so a page can follow its own scroll; `requestFrame()` draws once on the next animation frame.
 A picture whose config sets `rows: true` lists its stones by height, so each frame draws only the stones within reach of its view.
 Pictures without it keep their own drawing order and their exact pixels.
+A picture placed with `at` can flow in from the scene before it and keeps its place; the flow takes in the whole picture, since on a wall the page frames the view rather than the picture's own camera, and the pictures of such a chain are cut in one worker.
+A scene set `front: true` stays in front of every stone flying past it.
+Where it has stones or mortar the depth is cleared before its stones are drawn, it is shaded only by its own stones, and its mortar is laid last.
+The mortar is drawn once for each pair of pictures, the newest two last, and a later pair covers an earlier one only where it has a stone or a seat, so a wall of more than two pictures keeps every picture's mortar.
+`createMosaic(canvas, { loop: [from, to] })` plays on from `to` at `from` until paused.
 
 The project page is such a wall.
-`home/wall.js` sets the nocturne at the top, unchanged, and paints a second picture of the page around it from the page's measured layout: tablets and emblems become gold-framed openings, headings rest on level courses, and the material samples are medallions in the wall itself.
-`home/main.js` measures the layout, has both pictures cut in workers, keeps a canvas one viewport tall (plus a margin) moving with the scroll, and cuts the wall again when a new width reflows the page.
+`home/wall.js` sets the name on the first screen, in white marble with its AI inlaid in gold, in front of four scenes from `examples/landscapes.js` that flow into one another in turn: moonlit water, dunes at dusk, sweeping currents, and peaks at first light.
+Each scene is drawn on a stage 1600 by 900 millimetres, scaled to the first screen the way a cover image fills a frame and cut around its focus on a narrow screen, where the name is set as MOS over AIC.
+Below the first screen the scene runs on to a long wave, where a second picture takes over, painted from the page's measured layout: tablets and emblems become gold-framed openings, headings rest on level courses, and the material samples are medallions in the wall itself.
+The name's letters are drawn as shapes in `examples/letters.js` rather than set in a typeface, so the word is cut the same in every browser; `examples/inscription.json` is the same first screen as a film of its own.
+`home/main.js` measures the layout, has the pictures cut in workers, keeps a canvas one viewport tall (plus a margin) moving with the scroll, and cuts the wall again when a new width reflows the page.
+Once laid, the wall plays in a loop that ends where the first scene flows back in, and the page pauses it at each scene's rest for a few seconds, so nothing is drawn while the stones are still and nothing flows while the first screen is out of view.
 Images imported through that studio are processed locally.
 An application that loads remote image URLs still needs the server's normal cross-origin permission to read those images.
 

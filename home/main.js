@@ -1,6 +1,6 @@
 import { createMosaic } from "../engine/runtime.js";
 import { createStoneSound } from "../engine/sound.js";
-import { heroAt, wallScale } from "./wall.js";
+import { wallFilm, wallScale } from "./wall.js";
 
 const $ = (id) => document.getElementById(id);
 const wall = $("wall");
@@ -10,7 +10,10 @@ const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)");
 // The canvas reaches this share of the viewport above and below it, so a fast scroll never
 // outruns the stones between two frames.
 const OVERSCAN = 0.15;
-const END = 10;
+// How long the page holds each scene behind the name, in seconds, and the first scene, once
+// it has been laid.
+const HOLD = 6;
+const FIRST = 2.5;
 
 // The wall on screen: its controller, its canvas, the millimetres of wall in each CSS
 // pixel, and the stretch of page its canvas covers.
@@ -54,36 +57,68 @@ function framing(canvas, scale, view) {
   };
 }
 
-function finished() {
-  return live.mosaic.getState().time >= END - 1 / 60 - 1e-3;
-}
-
 function updateControls() {
   if (!live) return;
-  const { playing } = live.mosaic.getState();
   replay.hidden = reduceMotion.matches;
-  replay.textContent = playing ? "Pause" : finished() ? "Lay it again" : "Resume";
+  replay.textContent = cycling ? "Pause" : "Play";
 }
 
-// While the wall is laid, every frame is drawn; if they come too slowly, the canvas draws
-// fewer pixels from then on.
+// The scenes behind the name: the wall plays until its next rest, where the page holds the
+// scene for a while, then plays on into the next. It holds while the first screen is out of
+// view, and stops when paused.
+let cycling = false;
+let holding = 0;
+let held = false;
+let heroInView = true;
 let watching = 0;
+let checked = 0;
+let frameTimes = [];
+
+function hold(seconds) {
+  clearTimeout(holding);
+  held = true;
+  holding = setTimeout(() => {
+    held = false;
+    advance();
+  }, seconds * 1000);
+}
+
+function advance() {
+  if (!live || !cycling || held || !heroInView || live.mosaic.getState().playing) return;
+  live.mosaic.play();
+  watch();
+}
+
+// Each frame while the wall plays: has it passed a rest, counting a jump back to the loop's
+// start as passing the rest there? And while it is laid, if frames come too slowly, the
+// canvas draws fewer pixels from then on.
 function watch() {
   cancelAnimationFrame(watching);
-  const times = [];
   let last = 0;
   const step = (now) => {
-    updateControls();
-    if (last && times.length < 90) times.push(now - last);
-    last = now;
-    if (times.length === 90 && budget > 0.9e6) {
-      const sorted = times.sort((a, b) => a - b);
-      if (sorted[45] > 28) lighten();
-      times.push(0);
+    watching = 0;
+    if (!live) return;
+    const { time, playing } = live.mosaic.getState();
+    if (!playing) return;
+    const looped = time < checked;
+    if (looped || live.rests.some((r) => checked < r && time >= r)) {
+      // The first rest, once the wall is first laid, is shorter.
+      const first = !looped && checked < live.rests[0] && time >= live.rests[0];
+      live.mosaic.pause();
+      checked = time;
+      hold(first ? FIRST : HOLD);
+      return;
     }
-    watching = live?.mosaic.getState().playing ? requestAnimationFrame(step) : 0;
+    checked = time;
+    if (last && frameTimes.length < 90) frameTimes.push(now - last);
+    last = now;
+    if (frameTimes.length === 90 && budget > 0.9e6) {
+      if ([...frameTimes].sort((a, b) => a - b)[45] > 28) lighten();
+      frameTimes.push(0);
+    }
+    watching = requestAnimationFrame(step);
   };
-  step(0);
+  watching = requestAnimationFrame(step);
 }
 
 function lighten() {
@@ -110,21 +145,14 @@ async function build() {
   }
   canvas.style.height = `${view.height}px`;
   const log = [];
-  // Two pictures on one wall: the nocturne as it was drawn, and the page around it. Each is
-  // named rather than passed, so workers cut them while the page stays live, and the
-  // nocturne is laid as soon as it is ready.
+  // The name, the scenes behind it, and the page around them, all on one wall. Each picture
+  // is named rather than passed, so workers cut them while the page stays live, and the name
+  // is laid as soon as it is ready.
   const module = new URL("./wall.js", import.meta.url).href;
-  const arrive = reduceMotion.matches || !first ? { type: "settled" } : { type: "laid", bed: 0 };
-  const project = {
-    version: 1, title: "mosAIc", seed: 42, fps: [60, 1], frames: END * 60, band: view.px, look: [[0, 1], [END, 1]],
-    scenes: [
-      { id: "nocturne", picture: { module, export: "heroPicture" }, start: 0, end: END, at: heroAt(layout), in: arrive },
-      { id: "page", picture: { module, export: "wallPicture", args: layout }, start: 0, end: END, at: [0, 0], in: arrive }
-    ]
-  };
+  const { project, loop, rests } = wallFilm(layout, { module, laid: first && !reduceMotion.matches, band: view.px });
   let mosaic;
   try {
-    mosaic = await createMosaic(canvas, { project, width: view.px[0], height: view.px[1], samples: 1, interactive: true, worker: true, onProgress: (line) => log.push(line) });
+    mosaic = await createMosaic(canvas, { project, loop, width: view.px[0], height: view.px[1], samples: 1, interactive: true, worker: true, onProgress: (line) => log.push(line) });
     if (!first) await mosaic.ready;
   } catch (error) {
     if (!first) canvas.remove();
@@ -140,15 +168,19 @@ async function build() {
     return;
   }
   const previous = live;
-  live = { mosaic, canvas, scale: layout.scale, view, width: layout.width, height: layout.height };
+  live = { mosaic, canvas, scale: layout.scale, view, width: layout.width, height: layout.height, rests };
   lastLog = log;
   mosaic.setView({ frame: framing(canvas, layout.scale, view) });
   listen();
   if (previous) {
+    // The wall cut again shows the same moment of the same film, and plays on from there.
+    const { time } = previous.mosaic.getState();
     previous.mosaic.dispose();
     previous.canvas.remove();
     canvas.hidden = false;
-    mosaic.seek(END);
+    mosaic.seek(reduceMotion.matches ? rests[0] : time);
+    checked = time;
+    advance();
     updateControls();
     return;
   }
@@ -159,11 +191,12 @@ async function build() {
     const seconds = ((performance.now() - started) / 1000).toFixed(1);
     note.textContent = `${mosaic.info.stoneCount.toLocaleString("en-US")} stones of glass, marble, limestone, basalt, and gold, cut around this page in your browser in ${seconds} seconds.`;
   });
-  if (reduceMotion.matches) mosaic.seek(END);
+  if (reduceMotion.matches) mosaic.seek(rests[0]);
   else {
+    cycling = true;
+    checked = 0;
     mosaic.seek(0);
-    mosaic.play();
-    watch();
+    advance();
   }
   wall.dataset.state = "live";
   updateControls();
@@ -186,16 +219,21 @@ soundButton.addEventListener("click", async () => {
   listen();
 });
 
+// Pausing stops the scenes where they are; playing again goes straight on to the next.
 replay.addEventListener("click", () => {
   if (!live) return;
-  const { mosaic } = live;
-  if (mosaic.getState().playing) mosaic.pause();
-  else {
-    if (finished()) mosaic.seek(0);
-    mosaic.play();
-  }
-  watch();
+  cycling = !cycling;
+  clearTimeout(holding);
+  held = false;
+  if (cycling) advance();
+  else live.mosaic.pause();
+  updateControls();
 });
+
+new IntersectionObserver(([entry]) => {
+  heroInView = entry.isIntersecting;
+  advance();
+}, { threshold: 0.25 }).observe($("hero"));
 
 addEventListener("scroll", () => live?.mosaic.requestFrame(), { passive: true });
 
@@ -240,6 +278,8 @@ addEventListener("resize", relayoutSoon);
 
 window.addEventListener("pagehide", () => {
   cancelAnimationFrame(watching);
+  clearTimeout(holding);
+  held = false;
   live?.mosaic.dispose();
   live = null;
 });

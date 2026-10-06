@@ -1,17 +1,19 @@
-// The project page as one wall of two pictures. The nocturne is set at the top, as it was
-// drawn, and the page picture runs its water on down the page around every tablet, emblem,
-// band, and medallion the page marks out, so the courses follow the page the way they
-// follow a drawing.
-import * as nocturne from "../examples/nocturne-laid.js";
+// The project page as one wall. The name is set in stone on the first screen, over scenes
+// that flow into one another behind it, and the page picture runs its water on down the
+// page around every tablet, emblem, band, and medallion the page marks out, so the courses
+// follow the page the way they follow a drawing.
+import { nameAlone, nameAt } from "../examples/inscription.js";
+import { SCENE_NAMES, scene } from "../examples/landscapes.js";
+import { config as house } from "../examples/nocturne.js";
 import { SAMPLES } from "../examples/materials.js";
-import { circle, ellipse, poly } from "../engine/paint.js";
+import { circle, poly } from "../engine/paint.js";
 import { clamp, rng } from "../engine/util.js";
 
-// The nocturne's panel, and the x its crop keeps central: between the heron and the moon.
-const PANEL = { w: 1600, h: 900, focus: 840 };
+// The widest wall, in millimetres.
+const WIDEST = 1600;
 // Millimetres of wall for each CSS pixel on a desktop page.
 const DESKTOP = 1.11;
-// The most stones the page picture may hold; the nocturne brings its own.
+// The most stones the page picture may hold; the name and the scenes bring their own.
 const BUDGET = 30000;
 
 const box = (x, y, w, h) => poly([[x, y], [x + w, y], [x + w, y + h], [x, y + h]]);
@@ -22,38 +24,80 @@ function rounded(x, y, w, h, r) {
   return p;
 }
 
-// Millimetres of wall for each CSS pixel: the nocturne spans a desktop page, and a phone
-// shows a closer crop of it.
+// Millimetres of wall for each CSS pixel: a desktop page shows the whole width of the
+// widest wall, and a phone a closer view.
 export function wallScale(width) {
-  return clamp(width * DESKTOP, 880, PANEL.w) / width;
+  return clamp(width * DESKTOP, 880, WIDEST) / width;
 }
 
-// Where the nocturne sits on the wall: at the very top, cropped about its focus.
-export function heroAt({ width, scale }) {
-  const W = width * scale;
-  return [W / 2 - clamp(PANEL.focus, W / 2, PANEL.w - W / 2), 0];
+// The first screen in millimetres of wall: its width, its height down to the hero's foot,
+// where its middle is, and how much larger stones are than on a desktop page.
+function firstScreen(layout) {
+  const m = layout.scale ?? wallScale(layout.width), W = layout.width * m, screen = layout.hero * m;
+  return { W, screen, middle: nameAt(W, screen).middle, k: m / DESKTOP };
 }
 
-// Where the nocturne's picture ends and the page's begins: a long, low wave below the
-// drawing, so the two pictures meet like two bodies of water instead of along a straight cut.
+// Where the scenes end and the page's picture begins: a long, low wave below the first
+// screen, so the two meet like two bodies of water instead of along a straight cut.
 const TAIL = 130;
-function shoreline(x0, x1) {
+function shoreline(seam, x0, x1) {
   const pts = [];
-  for (let x = x0; x <= x1; x += 20) pts.push([x, PANEL.h + 62 + 26 * Math.sin(x / 260 + 0.8) + 12 * Math.sin(x / 97 + 2.1)]);
+  for (let x = x0; x <= x1; x += 20) pts.push([x, seam + 62 + 26 * Math.sin(x / 260 + 0.8) + 12 * Math.sin(x / 97 + 2.1)]);
   return pts;
 }
 
-// The nocturne as drawn, with its water and the foot of its island carried on below the
-// drawing to the shoreline, and drawn by rows so the page only draws the stones near its view.
-export function heroPicture() {
+// The film: by LAID the name, the first scene, and the page are laid, or have appeared laid;
+// then each scene flows into the next in turn, the last into a copy of the first, from which
+// the film loops back to LAID. A flow takes FLOW seconds, and each scene settles for SETTLE
+// before it rests, where the page holds it as long as it likes.
+const LAID = 5.5, FLOW = 2.4, SETTLE = 0.3;
+
+// The wall's film for a layout: its project, whose pictures this module, at `module`, draws
+// by name, so workers can cut them; the loop it plays in; and the times it rests at.
+export function wallFilm(layout, { module, laid = true, band }) {
+  const { W, middle } = firstScreen(layout);
+  const arrive = laid ? { type: "laid", bed: 0 } : { type: "settled" };
+  const names = [...SCENE_NAMES, SCENE_NAMES[0]];
+  const from = (i) => LAID + (i - 1) * (FLOW + SETTLE + 0.1);
+  const rest = (i) => (i ? from(i) + FLOW + SETTLE : LAID);
+  const end = rest(names.length - 1);
+  const scenes = names.map((name, i) => ({
+    id: i < names.length - 1 ? name : `${name}-again`,
+    picture: { module, export: "scenePicture", args: { ...layout, scene: name, first: i === 0 } },
+    start: i ? from(i) : 0,
+    end: i < names.length - 1 ? rest(i + 1) : end,
+    at: [0, 0],
+    in: i ? { type: "flow", launch: [from(i), from(i) + 0.8], land: [from(i) + 1, from(i) + FLOW], focus: [W / 2, middle] } : arrive
+  }));
+  const project = {
+    version: 1, title: "mosAIc", seed: 42, fps: [60, 1], frames: Math.ceil(end * 60) + 1, band, look: [[0, 1], [end, 1]],
+    scenes: [
+      { id: "name", picture: { module, export: "namePicture", args: layout }, start: 0, end, at: [0, 0], in: arrive, front: true },
+      { id: "page", picture: { module, export: "wallPicture", args: layout }, start: 0, end, at: [0, 0], in: arrive },
+      ...scenes
+    ]
+  };
+  return { project, loop: [LAID, end], rests: names.slice(0, -1).map((_, i) => rest(i)) };
+}
+
+// The name alone, its letters set on the first screen, laid quickly from its middle.
+export function namePicture(layout) {
+  const { W, screen, middle } = firstScreen(layout);
+  const p = nameAlone({ w: W, h: screen, screen });
+  return { ...p, config: { ...p.config, rows: true, build: { origin: [W / 2, middle], start: 0.2, end: 2.4 } } };
+}
+
+// A scene behind the name, on the first screen and on down to the shoreline. The first is
+// laid from behind the name while the name is laid; the others flow in.
+export function scenePicture({ scene: name, first, ...layout }) {
+  const { W, screen, middle, k } = firstScreen(layout);
+  const p = scene({ name, w: W, h: screen + TAIL, screen, k, build: first ? { origin: [W / 2, middle], start: 0.6, end: LAID - 0.4 } : undefined });
   return {
-    ...nocturne,
-    config: { ...nocturne.config, panel: { w: PANEL.w, h: PANEL.h + TAIL }, rows: true },
+    config: { ...p.config, rows: true },
+    regions: p.regions,
     draw(g, mode, D) {
-      D.fill(box(-10, PANEL.h - 20, PANEL.w + 20, TAIL + 30), "water", "#173b4b");
-      nocturne.draw(g, mode, D);
-      D.fill(ellipse(558, PANEL.h - 4, 292, 34), "shore", "#34484c");
-      D.fill(poly([...shoreline(-20, PANEL.w + 20), [PANEL.w + 20, PANEL.h + TAIL + 10], [-20, PANEL.h + TAIL + 10]]), "none", "#bdb3a2");
+      p.draw(g, mode, D);
+      D.fill(poly([...shoreline(screen, -20, W + 20), [W + 20, screen + TAIL + 10], [-20, screen + TAIL + 10]]), "none", "#bdb3a2");
     }
   };
 }
@@ -104,8 +148,7 @@ export function wallPicture(layout) {
   const k = m / DESKTOP;
   const W = layout.width * m;
   const H = layout.height * m;
-  const [ox, oy] = heroAt({ ...layout, scale: m });
-  const seam = oy + PANEL.h;
+  const seam = layout.hero * m;
   const blocks = layout.blocks.map((b) => ({ ...b, x: b.x * m, y: b.y * m, w: b.w * m, h: b.h * m }));
   const frame = 10 * k, margin = 14 * k;
   // What each block lays on the wall: a band and its margin, a tablet or an emblem and its
@@ -185,10 +228,8 @@ export function wallPicture(layout) {
 
   const medallions = blocks.filter((b) => b.kind === "medallion");
   const sample = (name) => SAMPLES.find((s) => s.name === name) || SAMPLES[0];
-  const shore = nocturne.regions().find((r) => r.name === "shore");
 
   const regions = () => [
-    { ...shore, size: 12 * k },
     { name: "deep", size: deep, mode: "contour", mat: "glass", tray: ["#0e2633", "#12303f", "#173a4a", "#1d4456", "#235066"] },
     { name: "drift", size: Math.min(deep, 13 * k), mode: "contour", mat: "glass", tray: ["#1d3f4d", "#28515e", "#356471", "#467683"] },
     { name: "spray", size: 7 * k, mode: "contour", mat: "glass", tray: ["#3f6c7a", "#5d8792", "#88a9a8"] },
@@ -206,7 +247,7 @@ export function wallPicture(layout) {
   ];
 
   function draw(g, mode, D) {
-    // The water deepens from the nocturne's own colour at the shoreline.
+    // The water deepens on down the page from the shoreline.
     const water = D.linear(0, seam, 0, seam + 900 * k, [[0, "#173b4b"], [1, "#12303f"]]);
     D.fill(box(-10, seam, W + 20, H - seam + 10), "deep", water);
     for (const c of currents) {
@@ -231,25 +272,26 @@ export function wallPicture(layout) {
         D.fill(box(b.x, b.y, b.w, b.h), "none", "#bdb3a2");
       }
     }
-    // The nocturne's picture fills everything above the shoreline with its own stones.
-    D.fill(poly([[ox - 20, oy - 10], [ox + PANEL.w + 20, oy - 10], ...shoreline(-20, PANEL.w + 20).map(([x, y]) => [x + ox, y + oy]).reverse()]), "none", "#bdb3a2");
+    // The scenes fill everything above the shoreline with their own stones.
+    D.fill(poly([[-20, -10], [W + 20, -10], ...shoreline(seam, -20, W + 20).reverse()]), "none", "#bdb3a2");
   }
 
   return {
     config: {
-      ...nocturne.config,
       panel: { w: W, h: H },
       res,
       background: "deep",
       // The page only ever shows a stretch of the wall, so its stones are drawn by rows.
       rows: true,
-      camera: { keys: [[0, W / 2, Math.min(H, PANEL.h) / 2, W]], tilt: 0, yaw: 0, aperture: 0.004, drift: 0 },
+      camera: { keys: [[0, W / 2, Math.min(H, seam) / 2, W]], tilt: 0, yaw: 0, aperture: 0.004, drift: 0 },
+      light: house.light,
       sinopia: { groups: [["deep", "drift", "spray", "band"]] },
-      // Laid from below the moon while the nocturne is laid, then on down the page.
+      // Laid from below the first screen while the name is laid, then on down the page, all
+      // before the scenes begin to flow.
       build: {
-        origin: [ox + 1110, seam + 120],
+        origin: [W / 2, seam + 120],
         start: 0.6,
-        end: 9.5,
+        end: LAID - 0.3,
         rise: 0.08,
         speeds: { frame: 2.4, band: 1.6, "face-*": 1.8, "heart-*": 1.8 }
       }

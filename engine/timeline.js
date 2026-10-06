@@ -472,7 +472,7 @@ export async function loadFilm(source, opts = {}) {
       timing: { base: T.timing }
     };
     const tiles = T.tiles.slice();
-    const owners = [{ owner: T.cells.owner, bySi: null, offset: 0, tiles: T.tiles }];
+    const owners = [{ owner: T.cells.owner, stones: T.cells.stoneCount, bySi: null, offset: 0, tiles: T.tiles }];
     const arrivals = [];
     for (const a of pic.arrivals) {
       const c = a.crop;
@@ -484,15 +484,15 @@ export async function loadFilm(source, opts = {}) {
         t.arrival = a.name;
         tiles.push(t);
       }
-      owners.push({ owner: A.cells.owner, bySi: null, offset, tiles: A.tiles, crop: c });
+      owners.push({ owner: A.cells.owner, stones: A.cells.stoneCount, bySi: null, offset, tiles: A.tiles, crop: c });
       arrivals.push({ a, tiles: A.tiles });
     }
     // The bed's ownership texture reserves 65535 for an empty patch.
     if (tiles.length > 65535) throw new Error(`${s.id}: ${tiles.length} stones exceed the bed's 65535-stone limit; enlarge the background stones.`);
+    // Every stone the cut made can own a patch, even the last one, though a stone too small
+    // to keep has no tile and leaves its patch to the mortar of its neighbours.
     for (const o of owners) {
-      let top = 1;
-      for (const t of o.tiles) top = Math.max(top, t.si + 1);
-      const m = new Int32Array(top).fill(-1);
+      const m = new Int32Array(o.stones).fill(-1);
       o.tiles.forEach((t, i) => (m[t.si] = i));
       o.bySi = m;
     }

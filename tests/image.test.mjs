@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { analyzeImage, imageToPicture } from "../engine/image.js";
 import { tessellate } from "../engine/tessellate.js";
+import { loadFilm } from "../engine/timeline.js";
 
 function fixture(width, height, pixel) {
   const data = new Uint8ClampedArray(width * height * 4);
@@ -39,6 +40,19 @@ test("a two-colour silhouette remains a clean boundary and tessellates into real
   assert.ok(result.tiles.every((tile) => tile.quad.length === 4 && tile.quad.flat().every(Number.isFinite)));
   const used = new Set(result.tiles.map((tile) => tile.L));
   assert.deepEqual(used, new Set([left, right]));
+});
+
+test("a picture whose cut ends on stones too small to keep still builds into a film", async () => {
+  // Two pale discs and a rust one on a dark ground: the last stones cut here own a pixel or
+  // two each, too few to be kept.
+  const discs = [[30, 0, 9, [200, 210, 205, 255]], [46, 9, 10, [200, 210, 205, 255]], [20, 31, 8, [120, 40, 30, 255]]];
+  const source = fixture(48, 32, (x, y) => discs.findLast(([cx, cy, r]) => (x - cx) ** 2 + (y - cy) ** 2 < r * r)?.[3] ?? [25, 58, 90, 255]);
+  const pic = analyzeImage(source, { ...small, paletteSize: 4, seed: 7 });
+  const { tiles, cells } = tessellate({ ...pic });
+  const last = Math.max(...tiles.map((tile) => tile.si));
+  assert.ok(cells.owner.some((si) => si > last), "the fixture no longer ends on a stone too small to keep");
+  const film = await loadFilm({ version: 1, fps: [60, 1], frames: 60, band: [160, 107], scenes: [{ id: "image", picture: pic, start: 0, end: 1, in: { type: "settled" } }] });
+  assert.equal(film.layers[0].count, tiles.length);
 });
 
 test("panel aspect preserves landscape, portrait, and non-integer raster ratios", () => {

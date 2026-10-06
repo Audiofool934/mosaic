@@ -133,7 +133,7 @@ Run `npm run media` after a visual change to render them again; it needs the sam
 Builds copy the canonical source rather than maintaining a second renderer.
 The tests verify mathematical behavior, source-to-bundle equality, and repeatable GPU rendering.
 The browser smoke test requires the same Chromium setup as capture.
-See [verification](docs/verification.md) for the initial acceptance results and limits, and [architecture](docs/architecture.md) and [source provenance](docs/provenance.md) for implementation details.
+See [verification](docs/verification.md) for the initial acceptance results and limits, and [architecture](docs/architecture.md), [sound](docs/sound.md), and [source provenance](docs/provenance.md) for implementation details.
 
 Project-authored code is [MIT licensed](LICENSE).
 Keep [third-party notices](THIRD_PARTY_NOTICES.md) with distributions, and retain the appropriate rights to any images or sound you import.

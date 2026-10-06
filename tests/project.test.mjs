@@ -4,6 +4,7 @@ import { createContacts } from '../engine/contact.js';
 import { MATERIALS } from '../engine/picture.js';
 import { validateProject } from '../engine/project.js';
 import { TEXELS } from '../engine/renderer.js';
+import { voiceOf } from '../engine/sound.js';
 import { addInput, pointerAtTime } from '../engine/runtime.js';
 import { packFilm, unpackFilm } from '../engine/timeline.js';
 const project = () => ({ fps:[60,1], frames:480, band:[1920,1080], scenes:[{id:'one',picture:'./scene.js',start:0,end:8,in:{type:'settled'}}] });
@@ -118,4 +119,17 @@ test('a sliding hand sets off stones near its path like a pour, at once and more
   for (let f = 1; f <= 60; f++) assert.deepEqual(quiet({ layers, touch: null, time: f / 30, view, clock: f / 60 }), []);
   assert.deepEqual(quiet({ layers, touch: { from: [0.5, -0.2], at: [0.5007, -0.2], reach: 0.0045, moved: 0.0007, dt: 1 / 60, speed: 0.04 }, time: 3, view, clock: 2 }), []);
   assert.deepEqual(slide(quiet, 0.6, 60, -0.6), []);
+});
+test('each material sounds as it was measured: metal lowest and longest, fired clay the dullest stone', () => {
+  const v = Object.fromEntries(['glass', 'emit', 'marble', 'basalt', 'limestone', 'terracotta', 'silver', 'gold'].map(m => [m, voiceOf(m)]));
+  assert.deepEqual(v.emit, v.glass);
+  assert.deepEqual(voiceOf('unknown'), v.glass);
+  assert.deepEqual(voiceOf('toString'), v.glass);
+  // Sound is slowest in gold, then silver, so a tile of either sounds lower than any stone.
+  assert.ok(v.gold.pitch < v.silver.pitch && v.silver.pitch < v.terracotta.pitch && v.terracotta.pitch < v.limestone.pitch && v.limestone.pitch < v.basalt.pitch && v.basalt.pitch <= v.glass.pitch);
+  // Metal rings longest, then glass and the dense stones, and porous stone and fired clay least.
+  assert.ok(v.gold.ring > v.silver.ring && v.silver.ring > v.glass.ring && v.glass.ring > v.basalt.ring && v.basalt.ring > v.marble.ring && v.marble.ring > v.limestone.ring && v.limestone.ring > v.terracotta.ring);
+  // The heavier the stone, the harder it knocks the table.
+  assert.ok(v.gold.thud > v.silver.thud && v.silver.thud > v.glass.thud && v.glass.thud > v.terracotta.thud);
+  for (const voice of Object.values(v)) assert.ok(voice.pitch > 300 && voice.pitch < 1500 && voice.ring > 0.002 && voice.ring < 0.1);
 });

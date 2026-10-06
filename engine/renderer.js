@@ -71,6 +71,10 @@ uniform vec3 uFillDir;
 uniform vec3 uFillCol;
 uniform vec4 uPt[${POINTS}];
 uniform vec3 uPtCol[${POINTS}];
+// A lamp held over the wall: its position and power, and its colour and the cosine of its
+// cone's half angle. It is off while its power is zero.
+uniform vec4 uLamp;
+uniform vec4 uLampCol;
 uniform vec3 uSky;
 uniform vec3 uGround;
 uniform highp sampler2DShadow uKeySh;
@@ -136,6 +140,16 @@ vec3 shade(vec3 P, vec3 N, vec3 V, vec3 albedo, float metal, float rough, vec3 F
     vec3 c = uPtCol[i] * uPt[i].w;
     col += brdf(N, V, L, albedo, metal, clamp(rough + 0.012 / sqrt(d2), 0.0, 1.0), F0, wrap) * c / (d2 + 0.0006) * sideAo;
     col += (1.0 - metal) * albedo * c * (0.11 / (d2 + 0.005)) * (0.6 + 0.4 * hemi) * ao * sideAo;
+  }
+  // The lamp shines straight down in a cone with a soft edge, and polished stones mirror it.
+  if (uLamp.w > 0.0) {
+    vec3 Lv = uLamp.xyz - P;
+    float d2 = dot(Lv, Lv);
+    vec3 L = Lv * inversesqrt(d2);
+    float cone = smoothstep(uLampCol.w, mix(uLampCol.w, 1.0, 0.55), L.z);
+    vec3 c = uLampCol.rgb * uLamp.w * cone;
+    col += brdf(N, V, L, albedo, metal, rough, F0, wrap) * c / (d2 + 0.0006) * sideAo;
+    col += (1.0 - metal) * albedo * c * (0.05 / (d2 + 0.005)) * ao * sideAo;
   }
   return col;
 }
@@ -1201,6 +1215,9 @@ export function createRenderer(gl, opts) {
       });
       gl.uniform4fv(u.uPt, pts);
       gl.uniform3fv(u.uPtCol, cols);
+      const lamp = L.lamp;
+      gl.uniform4fv(u.uLamp, lamp ? [...lamp.pos, lamp.power] : [0, 0, 0, 0]);
+      gl.uniform4fv(u.uLampCol, lamp ? [...lamp.color, lamp.cone] : [0, 0, 0, 1]);
       gl.uniform3fv(u.uSky, r.sky);
       gl.uniform3fv(u.uGround, r.ground);
       gl.uniformMatrix4fv(u.uKeyM, false, L.keyM);
@@ -1289,7 +1306,7 @@ export function createRenderer(gl, opts) {
         }
       }
       const keyM = mat4Mul(ortho(lx0, lx1, ly0, ly1, 0.2, 2.5), keyView);
-      const L = { eye: C.cam.eye, rig, keyM, keyR: 0.8 / SH, spin: 0, footprint: fp };
+      const L = { eye: C.cam.eye, rig, keyM, keyR: 0.8 / SH, spin: 0, footprint: fp, lamp: opts.lampAt?.() || null };
       gl.enable(gl.DEPTH_TEST);
       gl.depthFunc(gl.LEQUAL);
       gl.disable(gl.BLEND);

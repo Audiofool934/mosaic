@@ -265,6 +265,38 @@ try {
     pair.dispose();
     checks.push('a wall of pictures is cut in workers and joins as each is ready');
 
+    // A lamp held over the wall lights it in live frames, goes out when let go, and never
+    // reaches an export.
+    {
+    const lampCanvas = document.createElement('canvas');
+    const lamped = await createMosaic(lampCanvas, { project: '/examples/nocturne.json', width: 320, height: 180, samples: 1, lamp: { height: 120, power: 0.05, cone: 80 } });
+    const lampGl = lampCanvas.getContext('webgl2');
+    const lampPixels = () => { const p = new Uint8Array(320 * 180 * 4); lampGl.readPixels(0, 0, 320, 180, lampGl.RGBA, lampGl.UNSIGNED_BYTE, p); return p; };
+    const lampSum = (p) => p.reduce((n, v, i) => (i % 4 === 3 ? n : n + v), 0);
+    lamped.seek(2);
+    const before = lampPixels(), dark = lampSum(before);
+    const glide = () => new Promise(resolve => setTimeout(resolve, 900));
+    lamped.setLamp({ x: 0.4, y: 0.6 });
+    await glide();
+    const during = lampPixels();
+    let brighter = 0;
+    for (let i = 0; i < during.length; i += 4) if (during[i] + during[i + 1] + during[i + 2] > before[i] + before[i + 1] + before[i + 2] + 30) brighter++;
+    require(brighter > 300, `Holding the lamp lit only ${brighter} pixels.`);
+    const exported = await createImageBitmap(await lamped.exportPNG({ time: 2 }));
+    const scratch = new OffscreenCanvas(320, 180).getContext('2d');
+    scratch.drawImage(exported, 0, 0);
+    lamped.setLamp({ active: false });
+    await glide();
+    require(lampSum(lampPixels()) === dark, 'The wall did not return to its own light once the lamp was let go.');
+    lamped.seek(2);
+    const unlit = new OffscreenCanvas(320, 180).getContext('2d');
+    unlit.drawImage(lampCanvas, 0, 0);
+    const a = scratch.getImageData(0, 0, 320, 180).data, b = unlit.getImageData(0, 0, 320, 180).data;
+    require(a.every((v, i) => v === b[i]), 'An export showed the lamp.');
+    lamped.dispose();
+    }
+    checks.push('a lamp held over the wall lights it, goes out when let go, and never reaches an export');
+
     // The name set in front of a scene that flows into another: the stones flying past go
     // behind its letters, so every pixel bright with marble or gold at rest stays bright.
     const frontCanvas = document.createElement('canvas');

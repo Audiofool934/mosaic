@@ -103,6 +103,9 @@ export async function createMosaic(canvas, options = {}) {
     throw new Error('A loop must be [from, to] within the film.');
   }
   let width = size(options.width, 1280), height = size(options.height, width / film.aspect);
+  // The lens: a narrower field of view sets the camera further back, so it looks straight at
+  // every part of a long, low panel, as at a plaque seen head on.
+  const fovy = options.fov ? clamp(finite(options.fov, 0), .05, 90) * Math.PI / 180 : FOVY;
   let samples = Math.round(clamp(finite(options.samples, 1), 1, 16));
   let view = { zoom: 1, light: 0, frame: null }, frameNow = null;
   let time = 0, playing = false, disposed = false, lost = false;
@@ -120,6 +123,13 @@ export async function createMosaic(canvas, options = {}) {
   // On a page that follows its own scroll, where the view looked in each live frame, and when
   // the wall last moved under the pointer, so its trail can be traced back over the wall.
   let looked = [], slidAt = -Infinity;
+  // A lamp the page holds over the wall, if asked for: a cone of light, `height` millimetres
+  // above the wall and `cone` degrees across, that glides after a point on the canvas and
+  // fades in and out, as a hand moves a light over a polished surface. It shines in live
+  // frames only, so exports never see it.
+  const lampLook = options.lamp ? { height: 60, power: 0.01, color: '#fff1dc', cone: 76, ...options.lamp } : null;
+  const lampRgb = lampLook ? hexRgb(lampLook.color).map(toLinear) : null;
+  let lampGoal = null, lampPos = null, lampOn = 0;
   const gl = canvas.getContext('webgl2', { alpha: false, antialias: false, depth: false, preserveDrawingBuffer: true, powerPreference: 'high-performance' });
   if (!gl) throw new Error('This artwork needs WebGL2. Try a browser with hardware acceleration enabled.');
   let renderer, base;
@@ -137,7 +147,8 @@ export async function createMosaic(canvas, options = {}) {
       const c = framed(base.cameraAt(t), t), z = view.zoom;
       return { ...c, eye: c.eye.map((v, i) => c.target[i] + (v - c.target[i]) / z), dist: c.dist / z, focus: c.focus / z, w: c.w / z };
     },
-    lookAt(t) { const l = base.lookAt(t); return { ...l, exposure: l.exposure * Math.pow(2, view.light) }; },
+    // The lens's colour fringes can be turned off, for a flat plaque the lens looks straight at.
+    lookAt(t) { const l = base.lookAt(t); return { ...l, exposure: l.exposure * Math.pow(2, view.light), ...(options.fringes === false && { ca: 0 }) }; },
     rigAt: t => base.rigAt(t),
     layersAt: t => base.layersAt(t),
     ownerAt: t => base.ownerAt(t)
@@ -152,7 +163,7 @@ export async function createMosaic(canvas, options = {}) {
     const z0 = a[2] / a[3], z1 = b[2] / b[3], u = -z0 / (z1 - z0);
     return [a[0] / a[3] + (b[0] / b[3] - a[0] / a[3]) * u, a[1] / a[3] + (b[1] / b[3] - a[1] / a[3]) * u];
   }
-  const unproject = c => invert(mat4Mul(perspective(FOVY, width / height, Math.max(.004, c.dist * .04), Math.min(8, c.dist * 4 + .5)), lookAt(c.eye, c.target, c.up)));
+  const unproject = c => invert(mat4Mul(perspective(fovy, width / height, Math.max(.004, c.dist * .04), Math.min(8, c.dist * 4 + .5)), lookAt(c.eye, c.target, c.up)));
   // A point under the pointer now, moved to where the pointer was over the wall at clock s,
   // through the view as it looked then. Such views look straight at the wall, so they differ
   // only in where they look and how much of it they take in. The view moved steadily into
@@ -197,7 +208,7 @@ export async function createMosaic(canvas, options = {}) {
     renderer?.dispose();
     canvas.width = width; canvas.height = height;
     base = makeTimeline(film, width, height);
-    renderer = createRenderer(gl, { W: width, H: height, FOVY, timeline, pointerAt: pointerTrail,
+    renderer = createRenderer(gl, { W: width, H: height, FOVY: fovy, timeline, pointerAt: pointerTrail, lampAt: lampNow,
       shadowSize: options.shadowSize || 2048, shutter: .5 / film.fps, aperture: .03,
       coat: hexRgb('#bdb3a2').map(toLinear), sinopia: hexRgb('#7a2a18').map(toLinear) });
     for (const l of film.layers) renderer.addLayer(l);
@@ -227,7 +238,7 @@ export async function createMosaic(canvas, options = {}) {
     const o = L.scene.at ? [0, 0] : L.world;
     const x = o[0] + finite(frameNow.x, L.W / 2) / 1000, y = o[1] - finite(frameNow.y, L.H / 2) / 1000;
     const w = Math.max(1, finite(frameNow.w, L.W));
-    const dist = w / 1000 / (2 * Math.tan(FOVY / 2) * (width / height));
+    const dist = w / 1000 / (2 * Math.tan(fovy / 2) * (width / height));
     return { ...c, eye: [x, y, dist], target: [x, y, 0], up: [0, 1, 0], dist, w, focus: dist };
   }
   function ensure() { if (disposed) throw new Error('This mosaic has been disposed.'); if (lost) throw new Error('The graphics context was lost.'); }
@@ -280,11 +291,30 @@ export async function createMosaic(canvas, options = {}) {
       view: { x: cam.target[0], y: cam.target[1], w, h: w / (width / height) } });
     if (events.length) for (const listener of listeners) listener(events);
   }
+  // Moves the lamp toward where it is held, and fades it toward on or off; true while it is
+  // still on its way.
+  function stepLamp(dt) {
+    if (!lampLook) return false;
+    const on = lampGoal ? 1 : 0;
+    lampOn += (on - lampOn) * (1 - Math.exp(-dt / .09));
+    let gliding = false;
+    if (lampGoal) {
+      const at = onWall(unproject(timeline.cameraAt(time)), lampGoal);
+      lampPos = lampPos ? lampPos.map((v, i) => v + (at[i] - v) * (1 - Math.exp(-dt / .05))) : at;
+      gliding = Math.hypot(at[0] - lampPos[0], at[1] - lampPos[1]) > 2e-5;
+    }
+    return gliding || Math.abs(on - lampOn) > .002;
+  }
+  function lampNow() {
+    if (!lampLook || frameInput !== live || !lampPos || lampOn < .002) return null;
+    return { pos: [lampPos[0], lampPos[1], lampLook.height / 1000], power: lampLook.power * lampOn, color: lampRgb, cone: Math.cos(lampLook.cone / 2 * Math.PI / 180) };
+  }
   function tick(now) {
     raf = 0;
     if (disposed || lost) return;
     const dt = lastNow ? Math.min(.1, (now - lastNow) / 1000) : 1 / 60;
     lastNow = now;
+    const lamping = stepLamp(dt);
     if (playing && goal !== null) {
       const left = goal - time;
       if (Math.abs(left) <= dt * rate) { time = goal; goal = null; playing = false; }
@@ -299,7 +329,7 @@ export async function createMosaic(canvas, options = {}) {
     if (listeners.size) heard(c);
     // The stones keep moving until the newest input, and the wall's last move under the
     // pointer, have passed through the whole trail.
-    if (playing || c - Math.max(input.at(-1)?.t ?? -Infinity, slidAt) < settleTime) schedule(); else lastNow = 0;
+    if (playing || lamping || c - Math.max(input.at(-1)?.t ?? -Infinity, slidAt) < settleTime) schedule(); else lastNow = 0;
   }
   const contextLost = event => { event.preventDefault(); lost = true; playing = false; renderer?.dispose(); cancelAnimationFrame(raf); raf = 0; progress('Graphics context interrupted. Restoring the artwork…'); };
   const contextRestored = () => { if (disposed) return; lost = false; try { setup(); redraw(); progress('Artwork restored'); } catch (e) { progress(e.message); } };
@@ -344,6 +374,14 @@ export async function createMosaic(canvas, options = {}) {
     },
     // Draws once on the next animation frame, for a view that reads its frame as it draws.
     requestFrame() { ensure(); schedule(); },
+    // Holds the lamp, if the artwork has one, over a point on the canvas, x and y from 0 to 1,
+    // or takes it away when active is false.
+    setLamp(p = {}) {
+      ensure();
+      if (!lampLook) return;
+      lampGoal = p.active === false ? null : { x: clamp(finite(p.x, .5), 0, 1), y: clamp(finite(p.y, .5), 0, 1), strength: 1 };
+      schedule();
+    },
     // listener(events) hears each live frame's contacts: the stones the pointer sets off as it
     // slides over them ('touch'), a few for every little distance it covers, each with its
     // material, size in millimetres, a strength from 0 to 1, the seconds after now it is

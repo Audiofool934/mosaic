@@ -57,4 +57,6 @@ Scenes placed with `at: [x, y]` form one wall of several pictures, each cut in i
 A picture that flows in from the one before it is cut in the same worker.
 `createMosaic(canvas, { loop: [from, to] })` plays on from `to` at `from`, until paused; a page can pause at rest times of its own to hold each picture, so the canvas draws nothing while the stones are still.
 `play({ to, rate })` plays toward a time, backward if it lies behind, at `rate` times speed, and stops there, which suits a page that moves a film between states as it scrolls.
+For a control or plaque set in stone, `createMosaic(canvas, { lamp: { height, power, cone, color } })` lets the page hold a lamp over it with `setLamp({ x, y })` and `setLamp({ active: false })`, a light cone that marks what the pointer is on without moving any stones; exports never show it.
+`fov`, in degrees, narrows the lens for a long, low panel, so metal and glass mirror the same light from end to end, and `fringes: false` drops the lens's colour fringes.
 The project page in the mosAIc source repository, `home/main.js` and `home/wall.js`, is a complete example: the page measures its own layout and has a picture painted around it.

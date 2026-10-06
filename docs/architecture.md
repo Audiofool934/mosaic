@@ -97,6 +97,9 @@ Where its stones are seated the depth is cleared before they are drawn, it is sh
 The mortar is drawn once for each pair of pictures, the newest two last, and a later pair covers an earlier one only where it has a stone or a seat, so a wall of more than two pictures keeps every picture's mortar.
 `createMosaic(canvas, { loop: [from, to] })` plays on from `to` at `from` until paused.
 `play({ to, rate })` plays toward a time, backward if it lies behind, `rate` times as fast, and stops there.
+`createMosaic(canvas, { lamp })` gives the page a lamp to hold over the wall: `setLamp({ x, y })` moves a cone of light, `lamp.height` millimetres above the wall, toward a point on the canvas, and `setLamp({ active: false })` puts it out.
+It glides and fades on its own, lights stones and mortar alike, and shines in live frames only, so exports never show it.
+`fov` narrows the lens, so the camera stands back and looks straight at every part of a long, low panel, and `fringes: false` drops the lens's colour fringes.
 
 The project page is such a wall.
 `home/wall.js` sets the name on the first screen, in white marble with its AI inlaid in gold, in front of four scenes from `examples/landscapes.js` that flow into one another in turn: moonlit water, dunes at dusk, sweeping currents, and peaks at first light.

@@ -25,7 +25,7 @@
   <div class="wall" id="wall" data-state="poster" aria-hidden="true"><canvas id="wall-canvas"></canvas></div>
   <!-- The bar names the sections in stone. Each name has a link over it, with its own words. -->
   <nav class="bar" id="bar" aria-label="Sections" data-state="poster">
-    <a href="#top"><span class="unseen">Home</span></a><a href="#method"><span class="unseen">Method</span></a><a href="#materials"><span class="unseen">Materials</span></a><a href="#work"><span class="unseen">Work</span></a><a href="#use"><span class="unseen">Use it</span></a>
+    <a href="#top"><span class="unseen">Home</span></a><a href="#method"><span class="unseen">Method</span></a><a href="#materials"><span class="unseen">Materials</span></a><a href="#gallery"><span class="unseen">Gallery</span></a><a href="#studio"><span class="unseen">Studio</span></a>
   </nav>
 
 
@@ -38,7 +38,7 @@
     <section class="room intro" aria-label="What mosAIc is">
       <div class="tablet lede" data-wall="tablet">
         <p>mosAIc is an open mosaic engine and the agent skill that lays it. Your coding agent draws a picture, a film, or a whole page, and the engine cuts it into thousands of stones of glass, marble, and gold, sets them in mortar, and lights each one. This page is one of its walls, cut in your browser around the words you are reading.</p>
-        <p class="actions"><a class="button primary" href="#use">Give your agent the skill</a> <a class="button" href="site/">Try the studio</a></p>
+        <p class="actions"><a class="button primary" href="#studio">Give your agent the skill</a> <a class="button" href="site/">Try the studio</a></p>
         <p class="source"><a href="https://github.com/Audiofool934/mosaic">The source is on GitHub</a>, under the MIT License.</p>
       </div>
       <p class="wall-note"><span class="work-title">The name in stone.</span> <span id="wall-note" role="status">Cutting the stones in your browser.</span></p>
@@ -88,37 +88,56 @@
       </div>
     </section>
 
-    <section class="room" id="work" aria-labelledby="work-title">
+    <!-- The gallery shows one work at a time, chosen from the reel under it. Each work in the
+         reel carries its own caption, so a new film is one more item. -->
+    <section class="room" id="gallery" aria-labelledby="gallery-title">
+      <span id="work"></span>
       <div class="section-head">
-        <h2 id="work-title" data-wall="band">Made with mosAIc</h2>
-        <p class="tablet" data-wall="tablet">A short film from the examples. Two pieces made by agents with the skill follow on the next screen.</p>
+        <h2 id="gallery-title" data-wall="band">Gallery</h2>
+        <p class="tablet" data-wall="tablet">Films and pictures made with mosAIc, by us and by agents with the skill.</p>
       </div>
-      <figure class="film">
-        <div class="emblem" data-wall="emblem"><video id="film" src="home/media/moon-to-morning.mp4" poster="home/media/moon-to-morning.webp" width="1280" height="720" muted loop playsinline preload="none" aria-label="From moon to morning: the stones of a night scene lift off the wall and resettle as a coastal dawn."></video></div>
-        <figcaption class="tablet" data-wall="tablet">
+      <figure class="feature">
+        <div class="emblem" data-wall="emblem">
+          <video id="film" src="home/media/moon-to-morning.mp4" poster="home/media/moon-to-morning.webp" width="1280" height="720" muted loop playsinline preload="none" aria-label="From moon to morning: the stones of a night scene lift off the wall and resettle as a coastal dawn."></video>
+          <img id="feature-still" alt="" hidden>
+        </div>
+        <figcaption class="tablet" data-wall="tablet" id="feature-caption" aria-live="polite">
           <h3>From moon to morning</h3>
           <p>A ten-second film in two scenes. The night's stones lift off the wall and resettle as a coastal dawn. <a href="site/?project=../examples/film.json">Scrub it in the studio</a>.</p>
           <button class="text-button" id="film-toggle" type="button" hidden>Pause the film</button>
         </figcaption>
       </figure>
+      <ul class="reel" aria-label="Works in the gallery">
+        <li>
+          <button class="plate" type="button" aria-pressed="true" data-film="home/media/moon-to-morning.mp4" data-poster="home/media/moon-to-morning.webp" data-alt="From moon to morning: the stones of a night scene lift off the wall and resettle as a coastal dawn.">
+            <span class="emblem" data-wall="emblem"><img src="home/media/moon-to-morning.webp" width="1280" height="720" loading="lazy" decoding="async" alt=""></span>
+            <span class="plate-name">From moon to morning</span>
+          </button>
+          <template><h3>From moon to morning</h3><p>A ten-second film in two scenes. The night's stones lift off the wall and resettle as a coastal dawn. <a href="site/?project=../examples/film.json">Scrub it in the studio</a>.</p></template>
+        </li>
+        <li>
+          <button class="plate" type="button" aria-pressed="false" data-still="home/media/copper-leaf.webp" data-alt="A copper leaf with a gold midrib on deep teal glass.">
+            <span class="emblem" data-wall="emblem"><img src="home/media/copper-leaf.webp" width="1024" height="1024" loading="lazy" decoding="async" alt=""></span>
+            <span class="plate-name">Copper leaf</span>
+          </button>
+          <template><h3>Copper leaf, by Codex</h3><p>5,250 stones. Given a copy of the skill, the agent wrote the scene as code, rendered it from the command line, and inspected the result before showing it.</p></template>
+        </li>
+        <li>
+          <button class="plate" type="button" aria-pressed="false" data-still="home/media/gold-crescent.webp" data-alt="A gold crescent moon above three green waves on blue glass.">
+            <span class="emblem" data-wall="emblem"><img src="home/media/gold-crescent.webp" width="768" height="768" loading="lazy" decoding="async" alt=""></span>
+            <span class="plate-name">Gold crescent</span>
+          </button>
+          <template><h3>Gold crescent over jade waves, by Claude Code</h3><p>7,340 stones, made the same way: the agent wrote the scene, rendered it, and checked the picture before showing it.</p></template>
+        </li>
+      </ul>
     </section>
 
-    <section class="room" id="agents" aria-labelledby="agents-title">
-      <div class="section-head">
-        <h2 id="agents-title" data-wall="band">Made by agents</h2>
-        <p class="tablet" data-wall="tablet">Two pieces from the first skill trials. Each agent got a copy of the skill, wrote its scene as code, rendered it from the command line, and inspected the result.</p>
-      </div>
-      <div class="pieces">
-        <figure><div class="emblem" data-wall="emblem"><img src="home/media/copper-leaf.webp" width="1024" height="1024" loading="lazy" decoding="async" alt="A copper leaf with a gold midrib on deep teal glass."></div><figcaption data-wall="band"><i>Copper leaf</i>, by Codex. 5,250 stones.</figcaption></figure>
-        <figure><div class="emblem" data-wall="emblem"><img src="home/media/gold-crescent.webp" width="768" height="768" loading="lazy" decoding="async" alt="A gold crescent moon above three green waves on blue glass."></div><figcaption data-wall="band"><i>Gold crescent over jade waves</i>, by Claude Code. 7,340 stones.</figcaption></figure>
-      </div>
-    </section>
-
-    <section class="room" id="use" aria-labelledby="use-title">
+    <section class="room" id="studio" aria-labelledby="studio-title">
+      <span id="use"></span>
       <div class="page">
         <div class="section-head">
-          <h2 id="use-title" data-wall="band">Use it</h2>
-          <p class="tablet" data-wall="tablet">The browser, the command line, and the agent skill share one renderer, so a picture looks the same wherever it is made.</p>
+          <h2 id="studio-title" data-wall="band">Studio</h2>
+          <p class="tablet" data-wall="tablet">Try mosAIc in your browser, or give it to your coding agent. The studio, the agent skill, and the command line share one renderer, so a picture looks the same wherever it is made.</p>
         </div>
         <article class="route tablet" data-wall="tablet">
           <h3>In the browser</h3>

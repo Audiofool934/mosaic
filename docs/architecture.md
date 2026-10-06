@@ -108,8 +108,10 @@ Below the first screen the scene runs on to a long wave, where a second picture 
 The page is a column of rooms, each a screen high, which the browser settles on one at a time; on a phone, a room too full for one screen is set as pages, each a screen of its own.
 `home/rooms.js` makes sure a deliberate turn of the wheel always reaches the next room where a browser would snap a short scroll back, and leaves scrolling itself to the browser.
 The name's letters are drawn as shapes in `examples/letters.js` rather than set in a typeface, so the word is cut the same in every browser; `examples/inscription.json` is the same first screen as a film of its own.
-`home/bar.js` and `home/nav.js` set a bar of stone over the top of the page, naming its sections in stone type, in a small canvas of its own at the screen's full resolution, with a link over each name.
+`home/bar.js` and `home/nav.js` set a bar of black glass over the top of the page, naming its sections in marble stone type, in a small canvas of its own at the screen's full resolution, with a link over each name.
 The section in view is inlaid in gold, and the bar's own film flows the gold from name to name as the page moves.
+Its stones never lift under the pointer: the pointer holds a lamp over the bar instead, so the glass glitters and the name under it is lit, and a keyboard's focus is lit the same way.
+The bar's lens is narrow, so it looks straight down at the whole bar and the lamp's reflection lands under the pointer.
 `home/main.js` measures the layout, has the pictures cut in workers, keeps a canvas one viewport tall (plus a margin) moving with the scroll, and cuts the wall again when a new width reflows the page.
 The name is laid first, and the page waits there until every picture has been cut before the first scene and the page are laid around it, so none appears half laid.
 Once laid, the wall plays in a loop that ends where the first scene flows back in, and the page pauses it at each scene's rest for a few seconds, so nothing is drawn while the stones are still and nothing flows while the first screen is out of view.

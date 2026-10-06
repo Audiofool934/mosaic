@@ -1,19 +1,25 @@
-// The bar on the page: its stones in a canvas of their own, a link over each name, and the
-// gold that follows the section in view.
+// The bar on the page: its stones in a canvas of their own, a link over each name, the gold
+// that follows the section in view, and the lamp the pointer holds over it.
 import { createMosaic } from "../engine/runtime.js";
 import { ITEMS, barFilm, barLayout } from "./bar.js";
 
 // A section is the one in view once its top has passed this share of the screen's height.
 const READ = 0.4;
+// The lamp: how high it is held over the bar, in pixels, how wide its cone is, in degrees,
+// and how strong it shines.
+const LAMP = { height: 70, cone: 80, power: 0.03, color: "#fff2df" };
 
 // nav holds the bar's canvas and one link to each section in ITEMS, by the section's id.
 export function createBar(nav, { reduceMotion, onReady = () => {} }) {
   const links = ITEMS.map((it) => nav.querySelector(`a[href="#${it.id}"]`));
   const sections = ITEMS.map((it) => document.getElementById(it.id));
   let live = null, current = -1, width = 0, generation = 0, timer = 0, spying = 0;
+  // What says which section is in view, unless the page itself does.
+  let follow = null;
 
   // The section in view: the last one whose top has passed the reading line.
   function inView() {
+    if (follow) return follow();
     const line = innerHeight * READ;
     let i = 0;
     sections.forEach((el, k) => { if (el && el.getBoundingClientRect().top <= line) i = k; });
@@ -45,7 +51,9 @@ export function createBar(nav, { reduceMotion, onReady = () => {} }) {
     const { project, rests } = barFilm(bar, { module, laid: first && !reduceMotion.matches, band: px });
     let mosaic;
     try {
-      mosaic = await createMosaic(canvas, { project, width: px[0], height: px[1], samples: dpr < 1.5 ? 2 : 1, interactive: true, worker: true });
+      // A narrow lens looks straight down at the whole bar, so the silver mirrors the same sky
+      // from end to end and the lamp's reflection lands under the pointer.
+      mosaic = await createMosaic(canvas, { project, width: px[0], height: px[1], samples: dpr < 1.5 ? 2 : 1, interactive: true, worker: true, lamp: LAMP, fov: 1, fringes: false });
       await mosaic.ready;
     } catch (error) {
       if (token === generation && !live) {
@@ -86,9 +94,30 @@ export function createBar(nav, { reduceMotion, onReady = () => {} }) {
     onReady(mosaic);
   }
 
-  addEventListener("scroll", () => {
+  function spy() {
     if (!spying) spying = requestAnimationFrame(() => { spying = 0; show(inView()); });
-  }, { passive: true });
+  }
+  addEventListener("scroll", spy, { passive: true });
+
+  // The lamp is held where the pointer is over the bar, where a finger touches it, or over
+  // the name in focus from the keyboard, and taken away when they leave.
+  function hold(x, y) {
+    if (!live) return;
+    const r = live.canvas.getBoundingClientRect();
+    live.mosaic.setLamp({ x: (x - r.left) / r.width, y: (y - r.top) / r.height });
+  }
+  const letGo = () => live?.mosaic.setLamp({ active: false });
+  nav.addEventListener("pointermove", (event) => { if (event.pointerType === "mouse" || event.buttons) hold(event.clientX, event.clientY); });
+  nav.addEventListener("pointerdown", (event) => hold(event.clientX, event.clientY));
+  nav.addEventListener("pointerup", (event) => { if (event.pointerType !== "mouse") letGo(); });
+  nav.addEventListener("pointerleave", letGo);
+  nav.addEventListener("pointercancel", letGo);
+  nav.addEventListener("focusin", (event) => {
+    if (!event.target.matches(":focus-visible")) return;
+    const r = event.target.getBoundingClientRect();
+    hold(r.left + r.width / 2, r.top + r.height / 2);
+  });
+  nav.addEventListener("focusout", letGo);
 
   // A new width lays the names out again, so the bar is cut again for it.
   addEventListener("resize", () => {
@@ -104,5 +133,11 @@ export function createBar(nav, { reduceMotion, onReady = () => {} }) {
   addEventListener("pageshow", (event) => { if (event.persisted && !live) build(); });
 
   build();
-  return { get mosaic() { return live?.mosaic ?? null; } };
+  return {
+    get mosaic() { return live?.mosaic ?? null; },
+    // Lets the page say which section is in view, for a page that does not scroll its
+    // sections past the bar.
+    follow(fn) { follow = fn; spy(); },
+    update: spy
+  };
 }

@@ -1,5 +1,6 @@
 import { createMosaic } from "../engine/runtime.js";
 import { createStoneSound } from "../engine/sound.js";
+import { createGallery } from "./gallery.js";
 import { createBar } from "./nav.js";
 import { watchRooms } from "./rooms.js";
 import { wallFilm, wallScale } from "./wall.js";
@@ -308,33 +309,9 @@ window.addEventListener("pageshow", (event) => {
   if (event.persisted && !live) building = building.then(build);
 });
 
-// The film plays while it is on screen, unless motion is reduced.
-const film = $("film");
-const filmToggle = $("film-toggle");
-let filmPaused = false;
-function syncFilm() {
-  filmToggle.textContent = film.paused ? "Play the film" : "Pause the film";
-}
-// Scrolling away interrupts a pending play(); only a blocked autoplay needs the native controls.
-function playFilm() {
-  film.play().catch((error) => { if (error.name === "NotAllowedError") film.controls = true; });
-}
-if (reduceMotion.matches) film.controls = true;
-else {
-  filmToggle.hidden = false;
-  filmToggle.addEventListener("click", () => {
-    filmPaused = !film.paused;
-    if (filmPaused) film.pause();
-    else playFilm();
-  });
-  film.addEventListener("play", syncFilm);
-  film.addEventListener("pause", syncFilm);
-  new IntersectionObserver(([entry]) => {
-    if (entry.isIntersecting && !filmPaused) playFilm();
-    else if (!entry.isIntersecting) film.pause();
-  }, { threshold: 0.35 }).observe(film);
-  syncFilm();
-}
+// The gallery plays its film while it is on screen.
+const gallery = createGallery($("gallery"), { reduceMotion });
+new IntersectionObserver(([entry]) => gallery.setOnScreen(entry.isIntersecting), { threshold: 0.35 }).observe(document.querySelector(".feature"));
 
 for (const button of document.querySelectorAll(".copy")) {
   button.addEventListener("click", async () => {

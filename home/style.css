@@ -81,11 +81,10 @@ h1[data-wall="band"], h2[data-wall="band"] { width: fit-content; }
 }
 .bar[data-state="live"] { visibility: visible; }
 .bar canvas { position: absolute; inset: 0; display: block; width: 100%; height: 100%; border-radius: inherit; }
-/* The bar's stones stay still under the pointer, so it is plain which name it is on; the name
-   under it brightens instead. */
+/* The bar's stones stay still under the pointer, so it is plain which name it is on: the lamp
+   the pointer holds over the bar lights it, and a keyboard's focus as well. */
 .bar a { position: absolute; border-radius: 6px; }
-.bar a:hover { background: rgb(239 235 225 / 0.1); }
-.bar a:focus-visible { outline: 2px solid var(--gilt); outline-offset: -3px; }
+.bar a:focus-visible { outline: 1px solid rgb(217 182 116 / 0.7); outline-offset: -4px; }
 .bar[data-state="still"] {
   visibility: visible; width: auto; height: auto; display: flex; gap: 4px 22px; flex-wrap: wrap; justify-content: center; padding: 10px 22px;
   border: 1px solid rgb(201 157 92 / 0.6); background: #10222a; border-radius: 12px; font: 500 13px / 1.4 var(--sans); letter-spacing: 0.08em; text-transform: uppercase;
@@ -179,17 +178,21 @@ h3 { margin: 0; font: 600 20px / 1.25 var(--serif); letter-spacing: -0.005em; }
 .label h3 { font-size: 19px; }
 .label p { margin: 4px 0 0; font: 400 14px / 1.45 var(--sans); color: var(--light-muted); text-wrap: balance; }
 
-/* Work: the film beside its caption, then the two pieces made by agents side by side. */
-.film { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: 40px; row-gap: 24px; align-items: end; margin: 0; }
-.film .emblem { grid-column: 1 / span 8; width: min(100%, calc((100svh - 320px) * 1.7778)); }
-.film video { aspect-ratio: 16 / 9; background: #0f222c; }
-.film figcaption { grid-column: 9 / span 4; display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
-.film figcaption h3 { font-style: italic; font-weight: 400; font-size: 22px; }
-.film figcaption p { margin: 0; font: 400 15px / 1.55 var(--sans); color: var(--muted); }
-.pieces { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 40px; justify-items: center; }
-.pieces figure { margin: 0; width: min(100%, calc(100svh - 430px)); }
-.pieces img { aspect-ratio: 1; }
-.pieces figcaption { margin-top: 18px; font: 400 14px / 1.55 var(--sans); color: var(--light-muted); width: fit-content; }
+/* Gallery: the work chosen from the reel, beside its caption, with the reel under them. The
+   work's frame keeps its shape whatever is in it, so the wall around it never changes. */
+.feature { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: 40px; row-gap: 20px; align-items: end; margin: 0; }
+.feature .emblem { grid-column: 1 / span 8; display: grid; width: min(100%, calc((100svh - 430px) * 1.7778)); aspect-ratio: 16 / 9; }
+.feature .emblem > * { grid-area: 1 / 1; width: 100%; height: 100%; object-fit: contain; background: #0e1d24; }
+.feature figcaption { grid-column: 9 / span 4; display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
+.feature figcaption h3 { font-style: italic; font-weight: 400; font-size: 22px; }
+.feature figcaption p { margin: 0; font: 400 15px / 1.55 var(--sans); color: var(--muted); }
+.reel { display: flex; gap: 22px; margin: 0; padding: 0; list-style: none; overflow-x: auto; }
+.plate { display: grid; gap: 10px; padding: 0; border: 0; background: none; text-align: left; }
+.plate .emblem { display: block; width: clamp(112px, 10vw, 156px); aspect-ratio: 16 / 10; }
+.plate img { width: 100%; height: 100%; object-fit: cover; filter: saturate(0.45) brightness(0.62); }
+.plate[aria-pressed="true"] img { filter: none; }
+.plate-name { font: 400 13px / 1.4 var(--sans); color: var(--light-muted); text-shadow: var(--lift); }
+.plate[aria-pressed="true"] .plate-name { color: var(--light); }
 
 /* Use it: three routes side by side. */
 .route { grid-column: span 4; min-width: 0; }
@@ -228,20 +231,27 @@ h3 { margin: 0; font: 600 20px / 1.25 var(--serif); letter-spacing: -0.005em; }
   :root { font-size: 17px; --gutter: 22px; }
   .tablet { padding: 22px 22px; }
   .room { grid-template-columns: minmax(0, 1fr); column-gap: 0; row-gap: 20px; padding-bottom: 84px; }
-  .room > *, .page > *, .strip, .stages, .route, .film .emblem, .film figcaption { grid-column: 1 / -1; }
+  .room > *, .page > *, .strip, .stages, .route, .feature .emblem, .feature figcaption { grid-column: 1 / -1; }
   .room:has(> .page) { display: block; min-height: 0; padding-block: 0; scroll-snap-align: none; }
   .page {
     display: grid; grid-template-columns: minmax(0, 1fr); row-gap: 20px; align-content: center; min-height: 100svh;
     padding-block: calc(var(--bar-top) + var(--bar-h, 62px) + 18px) 84px; scroll-snap-align: start; scroll-snap-stop: always;
   }
   .section-head { grid-template-columns: minmax(0, 1fr); row-gap: 14px; }
-  .strip, .film .emblem, .pieces figure { width: 100%; }
+  .strip, .feature .emblem { width: 100%; }
   .stages { gap: 14px; }
   .tray { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 16px; }
   .tray li { gap: 8px; }
   .medallion { width: min(100%, 92px); }
   .label p { font-size: 13px; }
-  .film { grid-template-columns: minmax(0, 1fr); row-gap: 18px; }
-  .pieces { gap: 16px; }
+  #gallery { row-gap: 14px; }
+  .feature { grid-template-columns: minmax(0, 1fr); row-gap: 14px; }
+  .feature figcaption { gap: 4px; padding: 16px 18px; }
+  .feature figcaption h3 { font-size: 19px; }
+  .feature figcaption p { font-size: 14px; line-height: 1.5; }
+  .reel { gap: 12px; }
+  .plate { gap: 6px; }
+  .plate .emblem { width: 88px; }
+  .plate-name { font-size: 12px; }
   .colophon { grid-template-columns: 1fr; }
 }

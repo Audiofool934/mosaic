@@ -1,8 +1,9 @@
-// The bar at the top of the page: a slab of dark stone with a thin gold rim, set apart from
-// the edges, with the page's sections named in stone type. The section in view is inlaid in
-// gold, and the gold flows from one name to the next as the page moves. Its millimetres are
-// CSS pixels: it has a canvas of its own, drawn at the screen's full resolution, so stones a
-// few pixels across keep their shape.
+// The bar at the top of the page: a slab of black glass with a thin gold rim, set apart from
+// the edges, with the page's sections named in white marble. The section in view is inlaid
+// in gold, and the gold flows from one name to the next as the page moves. The glass is
+// polished, so the lamp the pointer holds over the bar glitters back from it and lights the
+// name under it. Its millimetres are CSS pixels: it has a canvas of its own, drawn at the
+// screen's full resolution, so stones a few pixels across keep their shape.
 import { poly } from "../engine/paint.js";
 import { config as house } from "../examples/nocturne.js";
 import { ROWS, typeCells, typeShape, typeWidth } from "../examples/type.js";
@@ -12,8 +13,8 @@ export const ITEMS = [
   { text: "HOME", name: "Home", id: "top" },
   { text: "METHOD", name: "Method", id: "method" },
   { text: "MATERIALS", name: "Materials", id: "materials" },
-  { text: "WORK", name: "Work", id: "work" },
-  { text: "USE IT", name: "Use it", id: "use" }
+  { text: "GALLERY", name: "Gallery", id: "gallery" },
+  { text: "STUDIO", name: "Studio", id: "studio" }
 ];
 
 // The largest cell, in pixels, the smallest that still keeps every letter's shape, and the
@@ -67,16 +68,16 @@ function picture(bar, regions, draw) {
   };
 }
 
-// The slab, its rim, and every name in marble.
+// The slab of black glass, its gold rim, and every name in marble.
 export function platePicture(bar) {
   const { W, H, cell, radius, top, items } = bar, rim = Math.max(1.4, cell * 0.7);
   return picture(bar, [
-    { name: "plate", size: cell * 1.7, mode: "contour", mat: "basalt", tray: ["#0b181d", "#10222a", "#152b33"] },
+    { name: "plate", size: cell * 1.7, mode: "contour", mat: "glass", tray: ["#07090c", "#0b0f13", "#10151b"] },
     { name: "rim", size: rim, mode: "contour", mat: "gold", tray: ["#b18a50", "#c99d5c", "#d8b571"] },
     { name: "type", size: cell, mode: "grid", origin: [0, top], mat: "marble", tray: ["#d9d6c4", "#e6e1cc", "#efe9d6"] }
   ], (D) => {
     D.fill(rounded(0, 0, W, H, radius), "rim", "#c99d5c");
-    D.fill(rounded(rim, rim, W - 2 * rim, H - 2 * rim, radius - rim), "plate", "#10222a");
+    D.fill(rounded(rim, rim, W - 2 * rim, H - 2 * rim, radius - rim), "plate", "#0b0f13");
     for (const it of items) D.fill(typeShape(typeCells(it.text, it.x, it.y, cell), cell), "type", "#e6e1cc");
   });
 }

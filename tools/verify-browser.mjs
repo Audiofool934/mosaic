@@ -169,12 +169,11 @@ try {
     live.setPointer({ active: false });
     await new Promise(resolve => setTimeout(resolve, 900));
     require(window.__animationProbe().pending === 0, 'The animation loop kept running after the pointer left.');
-    const touches = heard.filter(e => e.kind === 'touch');
-    require(heard.some(e => e.kind === 'slide') && touches.length && touches.every(e => typeof e.material === 'string' && e.size > 0 && e.strength > 0), 'The stones under a sliding pointer were not heard.');
-    require(touches.length <= 3, `A slide of a tenth of a second was heard as ${touches.length} knocks.`);
+    require(heard.length && heard.every(e => e.kind === 'touch' && typeof e.material === 'string' && e.size > 0 && e.strength > 0), 'The stones under a sliding pointer were not heard.');
+    require(heard.length <= 2, `A slide of a tenth of a second was heard ${heard.length} times.`);
     require(heard.length === slid, 'Stones were heard under a resting pointer.');
     live.dispose();
-    checks.push('live input stops drawing once the stones rest', 'a sliding pointer is heard sparingly, and a resting one not at all');
+    checks.push('live input stops drawing once the stones rest', 'a sliding pointer is heard at once and sparingly, and a resting one not at all');
 
     // A wall of two pictures side by side, each cut in its own worker: the wall is drawn
     // once the first is ready, the second joins it, and a frame can look at either.

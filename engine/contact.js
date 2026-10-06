@@ -1,8 +1,7 @@
-// Contacts: the moments the stones are touched, for sound. A fingertip sliding over the wall
-// is heard all the while it slides, and now and then it catches a stone: at once when it
-// starts, then more often the faster it moves, but never in a clatter. While stones are laid,
-// one is heard landing in its bed now and then. Live input only; exports never produce
-// contacts.
+// Contacts: the moments the pointer touches the stones, for sound. A fingertip sliding over the
+// wall touches it as soon as it starts and again each time it has slid a little further, a few
+// times a second at most, wherever there are stones under it. Live input only; exports never
+// produce contacts.
 import { MATERIALS } from './picture.js';
 import { TEXELS } from './renderer.js';
 
@@ -12,21 +11,19 @@ const STRIDE = TEXELS * 4;
 // metres.
 const CELL = 0.06;
 const LARGEST = 0.03;
-// A fingertip catches a stone each time it has slid about this share of the view's width, at
-// most about once in GAP seconds, and as soon as it has slid START after resting for REST
-// seconds, so a hand that only trembles is not heard. A slide of PACE view widths a second is
-// heard at full strength.
-const SPACING = 0.035;
-const GAP = 0.13;
-const START = 0.004;
+// A fingertip touches the stones each time it has slid about STEP of the view's width, at most
+// about once in GAP seconds, and as soon as it has slid START after resting for REST seconds,
+// so a hand that only trembles is not heard. A slide of PACE view widths a second touches them
+// at full strength.
+const STEP = 0.06;
+const GAP = 0.2;
+const START = 0.0025;
 const REST = 0.25;
 const PACE = 1;
-// While stones are laid, one is heard landing about once in this many seconds.
-const LAID = 0.2;
 
 const fract = (v) => v - Math.floor(v);
 
-// Each layer's stones by grid cell and by seat time, built the first time it is heard.
+// Each layer's stones by grid cell, with their sizes, built the first time it is heard.
 function stonesOf(L) {
   if (L.heard) return L.heard;
   const d = L.data, n = L.count;
@@ -49,8 +46,7 @@ function stonesOf(L) {
     for (let k = 0; k < 4; k++) r += Math.hypot(d[i * STRIDE + 4 + k * 2], d[i * STRIDE + 5 + k * 2]);
     size[i] = (r / 4) * Math.SQRT2 * 1000;
   }
-  const bySeat = new Uint32Array(n).map((_, i) => i).sort((a, b) => d[a * STRIDE + 2] - d[b * STRIDE + 2] || a - b);
-  L.heard = { x0, y0, nx, ny, start, items, size, bySeat, seat: Float32Array.from(bySeat, (i) => d[i * STRIDE + 2]) };
+  L.heard = { x0, y0, nx, ny, start, items, size };
   return L.heard;
 }
 
@@ -74,58 +70,37 @@ function under(L, x, y, reach, time) {
 }
 
 export function createContacts() {
-  // How far the pointer has slid since it last caught a stone and how far it slides before
-  // the next, in view widths; when it may next catch one, when it last moved, and when the
-  // next laid stone may be heard, on the input's clock. The spacing and the waits vary a
-  // little, so the stones never tick like a clock.
-  let slid = 0, next = SPACING, ready = -Infinity, moved = -Infinity, landing = -Infinity, turn = 0;
-  const where = (d, i, view) => ({ x: (d[i * STRIDE] - (view.x - view.w / 2)) / view.w, y: (view.y + view.h / 2 - d[i * STRIDE + 1]) / view.h });
-  const event = (L, i, view, kind, strength) => ({ kind, material: NAMES[Math.round(L.data[i * STRIDE + 15])] || 'glass', size: stonesOf(L).size[i], strength, ...where(L.data, i, view) });
+  // How far the pointer has slid since it last touched the stones and how far it slides before
+  // the next touch, in view widths; when it may next touch them and when it last moved, on the
+  // input's clock. The steps and the waits vary a little, so the touches never tick like a
+  // clock.
+  let slid = 0, next = STEP, ready = -Infinity, moved = -Infinity, turn = 0;
 
   // layers: those drawn at time; touch: where the pointer is on the wall ({ at, reach of a
   // fingertip }) with how far it moved since the last frame, in view widths, and its speed,
-  // in view widths per second, or null; from: the film time of the last frame heard; view:
-  // the wall in view, in metres; clock: the input's clock.
-  return function hear({ layers, touch, time, from, view, clock }) {
-    const events = [];
-    if (touch && touch.moved > 1e-4) {
-      if (clock - moved > REST) slid = next - START;
-      moved = clock;
-      slid += touch.moved;
-      let found = null, gap = touch.reach;
-      for (const L of layers) {
-        const [i, edge] = under(L, touch.at[0], touch.at[1], gap, time);
-        if (i >= 0) { found = [L, i]; gap = edge; }
-      }
-      if (found) {
-        const pace = Math.min(1, touch.speed / PACE);
-        events.push(event(...found, view, 'slide', Math.sqrt(pace)));
-        if (slid >= next && clock >= ready) {
-          turn++;
-          events.push(event(...found, view, 'touch', (0.45 + 0.55 * pace) * (0.8 + 0.2 * fract(turn * 0.618))));
-          slid = 0;
-          next = SPACING * (0.7 + 0.6 * fract(turn * 0.754));
-          ready = clock + GAP * (0.75 + 0.5 * fract(turn * 0.437));
-        }
-      }
+  // in view widths per second, or null; view: the wall in view, in metres; clock: the input's
+  // clock.
+  return function hear({ layers, touch, time, view, clock }) {
+    if (!touch || !(touch.moved > 1e-4)) return [];
+    if (clock - moved > REST) slid = next - START;
+    moved = clock;
+    slid += touch.moved;
+    if (slid < next || clock < ready) return [];
+    let found = null, gap = touch.reach;
+    for (const L of layers) {
+      const [i, edge] = under(L, touch.at[0], touch.at[1], gap, time);
+      if (i >= 0) { found = [L, i]; gap = edge; }
     }
-    // One of the stones laid since the last frame, in view.
-    if (time > from && clock >= landing) {
-      for (const L of layers) {
-        const H = stonesOf(L), d = L.data;
-        let lo = 0, hi = H.seat.length;
-        while (lo < hi) { const mid = (lo + hi) >> 1; if (H.seat[mid] <= from) lo = mid + 1; else hi = mid; }
-        let stone = -1;
-        for (let p = lo; p < H.seat.length && H.seat[p] <= time && stone < 0; p++) {
-          const i = H.bySeat[p], o = i * STRIDE;
-          if (Math.abs(d[o] - view.x) < view.w / 2 && Math.abs(d[o + 1] - view.y) < view.h / 2) stone = i;
-        }
-        if (stone < 0) continue;
-        events.push(event(L, stone, view, 'lay', 0.5 + 0.3 * fract(stone * 0.618)));
-        landing = clock + LAID * (0.6 + 0.8 * fract(stone * 0.381));
-        break;
-      }
-    }
-    return events;
+    if (!found) return [];
+    const [L, i] = found, d = L.data, o = i * STRIDE;
+    turn++;
+    slid = 0;
+    next = STEP * (0.7 + 0.6 * fract(turn * 0.754));
+    ready = clock + GAP * (0.8 + 0.4 * fract(turn * 0.437));
+    return [{
+      kind: 'touch', material: NAMES[Math.round(d[o + 15])] || 'glass', size: stonesOf(L).size[i],
+      strength: (0.45 + 0.55 * Math.min(1, touch.speed / PACE)) * (0.85 + 0.15 * fract(turn * 0.618)),
+      x: (d[o] - (view.x - view.w / 2)) / view.w, y: (view.y + view.h / 2 - d[o + 1]) / view.h
+    }];
   };
 }

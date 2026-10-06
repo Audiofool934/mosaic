@@ -87,8 +87,8 @@ test('a built film crosses to the page as plain data and comes back whole', () =
   assert.equal(L.tiles, undefined);
   assert.equal(back.table.scenes[0].picture, undefined);
 });
-test('a sliding hand is heard at once and then sparingly, a resting one not at all, and laying now and then', () => {
-  // A wall of 9 mm marble stones in a view 1.6 m wide, seated one after another over two seconds.
+test('a sliding hand touches the stones at once and then a few times a second, and a resting one not at all', () => {
+  // A wall of 9 mm marble stones in a view 1.6 m wide, laid one after another over two seconds.
   const STRIDE = TEXELS * 4, cols = 160, rows = 40, count = cols * rows, data = new Float32Array(count * STRIDE);
   for (let i = 0; i < count; i++) {
     const o = i * STRIDE, h = 0.0045;
@@ -101,18 +101,17 @@ test('a sliding hand is heard at once and then sparingly, a resting one not at a
   // Half a view width a second for a second over the laid wall, then half a second at rest.
   for (let f = 0; f < 90; f++) {
     const clock = f / 60, touch = f < 60 ? { at: [0.1 + (f / 60) * 0.8, -0.2], reach: 0.0045, moved: 0.5 / 60, speed: 0.5 } : null;
-    heard.push(...hear({ layers, touch, time: 3, from: 3, view, clock }).map(e => ({ ...e, clock })));
+    heard.push(...hear({ layers, touch, time: 3, view, clock }).map(e => ({ ...e, clock })));
   }
-  const touches = heard.filter(e => e.kind === 'touch');
-  assert.equal(touches[0].clock, 0);
-  assert.ok(touches.length >= 4 && touches.length <= 9, `${touches.length} stones caught in a second`);
-  assert.ok(touches.every((e, i) => !i || e.clock - touches[i - 1].clock > 0.09));
-  assert.ok(touches.every(e => e.material === 'marble' && Math.abs(e.size - 9) < 0.01 && e.strength > 0 && e.strength <= 1));
-  assert.equal(heard.filter(e => e.kind === 'slide').length, 60);
+  assert.ok(heard.every(e => e.kind === 'touch' && e.material === 'marble' && Math.abs(e.size - 9) < 0.01 && e.strength > 0 && e.strength <= 1));
+  assert.equal(heard[0].clock, 0);
+  assert.ok(heard.length >= 4 && heard.length <= 6, `${heard.length} touches in a second`);
+  assert.ok(heard.every((e, i) => !i || e.clock - heard[i - 1].clock > 0.15));
   assert.equal(heard.filter(e => e.clock >= 1).length, 0);
-  // The wall laid over two seconds is heard landing a few times a second, never in a clatter.
-  const laid = [], laying = createContacts();
-  for (let f = 1; f <= 120; f++) laid.push(...laying({ layers, touch: null, time: f / 60, from: (f - 1) / 60, view, clock: f / 60 }).map(e => ({ ...e, clock: f / 60 })));
-  assert.ok(laid.length >= 6 && laid.length <= 16 && laid.every(e => e.kind === 'lay'), `${laid.length} laid stones heard in two seconds`);
-  assert.ok(laid.every((e, i) => !i || e.clock - laid[i - 1].clock > 0.1));
+  // Stones being laid are not heard, nor a nudge of a pixel after a rest, nor a slide where
+  // there are no stones.
+  const quiet = createContacts(), silent = args => assert.deepEqual(quiet({ layers, view, time: 3, ...args }), []);
+  for (let f = 1; f <= 60; f++) silent({ touch: null, time: f / 30, clock: f / 60 });
+  silent({ touch: { at: [0.5, -0.2], reach: 0.0045, moved: 0.0007, speed: 0.04 }, clock: 2 });
+  for (let f = 1; f <= 60; f++) silent({ touch: { at: [0.5, -0.6], reach: 0.0045, moved: 0.01, speed: 0.6 }, clock: 3 + f / 60 });
 });

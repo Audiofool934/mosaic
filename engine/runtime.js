@@ -201,11 +201,10 @@ export async function createMosaic(canvas, options = {}) {
   }
   const redraw = () => render(time, frameInput, frameInput === live ? clock() : frameClock);
   function schedule() { if (!raf && !disposed && !lost) raf = requestAnimationFrame(tick); }
-  // Listeners hear the stones the pointer slides over and the stones being laid, in each live
-  // frame.
+  // Listeners hear the stones the pointer touches as it slides over them, in each live frame.
   const listeners = new Set();
   let hear = null, heardAt = -Infinity;
-  function heard(from, c) {
+  function heard(c) {
     hear ??= createContacts();
     const cam = timeline.cameraAt(time), w = cam.w / 1000;
     // How far the pointer moved between the newest input heard in the last frame and in this
@@ -219,7 +218,7 @@ export async function createMosaic(canvas, options = {}) {
       touch = { at: onWall(unproject(cam), p1), reach: w * .0028, moved, speed: moved / (newest - since) };
     }
     heardAt = newest;
-    const events = hear({ layers: base.layersAt(time), touch, time, from, clock: c,
+    const events = hear({ layers: base.layersAt(time), touch, time, clock: c,
       view: { x: cam.target[0], y: cam.target[1], w, h: w / (width / height) } });
     if (events.length) for (const listener of listeners) listener(events);
   }
@@ -228,11 +227,10 @@ export async function createMosaic(canvas, options = {}) {
     if (disposed || lost) return;
     const dt = lastNow ? Math.min(.1, (now - lastNow) / 1000) : 1 / 60;
     lastNow = now;
-    const from = time;
     if (playing) { time += dt; if (time >= duration - 1 / film.fps) playing = false; }
     const c = clock();
     render(time, live, c);
-    if (listeners.size) heard(from, c);
+    if (listeners.size) heard(c);
     // The stones keep moving until the newest input has passed through the whole trail.
     if (playing || c - (input.at(-1)?.t ?? -Infinity) < settleTime) schedule(); else lastNow = 0;
   }
@@ -271,10 +269,10 @@ export async function createMosaic(canvas, options = {}) {
     },
     // Draws once on the next animation frame, for a view that reads its frame as it draws.
     requestFrame() { ensure(); schedule(); },
-    // listener(events) hears each live frame's contacts: the pointer sliding over a stone
-    // ('slide', in every frame it moves), a stone it catches now and then as it slides
-    // ('touch'), and now and then a laid stone reaching its seat in view ('lay'), each with its
-    // material, size in millimetres, strength from 0 to 1, and x and y on the canvas.
+    // listener(events) hears each live frame's contacts: the pointer touching the stones as
+    // it slides over them ('touch'), as soon as it moves and then a few times a second at
+    // most, with the material and size in millimetres of the stone under it, a strength from
+    // 0 to 1, and x and y on the canvas.
     onContact(listener) { listeners.add(listener); return () => listeners.delete(listener); },
     getState() { return { time, view: { ...view }, pointer: normalized(input.at(-1)), playing }; },
     startRecording() { ensure(); record = []; recordStart = clock(); if (input.length) record.push({ ...input.at(-1), t: 0 }); },

@@ -58,24 +58,42 @@ export function heroPicture() {
   };
 }
 
+// How far a current tapers where it ends partway across, in millimetres of a desktop wall.
+const TAPER = 220;
 // A current: a wavy band between two wavy edges. Some cross the whole wall; others rise
-// from one side and taper out partway across.
+// from one side and taper out partway across. Its edges are kept as [x, top, bottom] at
+// every corner of its outline.
 function current(y, W, R, k) {
   const amp = (12 + 26 * R()) * k, len = (560 + 760 * R()) * k, phase = 6.28 * R(), thick = (16 + 22 * R()) * k;
   const across = R() < 0.5;
   const fromLeft = R() < 0.5;
   const reach = W * (0.45 + 0.4 * R());
   const x0 = across || fromLeft ? -40 : W - reach, x1 = across || !fromLeft ? W + 40 : reach;
-  const top = [], bottom = [];
+  const top = [], bottom = [], edges = [];
   for (let x = x0; x <= x1; x += 16 * k) {
     const u = (x / len) * 6.2832 + phase;
     const c = y + amp * Math.sin(u) + amp * 0.35 * Math.sin(u * 2.3 + 1.7);
-    const taper = Math.min(1, x0 < 0 ? 1 : (x - x0) / (220 * k), x1 > W ? 1 : (x1 - x) / (220 * k));
+    const taper = Math.min(1, x0 < 0 ? 1 : (x - x0) / (TAPER * k), x1 > W ? 1 : (x1 - x) / (TAPER * k));
     const t = Math.max(1.5, thick * (0.55 + 0.45 * Math.sin(u * 0.7 + 0.4)) * taper);
     top.push([x, c - t / 2]);
     bottom.unshift([x, c + t / 2]);
+    edges.push([x, c - t / 2, c + t / 2]);
   }
-  return { path: poly(top.concat(bottom)), crest: R() < 0.6 ? top.slice(2, -2) : null };
+  return { path: poly(top.concat(bottom)), edges, crest: R() < 0.6 ? top.slice(2, -2) : null };
+}
+
+// The span of y an outline covers at x, if it reaches that far: a circle, or a rounded rect
+// with the corners rounded() gives it.
+function spanAt(o, x) {
+  if (o.cx !== undefined) {
+    const h = o.r * o.r - (x - o.cx) ** 2;
+    return h > 0 ? [o.cy - Math.sqrt(h), o.cy + Math.sqrt(h)] : null;
+  }
+  if (x <= o.x || x >= o.x + o.w) return null;
+  const r = Math.min(o.r, o.w / 2, o.h / 2);
+  const d = Math.max(0, o.x + r - x, x - (o.x + o.w - r));
+  const inset = r - Math.sqrt(r * r - d * d);
+  return [o.y + inset, o.y + o.h - inset];
 }
 
 // layout: page width and height and the hero's foot (CSS px), the scale, and the marked
@@ -90,6 +108,14 @@ export function wallPicture(layout) {
   const seam = oy + PANEL.h;
   const blocks = layout.blocks.map((b) => ({ ...b, x: b.x * m, y: b.y * m, w: b.w * m, h: b.h * m }));
   const frame = 10 * k, margin = 14 * k;
+  // What each block lays on the wall: a band and its margin, a tablet or an emblem and its
+  // gold frame, or a medallion out to its gold ring.
+  for (const b of blocks) {
+    const p = b.kind === "band" ? margin : frame;
+    b.outline = b.kind === "medallion"
+      ? { cx: b.x + b.w / 2, cy: b.y + b.h / 2, r: Math.min(b.w, b.h) / 2 + frame * 0.8 }
+      : { x: b.x - p, y: b.y - p, w: b.w + 2 * p, h: b.h + 2 * p, r: b.kind === "band" ? margin : 4 * k };
+  }
 
   // The open wall decides how coarse the deep water can be and still fit the budget.
   const covered = blocks.reduce((a, b) => a + (b.kind === "band" ? 0 : (b.w + 2 * frame) * (b.h + 2 * frame)), 0);
@@ -101,6 +127,61 @@ export function wallPicture(layout) {
   const R = rng(4242);
   const currents = [];
   for (let y = seam + 300 * k; y < H - 160 * k; y += (460 + 520 * R()) * k) currents.push(current(y, W, R, k));
+
+  // Whether the blocks leave the wall at x open anywhere from y0 to y1, by more than a
+  // millimetre.
+  function openAt(x, y0, y1) {
+    const spans = blocks.map((b) => spanAt(b.outline, x)).filter(Boolean).sort((a, b) => a[0] - b[0]);
+    for (const [a, b] of spans) {
+      if (y0 >= y1 - 1) return false;
+      if (a > y0 + 1) return true;
+      y0 = Math.max(y0, b);
+    }
+    return y0 < y1 - 1;
+  }
+
+  // A current runs under the blocks and surfaces wherever the wall is open. Where it comes up
+  // for less than the length it tapers over, and for less than it stays under on either
+  // side, it would show as a stray fragment, so the water is laid over it again. These are
+  // those stretches, each from one place the blocks cover the current to the next, or null
+  // if it has none.
+  function sunk(c) {
+    // Its crest's stroke reaches above its top edge.
+    const lift = c.crest ? 4.5 * k : 0;
+    // Where it shows: runs from the first to the last place it shows, with the places the
+    // blocks cover it just before and after, or null at its own ends.
+    const runs = [];
+    let run = null, shut = null;
+    c.edges.forEach(([x0, top0, bottom0], i) => {
+      const [x1, top1, bottom1] = c.edges[i + 1] || c.edges[i];
+      // A millimetre or so at a time, along the straight edges between its corners.
+      for (let f = 0; f < 1; f += 1 / 16) {
+        const x = x0 + (x1 - x0) * f;
+        if (x < 0 || x > W || openAt(x, top0 + (top1 - top0) * f - lift, bottom0 + (bottom1 - bottom0) * f)) {
+          if (!run) runs.push((run = { first: x, last: x, before: shut, after: null }));
+          run.last = x;
+        } else {
+          if (run) run.after = x;
+          run = null;
+          shut = x;
+        }
+      }
+    });
+    const top = Math.min(...c.edges.map((e) => e[1])) - lift - 2, bottom = Math.max(...c.edges.map((e) => e[2])) + 2;
+    const stretches = new Path2D();
+    let any = false;
+    runs.forEach((r, i) => {
+      if (r.before === null || r.after === null) return;
+      const shows = r.last - r.first;
+      const under = Math.min(i > 0 ? r.first - runs[i - 1].last : Infinity, i + 1 < runs.length ? runs[i + 1].first - r.last : Infinity);
+      if (shows < TAPER * k && under > shows) {
+        stretches.rect(r.before, top, r.after - r.before, bottom - top);
+        any = true;
+      }
+    });
+    return any ? stretches : null;
+  }
+  for (const c of currents) c.sunk = sunk(c);
 
   const medallions = blocks.filter((b) => b.kind === "medallion");
   const sample = (name) => SAMPLES.find((s) => s.name === name) || SAMPLES[0];
@@ -126,24 +207,27 @@ export function wallPicture(layout) {
 
   function draw(g, mode, D) {
     // The water deepens from the nocturne's own colour at the shoreline.
-    D.fill(box(-10, seam, W + 20, H - seam + 10), "deep", D.linear(0, seam, 0, seam + 900 * k, [[0, "#173b4b"], [1, "#12303f"]]));
+    const water = D.linear(0, seam, 0, seam + 900 * k, [[0, "#173b4b"], [1, "#12303f"]]);
+    D.fill(box(-10, seam, W + 20, H - seam + 10), "deep", water);
     for (const c of currents) {
       D.fill(c.path, "drift", "#356471");
       if (c.crest) D.line(poly(c.crest.filter((_, i) => i % 2 === 0), false), 4.5 * k, "spray", "#5d8792");
+      if (c.sunk) D.fill(c.sunk, "deep", water);
     }
     for (const b of blocks) {
+      const o = b.outline;
       if (b.kind === "band") {
-        D.fill(rounded(b.x - margin, b.y - margin, b.w + 2 * margin, b.h + 2 * margin, margin), "band", "#163646");
+        D.fill(rounded(o.x, o.y, o.w, o.h, o.r), "band", "#163646");
       } else if (b.kind === "medallion") {
         const i = medallions.indexOf(b);
-        const cx = b.x + b.w / 2, cy = b.y + b.h / 2, r = Math.min(b.w, b.h) / 2;
-        D.fill(circle(cx, cy, r + frame * 0.8), "frame", "#b18a50");
-        D.fill(circle(cx, cy, r), `face-${i}`, sample(b.material).field[2]);
+        const r = Math.min(b.w, b.h) / 2;
+        D.fill(circle(o.cx, o.cy, o.r), "frame", "#b18a50");
+        D.fill(circle(o.cx, o.cy, r), `face-${i}`, sample(b.material).field[2]);
         const heart = sample(b.material).disc[1];
-        D.fill(circle(cx, cy, r * 0.46), `heart-${i}`, typeof heart === "string" ? heart : heart.hex);
+        D.fill(circle(o.cx, o.cy, r * 0.46), `heart-${i}`, typeof heart === "string" ? heart : heart.hex);
       } else {
         // A tablet or an emblem: a gold frame round a bare patch the page covers.
-        D.fill(rounded(b.x - frame, b.y - frame, b.w + 2 * frame, b.h + 2 * frame, 4 * k), "frame", "#b18a50");
+        D.fill(rounded(o.x, o.y, o.w, o.h, o.r), "frame", "#b18a50");
         D.fill(box(b.x, b.y, b.w, b.h), "none", "#bdb3a2");
       }
     }

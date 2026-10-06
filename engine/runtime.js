@@ -106,6 +106,9 @@ export async function createMosaic(canvas, options = {}) {
   let samples = Math.round(clamp(finite(options.samples, 1), 1, 16));
   let view = { zoom: 1, light: 0, frame: null }, frameNow = null;
   let time = 0, playing = false, disposed = false, lost = false;
+  // Played toward a time, the film runs there at `rate`, backward if it lies behind, and
+  // stops on it.
+  let goal = null, rate = 1;
   let raf = 0, lastNow = 0, input = [], record = null, recordStart = 0;
   // What the stones answer in the frame being drawn: the pointer at a time on the input's
   // own clock, and that clock's reading at the frame's film time.
@@ -282,8 +285,12 @@ export async function createMosaic(canvas, options = {}) {
     if (disposed || lost) return;
     const dt = lastNow ? Math.min(.1, (now - lastNow) / 1000) : 1 / 60;
     lastNow = now;
-    if (playing) {
-      time += dt;
+    if (playing && goal !== null) {
+      const left = goal - time;
+      if (Math.abs(left) <= dt * rate) { time = goal; goal = null; playing = false; }
+      else time += Math.sign(left) * dt * rate;
+    } else if (playing) {
+      time += dt * rate;
       if (loop && time >= loop[1]) time = loop[0] + (time - loop[1]) % (loop[1] - loop[0]);
       else if (time >= duration - 1 / film.fps) playing = false;
     }
@@ -307,8 +314,16 @@ export async function createMosaic(canvas, options = {}) {
     // Resolves once every picture of a wall has joined it.
     ready: Promise.allSettled(parts.map(p => p.then(join, error => progress(`A picture could not be built: ${error.message}`)))).then(() => controller),
     seek(t, state = {}) { ensure(); controller.pause(); input = []; looked = []; return render(t, replay(state)); },
-    play() { ensure(); playing = true; lastNow = 0; schedule(); },
-    pause() { playing = false; cancelAnimationFrame(raf); raf = 0; lastNow = 0; },
+    // Plays on from now, `rate` times as fast; given `to`, toward that time and stops there.
+    play({ to, rate: speed = 1 } = {}) {
+      ensure();
+      if (!(Number.isFinite(speed) && speed > 0)) throw new Error('A rate must be a positive number.');
+      if (to !== undefined && !Number.isFinite(to)) throw new Error('A time to play to must be a number.');
+      goal = to === undefined ? null : clamp(to, 0, Math.max(0, duration - 1 / film.fps));
+      rate = speed;
+      playing = true; lastNow = 0; schedule();
+    },
+    pause() { playing = false; goal = null; cancelAnimationFrame(raf); raf = 0; lastNow = 0; },
     setPointer(p) {
       ensure();
       if (options.interactive === false) return;

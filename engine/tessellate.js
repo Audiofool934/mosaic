@@ -86,6 +86,9 @@ export function buildField(P) {
         const a = reg.angle || 0;
         bx = Math.cos(2 * a);
         by = Math.sin(2 * a);
+      } else if (reg.mode === "grid") {
+        // Square to the panel, like the grid the stones are set on.
+        w = 0;
       }
       vx[i] = w * tx + (1 - w) * bx;
       vy[i] = w * ty + (1 - w) * by;
@@ -269,8 +272,9 @@ export function layCourses(P, F) {
   // Courses only test against their own region, so the order of regions changes nothing.
   const order = P.priority || P.regions.map((r) => r.id);
   for (const L of order) {
-    // Opus palladianum: no courses at all; the gap fill cuts irregular stones.
-    if (!present[L] || L === 0 || P.regions[L].mode === "rubble") continue;
+    // Opus palladianum: no courses at all; the gap fill cuts irregular stones. A grid has
+    // its own stones.
+    if (!present[L] || L === 0 || P.regions[L].mode === "rubble" || P.regions[L].mode === "grid") continue;
     const thin = P.regions[L].thin;
     // First the course that runs along the region's own edge.
     const cand = [];
@@ -332,6 +336,37 @@ export function cutStones(F, lines) {
       stones.push({ x, y, ang, a: step * (0.98 + 0.04 * R()), b: s, L, line: li, arc: target });
     }
   }
+  return stones;
+}
+
+// Opus tessellatum, for lettering in stone type: one square stone on every cell of a grid
+// the region's size across, from its origin in panel millimetres, whose middle falls inside
+// the region. Each is turned and moved a touch, as by hand, by its cell alone, so two
+// pictures setting the same cells set the same stones.
+function gridStones(P, F) {
+  const stones = [];
+  P.regions.forEach((reg, L) => {
+    if (reg.mode !== "grid" || !L) return;
+    let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+    for (let i = 0; i < F.lab.length; i++) {
+      if (F.lab[i] !== L) continue;
+      const x = i % F.FW, y = (i / F.FW) | 0;
+      x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y);
+    }
+    if (x0 > x1) return;
+    const s = reg.size, [ox, oy] = reg.origin || [0, 0];
+    // The grid, in the analysis raster's own millimetres.
+    const gx = ox - (P.ox || 0), gy = oy - (P.oy || 0);
+    for (let j = Math.floor((y0 / F.FR - gy) / s); j <= Math.ceil(((y1 + 1) / F.FR - gy) / s); j++) {
+      for (let i = Math.floor((x0 / F.FR - gx) / s); i <= Math.ceil(((x1 + 1) / F.FR - gx) / s); i++) {
+        const cx = gx + (i + 0.5) * s, cy = gy + (j + 0.5) * s;
+        const px = Math.floor(cx * F.FR), py = Math.floor(cy * F.FR);
+        if (px < 0 || py < 0 || px >= F.FW || py >= F.FH || F.lab[py * F.FW + px] !== L) continue;
+        const h1 = hash(i, j + 101), h2 = hash(j, i + 307), h3 = hash(i + 53, j - 71);
+        stones.push({ x: cx + (h1 - 0.5) * 0.06 * s, y: cy + (h2 - 0.5) * 0.06 * s, ang: (h3 - 0.5) * 0.08, a: s, b: s, L, line: -1, arc: 0 });
+      }
+    }
+  });
   return stones;
 }
 
@@ -649,6 +684,7 @@ export function tessellate(P) {
   const lines = layCourses(P, F);
   const t2 = performance.now();
   const stones = cutStones(F, lines);
+  stones.push(...gridStones(P, F));
   const cells = cellsAndQuads(P, stones, F);
   const t3 = performance.now();
   const tiles = [];

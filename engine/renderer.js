@@ -593,11 +593,14 @@ out vec4 o;
 void main() { o = vec4(1.0); }
 `;
 
-// Clears the depth wherever a picture set in front has a stone or its mortar, so that both,
-// drawn next, stay in front of any stone flying past.
+// Clears the depth wherever a picture set in front has a stone seated, with its mortar, so
+// that both, drawn next, stay in front of any stone flying past. Where its stone has not yet
+// landed, or has lifted off, whatever lies under it shows.
 const CLEAR_FS = `#version 300 es
 precision highp float;
 in vec3 vP;
+uniform float uTime;
+uniform highp sampler2D uInstB;
 uniform highp sampler2D uOwnB;
 uniform vec4 uPanelB;
 out vec4 o;
@@ -605,7 +608,11 @@ void main() {
   vec2 uv = vec2((vP.x - uPanelB.x) * 1000.0, (uPanelB.y - vP.y) * 1000.0) / uPanelB.zw;
   if (uv.x < 0.0 || uv.y < 0.0 || uv.x > 1.0 || uv.y > 1.0) discard;
   vec4 ow = texelFetch(uOwnB, ivec2(uv * vec2(textureSize(uOwnB, 0))), 0);
-  if (int(ow.r * 255.0 + 0.5) + 256 * int(ow.g * 255.0 + 0.5) >= 65535) discard;
+  int id = int(ow.r * 255.0 + 0.5) + 256 * int(ow.g * 255.0 + 0.5);
+  if (id >= 65535) discard;
+  ivec2 at = ivec2((id % ${PER_ROW}) * ${TEXELS}, id / ${PER_ROW});
+  float T = texelFetch(uInstB, at, 0).z, U = texelFetch(uInstB, at + ivec2(6, 0), 0).x;
+  if (uTime < T || uTime >= U) discard;
   o = vec4(0.0);
   gl_FragDepth = 1.0;
 }
@@ -632,6 +639,7 @@ in vec3 vP;
 uniform float uTime;
 uniform int uHasA;
 uniform int uOver;
+uniform int uFront;
 uniform highp sampler2D uInstA;
 uniform highp sampler2D uOwnA;
 uniform highp sampler2D uOwn2A;
@@ -660,7 +668,7 @@ vec2 panelMM(vec4 pan) { return vec2((vP.x - pan.x) * 1000.0, (pan.y - vP.y) * 1
 // One picture's mortar at this point. alive is true while a stone of this picture
 // still sits here, which is what decides whose mortar shows during a re-lay.
 void layer(highp sampler2D inst, highp sampler2D own0, highp sampler2D own2, sampler2D sinTex, vec4 pan, vec3 grout, vec2 wetT,
-           out vec3 albedo, out float ao, out float sheen, out bool alive, out bool owned) {
+           out vec3 albedo, out float ao, out float sheen, out bool alive, out bool owned, out bool spread) {
   vec2 mm = panelMM(pan);
   vec2 uv = mm / pan.zw;
   albedo = uCoat;
@@ -668,6 +676,7 @@ void layer(highp sampler2D inst, highp sampler2D own0, highp sampler2D own2, sam
   sheen = 0.0;
   alive = false;
   owned = false;
+  spread = false;
   if (uv.x < 0.0 || uv.y < 0.0 || uv.x > 1.0 || uv.y > 1.0) return;
   // The sinopia's brush coverage, baked with the stroke's wandering width and pressure.
   float a = texture(sinTex, uv).r;
@@ -698,6 +707,7 @@ void layer(highp sampler2D inst, highp sampler2D own0, highp sampler2D own2, sam
     float lift;
     if (seated > 0.0 && pointerCurl(seat.xy, seat.w, shift, turn, lift)) moved = smoothstep(0.03, 0.5, lift) * seated;
     float wet = smoothstep(T - wetT.x, T - wetT.x * 0.4, uTime);
+    spread = uTime >= T - wetT.x;
     float dry = smoothstep(T + 0.3, T + wetT.y, uTime);
     sheen = wet * (1.0 - dry);
     // The lime spread ahead of a stone is plain. Once the stone is set, the grout pressed
@@ -717,14 +727,19 @@ void main() {
   float sheen;
   bool alive;
   bool owned;
-  layer(uInstB, uOwnB, uOwn2B, uSinB, uPanelB, uGroutB, uWetB, albedo, ao, sheen, alive, owned);
+  bool spread;
+  layer(uInstB, uOwnB, uOwn2B, uSinB, uPanelB, uGroutB, uWetB, albedo, ao, sheen, alive, owned, spread);
+  // A picture set in front lays its mortar only where its lime is spread and its stone has not
+  // lifted off again.
+  if (uFront == 1 && !(owned && alive && spread)) discard;
   bool alive2 = false;
   if (uHasA == 1) {
     vec3 a2;
     float ao2;
     float sh2;
     bool owned2;
-    layer(uInstA, uOwnA, uOwn2A, uSinA, uPanelA, uGroutA, uWetA, a2, ao2, sh2, alive2, owned2);
+    bool spread2;
+    layer(uInstA, uOwnA, uOwn2A, uSinA, uPanelA, uGroutA, uWetA, a2, ao2, sh2, alive2, owned2, spread2);
     if (alive2) {
       albedo = a2;
       ao = ao2;
@@ -1343,6 +1358,7 @@ export function createRenderer(gl, opts) {
         gl.colorMask(false, false, false, false);
         gl.useProgram(clearProg.p);
         gl.uniformMatrix4fv(clearProg.u.uVP, false, C.vp);
+        gl.uniform1f(clearProg.u.uTime, t);
         gl.bindVertexArray(bedVao);
         for (const layer of front) {
           setBed(clearProg.u, "B", layer, 8);
@@ -1379,6 +1395,7 @@ export function createRenderer(gl, opts) {
         setBed(u, "A", A || B, 12);
         gl.uniform1i(u.uHasA, A ? 1 : 0);
         gl.uniform1i(u.uOver, k ? 1 : 0);
+        gl.uniform1i(u.uFront, B.scene.front ? 1 : 0);
         gl.activeTexture(gl.TEXTURE5);
         gl.bindTexture(gl.TEXTURE_2D, B.scene.front ? frontSh.t : keySh.t);
         gl.drawArrays(gl.TRIANGLES, 0, 6);

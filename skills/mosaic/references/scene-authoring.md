@@ -51,6 +51,7 @@ Materials are `glass`, `gold`, `silver`, `marble`, `basalt`, `emit`, `limestone`
 The bundled `examples/materials.json` renders one sample of each, one per second.
 
 Courses support `contour`, `radial` with a centre, and `flow` with an angle; consult the original example before introducing a new layout.
+`grid` sets one square stone on each cell of a grid the region's size across, from its `origin`, for lettering too small for courses: set words with `examples/type.js`, whose capitals are five by seven cells, on that grid.
 Use coarse stones in quiet backgrounds and finer stones around the focal silhouette.
 Avoid tiny fragmented regions that tessellation cannot resolve.
 The working raster has a 32-megapixel limit; increasing `res` is not the same as increasing final export resolution.

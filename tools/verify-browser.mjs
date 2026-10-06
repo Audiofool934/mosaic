@@ -305,12 +305,20 @@ try {
     await new Promise(resolve => setTimeout(resolve, 400));
     const looped = front.getState();
     require(looped.playing && looped.time >= 0.5 && looped.time < 1, `The loop did not wrap: ${looped.time} s, playing ${looped.playing}.`);
+    checks.push('a film played with a loop wraps to the loop start and keeps playing');
+
+    // Played toward an earlier time, a film runs backward and stops on it.
+    front.seek(1.6);
+    front.play({ to: 1.1, rate: 2 });
+    await new Promise(resolve => setTimeout(resolve, 600));
+    const back = front.getState();
+    require(!back.playing && back.time === 1.1, `Playing back to 1.1 s ended at ${back.time} s, playing ${back.playing}.`);
     front.dispose();
     let refused = false;
     try { await createMosaic(document.createElement('canvas'), { project: '/examples/nocturne.json', width: 32, height: 18, samples: 1, loop: [2, 1] }); }
     catch (error) { refused = /loop/i.test(error.message); }
     require(refused, 'A loop that ends before it starts was accepted.');
-    checks.push('a film played with a loop wraps to the loop start and keeps playing');
+    checks.push('a film played toward an earlier time runs back and stops on it');
 
     mosaic.play();
     require(mosaic.getState().playing, 'Playback did not start for the disposal check.');

@@ -169,7 +169,7 @@ h3 { margin: 0; font: 600 20px / 1.25 var(--serif); letter-spacing: -0.005em; }
 /* Colophon */
 .colophon {
   display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 24px 32px;
-  margin-block: clamp(40px, 6vw, 96px) clamp(96px, 12vw, 180px); padding: 32px 36px;
+  margin: clamp(40px, 6vw, 96px) auto clamp(96px, 12vw, 180px); padding: 32px 36px;
   font: 400 14px / 1.6 var(--sans); color: var(--muted);
 }
 .colophon p { margin: 0; text-wrap: pretty; }

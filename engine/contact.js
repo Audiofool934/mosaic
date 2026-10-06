@@ -1,27 +1,27 @@
-// Contacts: the moments the pointer touches the stones, for sound. A fingertip sliding over the
-// wall touches it as soon as it starts and again each time it has slid a little further, a few
-// times a second at most, wherever there are stones under it. Live input only; exports never
-// produce contacts.
+// Contacts: the stones the pointer sets off as it slides over the wall, for sound. Like a
+// handful of small stones poured onto a table, a sliding fingertip sets off a few stones near
+// its path for every little distance it covers, the first as soon as it moves, each with the
+// material of the stone it lands on. Live input only; exports never produce contacts.
 import { MATERIALS } from './picture.js';
 import { TEXELS } from './renderer.js';
+import { rng } from './util.js';
 
 const NAMES = Object.fromEntries(Object.entries(MATERIALS).map(([name, id]) => [id, name]));
 const STRIDE = TEXELS * 4;
-// Grid cells for finding the stone under the pointer, and the size of the largest stone, in
+// Grid cells for finding the stones near the pointer, and the size of the largest stone, in
 // metres.
 const CELL = 0.06;
 const LARGEST = 0.03;
-// A fingertip touches the stones each time it has slid about STEP of the view's width, at most
-// about once in GAP seconds, and as soon as it has slid START after resting for REST seconds,
-// so a hand that only trembles is not heard. A slide of PACE view widths a second touches them
-// at full strength.
-const STEP = 0.06;
-const GAP = 0.2;
+// A fingertip sets off DENSITY stones for each view width it slides, at most RATE a second, and
+// one as soon as it has slid START after resting for REST seconds, so a hand that only trembles
+// is not heard. The stones lie within SPREAD fingertip reaches of its path, and a slide of PACE
+// view widths a second sets them off at full strength.
+const DENSITY = 70;
+const RATE = 60;
 const START = 0.0025;
 const REST = 0.25;
+const SPREAD = 3;
 const PACE = 1;
-
-const fract = (v) => v - Math.floor(v);
 
 // Each layer's stones by grid cell, with their sizes, built the first time it is heard.
 function stonesOf(L) {
@@ -70,37 +70,41 @@ function under(L, x, y, reach, time) {
 }
 
 export function createContacts() {
-  // How far the pointer has slid since it last touched the stones and how far it slides before
-  // the next touch, in view widths; when it may next touch them and when it last moved, on the
-  // input's clock. The steps and the waits vary a little, so the touches never tick like a
-  // clock.
-  let slid = 0, next = STEP, ready = -Infinity, moved = -Infinity, turn = 0;
+  // How many stones the slide owes and how many it may set off now, which grows by RATE a
+  // second; when the pointer last moved, on the input's clock; and where each stone lies.
+  let owed = 0, allowed = 0, moved = -Infinity;
+  const R = rng(1093);
 
-  // layers: those drawn at time; touch: where the pointer is on the wall ({ at, reach of a
-  // fingertip }) with how far it moved since the last frame, in view widths, and its speed,
-  // in view widths per second, or null; view: the wall in view, in metres; clock: the input's
-  // clock.
+  // layers: those drawn at time; touch: the pointer's path on the wall since the last frame
+  // ({ from, at, reach of a fingertip }), how far it moved, in view widths, how long that took,
+  // in seconds, and its speed, in view widths per second, or null; view: the wall in view, in
+  // metres; clock: the input's clock.
   return function hear({ layers, touch, time, view, clock }) {
     if (!touch || !(touch.moved > 1e-4)) return [];
-    if (clock - moved > REST) slid = next - START;
+    const resting = clock - moved > REST;
+    if (resting) { owed = 1 - START * DENSITY; allowed = 1; }
     moved = clock;
-    slid += touch.moved;
-    if (slid < next || clock < ready) return [];
-    let found = null, gap = touch.reach;
-    for (const L of layers) {
-      const [i, edge] = under(L, touch.at[0], touch.at[1], gap, time);
-      if (i >= 0) { found = [L, i]; gap = edge; }
+    owed = Math.min(owed + touch.moved * DENSITY, 2);
+    allowed = Math.min(allowed + RATE * touch.dt, 3);
+    const events = [], strength = 0.4 + 0.6 * Math.min(1, touch.speed / PACE), spread = touch.reach * SPREAD;
+    for (; owed >= 1 && allowed >= 1; owed--, allowed--) {
+      // Somewhere along this frame's path, or where it began for the first stone after a rest,
+      // heard as the pointer passed it.
+      const u = resting && !events.length ? 0 : R(), a = R() * 2 * Math.PI, r = spread * Math.sqrt(R());
+      const x = touch.from[0] + (touch.at[0] - touch.from[0]) * u + r * Math.cos(a);
+      const y = touch.from[1] + (touch.at[1] - touch.from[1]) * u + r * Math.sin(a);
+      let found = null, gap = touch.reach;
+      for (const L of layers) {
+        const [i, edge] = under(L, x, y, gap, time);
+        if (i >= 0) { found = [L, i]; gap = edge; }
+      }
+      if (!found) continue;
+      const [L, i] = found, d = L.data, o = i * STRIDE;
+      events.push({
+        kind: 'touch', material: NAMES[Math.round(d[o + 15])] || 'glass', size: stonesOf(L).size[i], strength, delay: u * touch.dt,
+        x: (d[o] - (view.x - view.w / 2)) / view.w, y: (view.y + view.h / 2 - d[o + 1]) / view.h
+      });
     }
-    if (!found) return [];
-    const [L, i] = found, d = L.data, o = i * STRIDE;
-    turn++;
-    slid = 0;
-    next = STEP * (0.7 + 0.6 * fract(turn * 0.754));
-    ready = clock + GAP * (0.8 + 0.4 * fract(turn * 0.437));
-    return [{
-      kind: 'touch', material: NAMES[Math.round(d[o + 15])] || 'glass', size: stonesOf(L).size[i],
-      strength: (0.45 + 0.55 * Math.min(1, touch.speed / PACE)) * (0.85 + 0.15 * fract(turn * 0.618)),
-      x: (d[o] - (view.x - view.w / 2)) / view.w, y: (view.y + view.h / 2 - d[o + 1]) / view.h
-    }];
+    return events.sort((p, q) => p.delay - q.delay);
   };
 }

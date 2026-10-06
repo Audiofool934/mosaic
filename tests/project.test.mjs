@@ -87,7 +87,7 @@ test('a built film crosses to the page as plain data and comes back whole', () =
   assert.equal(L.tiles, undefined);
   assert.equal(back.table.scenes[0].picture, undefined);
 });
-test('a sliding hand touches the stones at once and then a few times a second, and a resting one not at all', () => {
+test('a sliding hand sets off stones near its path like a pour, at once and more the further it goes, and a resting one none', () => {
   // A wall of 9 mm marble stones in a view 1.6 m wide, laid one after another over two seconds.
   const STRIDE = TEXELS * 4, cols = 160, rows = 40, count = cols * rows, data = new Float32Array(count * STRIDE);
   for (let i = 0; i < count; i++) {
@@ -97,21 +97,25 @@ test('a sliding hand touches the stones at once and then a few times a second, a
     data[o + 15] = MATERIALS.marble; data[o + 24] = Infinity;
   }
   const layers = [{ data, count }], view = { x: 0.8, y: -0.2, w: 1.6, h: 0.4 };
-  const heard = [], hear = createContacts();
-  // Half a view width a second for a second over the laid wall, then half a second at rest.
-  for (let f = 0; f < 90; f++) {
-    const clock = f / 60, touch = f < 60 ? { at: [0.1 + (f / 60) * 0.8, -0.2], reach: 0.0045, moved: 0.5 / 60, speed: 0.5 } : null;
-    heard.push(...hear({ layers, touch, time: 3, view, clock }).map(e => ({ ...e, clock })));
-  }
-  assert.ok(heard.every(e => e.kind === 'touch' && e.material === 'marble' && Math.abs(e.size - 9) < 0.01 && e.strength > 0 && e.strength <= 1));
-  assert.equal(heard[0].clock, 0);
-  assert.ok(heard.length >= 4 && heard.length <= 6, `${heard.length} touches in a second`);
-  assert.ok(heard.every((e, i) => !i || e.clock - heard[i - 1].clock > 0.15));
-  assert.equal(heard.filter(e => e.clock >= 1).length, 0);
+  const slide = (hear, speed, frames, y = -0.2, time = 3) => {
+    const heard = [];
+    for (let f = 0; f < frames; f++) {
+      const from = [0.1 + (f / 60) * speed * 1.6, y], at = [0.1 + ((f + 1) / 60) * speed * 1.6, y];
+      heard.push(...hear({ layers, touch: { from, at, reach: 0.0045, moved: speed / 60, dt: 1 / 60, speed }, time, view, clock: 10 + f / 60 }).map(e => ({ ...e, clock: 10 + f / 60 })));
+    }
+    return heard;
+  };
+  // Half a view width a second for a second: about seventy stones a view width, the first at once.
+  const heard = slide(createContacts(), 0.5, 60);
+  assert.ok(heard.length >= 28 && heard.length <= 42, `${heard.length} stones set off in a second`);
+  assert.deepEqual([heard[0].clock, heard[0].delay], [10, 0]);
+  assert.ok(heard.every(e => e.kind === 'touch' && e.material === 'marble' && Math.abs(e.size - 9) < 0.01 && e.strength > 0 && e.strength <= 1 && e.delay >= 0 && e.delay <= 1 / 60));
+  // A fast hand sets off no more than sixty a second.
+  assert.ok(slide(createContacts(), 3, 60).length <= 62);
   // Stones being laid are not heard, nor a nudge of a pixel after a rest, nor a slide where
   // there are no stones.
-  const quiet = createContacts(), silent = args => assert.deepEqual(quiet({ layers, view, time: 3, ...args }), []);
-  for (let f = 1; f <= 60; f++) silent({ touch: null, time: f / 30, clock: f / 60 });
-  silent({ touch: { at: [0.5, -0.2], reach: 0.0045, moved: 0.0007, speed: 0.04 }, clock: 2 });
-  for (let f = 1; f <= 60; f++) silent({ touch: { at: [0.5, -0.6], reach: 0.0045, moved: 0.01, speed: 0.6 }, clock: 3 + f / 60 });
+  const quiet = createContacts();
+  for (let f = 1; f <= 60; f++) assert.deepEqual(quiet({ layers, touch: null, time: f / 30, view, clock: f / 60 }), []);
+  assert.deepEqual(quiet({ layers, touch: { from: [0.5, -0.2], at: [0.5007, -0.2], reach: 0.0045, moved: 0.0007, dt: 1 / 60, speed: 0.04 }, time: 3, view, clock: 2 }), []);
+  assert.deepEqual(slide(quiet, 0.6, 60, -0.6), []);
 });

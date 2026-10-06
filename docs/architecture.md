@@ -69,10 +69,12 @@ An imported image is always analysed on the page.
 
 ## Sound
 
-`controller.onContact(listener)` hears the pointer touching the stones as it slides over them: as soon as it moves, then again each time it has slid a little further, a few times a second at most, and only where there are stones under it.
-Each touch has its kind (`touch`), the material and size in millimetres of the stone under the pointer, a strength from 0 to 1 that grows with the pointer's speed, and its position on the canvas.
-`engine/sound.js` turns them into sound with `createStoneSound()`: one short, grainy sound of small stones rolling and clicking lightly against each other, a little louder the faster the pointer moves.
-It is kept low and dry, with no hiss and nothing sharp, and it is synthesised, with nothing recorded or downloaded.
+`controller.onContact(listener)` hears the stones the pointer sets off as it slides, like a handful of small stones poured onto a table.
+A sliding pointer sets off stones near its path, about seventy for each width of the view it covers and at most sixty a second, the first as soon as it moves, and only where there are stones.
+Each contact has its kind (`touch`), the material and size in millimetres of its stone, a strength from 0 to 1 that grows with the pointer's speed, the seconds after now it is heard, and its position on the canvas.
+`engine/sound.js` turns them into sound with `createStoneSound()`: each stone is heard as its own material striking something solid, most of them softly and a few hard.
+Stone and glass give a soft, dull knock over the table's own low one, and gold and silver ring like small blocks of metal, gold lower than silver.
+The sounds are short and kept below the sharp range, with no hiss, and they are synthesised, with nothing recorded or downloaded.
 Browsers start audio only from a click or a key, so pages keep it off until asked for and call `start()` from that click.
 Contacts come only from live input; seeks, replays, and exports are silent.
 

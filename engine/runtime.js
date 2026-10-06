@@ -214,8 +214,8 @@ export async function createMosaic(canvas, options = {}) {
     const p0 = live(since), p1 = live(newest);
     let touch = null;
     if (p0.strength > 0 && p1.strength > 0 && newest > since) {
-      const moved = Math.hypot(p1.x - p0.x, (p1.y - p0.y) * height / width);
-      touch = { at: onWall(unproject(cam), p1), reach: w * .0028, moved, speed: moved / (newest - since) };
+      const moved = Math.hypot(p1.x - p0.x, (p1.y - p0.y) * height / width), m = unproject(cam);
+      touch = { from: onWall(m, p0), at: onWall(m, p1), reach: w * .0028, moved, dt: newest - since, speed: moved / (newest - since) };
     }
     heardAt = newest;
     const events = hear({ layers: base.layersAt(time), touch, time, clock: c,
@@ -269,10 +269,10 @@ export async function createMosaic(canvas, options = {}) {
     },
     // Draws once on the next animation frame, for a view that reads its frame as it draws.
     requestFrame() { ensure(); schedule(); },
-    // listener(events) hears each live frame's contacts: the pointer touching the stones as
-    // it slides over them ('touch'), as soon as it moves and then a few times a second at
-    // most, with the material and size in millimetres of the stone under it, a strength from
-    // 0 to 1, and x and y on the canvas.
+    // listener(events) hears each live frame's contacts: the stones the pointer sets off as it
+    // slides over them ('touch'), a few for every little distance it covers, each with its
+    // material, size in millimetres, a strength from 0 to 1, the seconds after now it is
+    // heard, and x and y on the canvas.
     onContact(listener) { listeners.add(listener); return () => listeners.delete(listener); },
     getState() { return { time, view: { ...view }, pointer: normalized(input.at(-1)), playing }; },
     startRecording() { ensure(); record = []; recordStart = clock(); if (input.length) record.push({ ...input.at(-1), t: 0 }); },

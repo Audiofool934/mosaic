@@ -1,8 +1,10 @@
 import { createMosaic } from "../engine/runtime.js";
 import { createStoneSound } from "../engine/sound.js";
 import { createGallery } from "./gallery.js";
+import { ITEMS } from "./bar.js";
 import { createBar } from "./nav.js";
 import { watchRooms } from "./rooms.js";
+import { createStage } from "./stage.js";
 import { wallFilm, wallScale } from "./wall.js";
 
 const $ = (id) => document.getElementById(id);
@@ -17,6 +19,11 @@ const OVERSCAN = 0.15;
 // it has been laid.
 const HOLD = 6;
 const FIRST = 2.5;
+// The page turns its screens on a stage where motion is welcome and the screen is tall
+// enough to hold a room; elsewhere it scrolls as a page.
+const STAGE_HEIGHT = 540;
+const staged = () => !reduceMotion.matches && innerHeight >= STAGE_HEIGHT && wall.dataset.state !== "still";
+let stage = null;
 
 // The wall on screen: its controller, its canvas, the millimetres of wall in each CSS
 // pixel, and the stretch of page its canvas covers.
@@ -40,19 +47,22 @@ function measure() {
 }
 
 // The canvas spans the page width and the tallest viewport seen, with a margin above and
-// below; a dense display draws at most `budget` pixels and is upscaled past that.
+// below; a dense display draws at most `budget` pixels and is upscaled past that. On the
+// stage it covers the first screen only, and goes with it.
 function canvasView() {
   tallest = Math.max(tallest, window.innerHeight);
   const width = document.documentElement.clientWidth;
-  const margin = Math.round(tallest * OVERSCAN);
-  const height = tallest + 2 * margin;
+  const margin = stage ? 0 : Math.round(tallest * OVERSCAN);
+  const height = stage ? Math.round($("top").getBoundingClientRect().height) : tallest + 2 * margin;
   const k = Math.min(Math.min(devicePixelRatio || 1, 2), Math.sqrt(budget / (width * height)));
   return { width, height, margin, px: [Math.round(width * k), Math.round(height * k)] };
 }
 
 // Read once for each frame drawn: the canvas follows the scroll, and the camera looks at
-// the same stretch of wall, so both move in the same task.
+// the same stretch of wall, so both move in the same task. On the stage the first screen's
+// canvas scrolls with it, and looks at it alone.
 function framing(canvas, scale, view) {
+  if (stage) return { x: (view.width * scale) / 2, y: (view.height * scale) / 2, w: view.width * scale };
   return () => {
     const y = window.scrollY - view.margin;
     canvas.style.transform = `translate3d(0, ${y}px, 0)`;
@@ -147,6 +157,11 @@ function lighten() {
 async function build() {
   const token = ++generation;
   await document.fonts?.ready;
+  // The stage is set up anew for each layout, since a new width can set rooms as pages.
+  stage?.dispose();
+  stage = staged() ? createStage({ reduceMotion, budget: () => budget, onChange: turned, onReady: staging }) : null;
+  bar.follow(stage ? () => sections[Math.max(0, stage.active)] ?? 0 : null);
+  sections = stage ? sectionsOf(stage) : [];
   const layout = measure();
   const view = canvasView();
   // The first wall is laid live; a wall cut again for a new layout appears already laid,
@@ -163,7 +178,7 @@ async function build() {
   // is named rather than passed, so workers cut them while the page stays live, and the name
   // is laid as soon as it is ready.
   const module = new URL("./wall.js", import.meta.url).href;
-  const { project, loop, gate, rests } = wallFilm(layout, { module, laid: first && !reduceMotion.matches, band: view.px });
+  const { project, loop, gate, rests } = wallFilm(layout, { module, laid: first && !reduceMotion.matches, band: view.px, page: !stage });
   let mosaic;
   try {
     mosaic = await createMosaic(canvas, { project, loop, width: view.px[0], height: view.px[1], samples: 1, interactive: true, worker: true, onProgress: (line) => log.push(line) });
@@ -172,6 +187,10 @@ async function build() {
     if (!first) canvas.remove();
     if (token !== generation || live) return;
     console.error("The wall could not be laid:", error);
+    // Without a wall the page scrolls as a page, over a still of the first screen.
+    stage?.dispose();
+    stage = null;
+    bar.follow(null);
     wall.dataset.state = "still";
     note.textContent = "This browser could not start WebGL2, so the wall is a still from the same engine.";
     return;
@@ -187,6 +206,8 @@ async function build() {
   lastLog = log;
   mosaic.setView({ frame: framing(canvas, layout.scale, view) });
   listen();
+  // The stage's screens are cut once the first screen is laid, so they never hold it up.
+  mosaic.ready.then(() => { if (live?.mosaic === mosaic) stage?.build(); });
   if (previous) {
     // The wall cut again shows the same moment of the same film, and plays on from there.
     const { time } = previous.mosaic.getState();
@@ -199,14 +220,13 @@ async function build() {
     updateControls();
     return;
   }
-  const started = performance.now() - mosaic.info.setupMs;
+  started = performance.now() - mosaic.info.setupMs;
   note.textContent = "Laying the stones cut in your browser.";
   mosaic.ready.then(() => {
     if (live?.mosaic !== mosaic) return;
     live.joined = true;
     advance();
-    const seconds = ((performance.now() - started) / 1000).toFixed(1);
-    note.textContent = `${mosaic.info.stoneCount.toLocaleString("en-US")} stones, cut around this page in your browser in ${seconds} seconds.`;
+    if (!stage) count([mosaic]);
   });
   if (reduceMotion.matches) mosaic.seek(rests[0]);
   else {
@@ -227,11 +247,41 @@ let unhear = null;
 function listen() {
   unhear?.();
   const on = soundButton.getAttribute("aria-pressed") === "true";
-  const offs = on ? [live?.mosaic, bar.mosaic].filter(Boolean).map((m) => m.onContact((events) => sound.play(events))) : [];
+  const offs = on ? [live?.mosaic, stage?.mosaic, bar.mosaic].filter(Boolean).map((m) => m.onContact((events) => sound.play(events))) : [];
   unhear = () => offs.forEach((off) => off());
 }
 const bar = createBar($("bar"), { reduceMotion, onReady: listen });
-watchRooms(".hero, .room, .page", { reduceMotion });
+watchRooms(".hero, .room, .page, .stop", { reduceMotion });
+
+// How many stones the page was cut into, and how long it took from the first.
+let started = 0;
+function count(mosaics) {
+  const stones = mosaics.reduce((n, m) => n + m.info.stoneCount, 0);
+  note.textContent = `${stones.toLocaleString("en-US")} stones, cut around this page in your browser in ${((performance.now() - started) / 1000).toFixed(1)} seconds.`;
+}
+// The stage's wall is ready: it is heard with the rest, and counted with the first screen's.
+function staging(mosaic) {
+  listen();
+  if (live) count([live.mosaic, mosaic]);
+}
+
+// On the stage, which of the bar's sections each screen is in: the one whose room it is,
+// or else the one before it.
+let sections = [];
+function sectionsOf(s) {
+  const ids = ITEMS.map((it) => it.id), out = [0];
+  for (let k = 1; s.screen(k); k++) {
+    const i = ids.indexOf(s.screen(k).closest(".room")?.id);
+    out.push(i >= 0 ? i : out[k - 1]);
+  }
+  return out;
+}
+// A screen turned to the front: the bar follows it, and the gallery plays only while it is
+// in front.
+function turned(k) {
+  bar.update();
+  gallery.setOnScreen(Boolean(stage?.screen(k)?.closest("#gallery")));
+}
 soundButton.addEventListener("click", async () => {
   const on = soundButton.getAttribute("aria-pressed") !== "true";
   soundButton.setAttribute("aria-pressed", String(on));
@@ -257,16 +307,23 @@ new IntersectionObserver(([entry]) => {
   advance();
 }, { threshold: 0.25 }).observe($("hero"));
 
-addEventListener("scroll", () => live?.mosaic.requestFrame(), { passive: true });
+addEventListener("scroll", () => { if (!stage) live?.mosaic.requestFrame(); }, { passive: true });
 
-// The pointer lifts the stones wherever it is on the page.
+// The pointer lifts the stones wherever it is on the page: on the stage, those of the first
+// screen while the pointer is over it, and those of the screen in front below it.
+let lifting = null;
 function lift(event) {
   if (!live || reduceMotion.matches) return;
-  const r = live.canvas.getBoundingClientRect();
-  live.mosaic.setPointer({ x: (event.clientX - r.left) / r.width, y: (event.clientY - r.top) / r.height, active: true });
+  const onStage = Boolean(stage?.mosaic) && event.clientY >= $("top").getBoundingClientRect().bottom;
+  const mosaic = onStage ? stage.mosaic : live.mosaic, canvas = onStage ? stage.canvas : live.canvas;
+  if (lifting && lifting !== mosaic) lifting.setPointer({ active: false });
+  lifting = mosaic;
+  const r = canvas.getBoundingClientRect();
+  mosaic.setPointer({ x: (event.clientX - r.left) / r.width, y: (event.clientY - r.top) / r.height, active: true });
 }
 function settle() {
-  live?.mosaic.setPointer({ active: false });
+  lifting?.setPointer({ active: false });
+  lifting = null;
 }
 addEventListener("pointermove", lift, { passive: true });
 addEventListener("pointerdown", lift, { passive: true });
@@ -282,7 +339,7 @@ function relayout() {
   if (!live) return;
   const width = document.documentElement.clientWidth;
   const height = document.documentElement.scrollHeight;
-  if (width !== live.width || Math.abs(height - live.height) > 2) building = building.then(build);
+  if (width !== live.width || Math.abs(height - live.height) > 2 || Boolean(stage) !== staged()) building = building.then(build);
   else if (window.innerHeight > tallest) {
     const view = canvasView();
     live.view = view;
@@ -309,9 +366,10 @@ window.addEventListener("pageshow", (event) => {
   if (event.persisted && !live) building = building.then(build);
 });
 
-// The gallery plays its film while it is on screen.
+// The gallery plays its film while it is on screen; on the stage, while its screen is in
+// front.
 const gallery = createGallery($("gallery"), { reduceMotion });
-new IntersectionObserver(([entry]) => gallery.setOnScreen(entry.isIntersecting), { threshold: 0.35 }).observe(document.querySelector(".feature"));
+new IntersectionObserver(([entry]) => { if (!stage) gallery.setOnScreen(entry.isIntersecting); }, { threshold: 0.35 }).observe(document.querySelector(".feature"));
 
 for (const button of document.querySelectorAll(".copy")) {
   button.addEventListener("click", async () => {
@@ -328,5 +386,5 @@ for (const button of document.querySelectorAll(".copy")) {
 }
 
 // A small observable surface for browser verification.
-window.mosaicWall = { get mosaic() { return live?.mosaic; }, get bar() { return bar.mosaic; }, get log() { return lastLog; }, get building() { return building; } };
+window.mosaicWall = { get mosaic() { return live?.mosaic; }, get bar() { return bar.mosaic; }, get stage() { return stage?.mosaic; }, get log() { return lastLog; }, get building() { return building; } };
 building = build().then(relayout);

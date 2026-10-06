@@ -125,6 +125,26 @@ h1[data-wall="band"], h2[data-wall="band"] { width: fit-content; }
 .text-button:hover { color: var(--gilt); }
 .tablet .text-button:hover { color: var(--gold); }
 
+/* The stage, where the page has room for it: under the first screen, the screens stand in
+   place one over another, each the full screen, and an invisible track gives the browser a
+   screen's height to scroll and settle on for each. home/stage.js turns them as the page
+   scrolls; the first screen covers them as it lifts away. */
+.stage-track, .stage-wall { display: none; }
+html.stage .stage-track { display: block; }
+html.stage .stage-track .stop { height: 100svh; scroll-snap-align: start; scroll-snap-stop: always; }
+html.stage .room, html.stage .page { scroll-snap-align: none; }
+html.stage .screen {
+  position: fixed; inset: 0; z-index: 1; width: min(100% - 2 * var(--gutter), var(--measure)); margin-inline: auto;
+  opacity: 0; pointer-events: none; will-change: opacity, transform;
+}
+html.stage .screen[data-active] { pointer-events: auto; }
+html.stage .stage-wall { display: block; position: fixed; inset: 0; z-index: 0; background: #12303f; }
+html.stage .stage-wall canvas { display: block; width: 100%; height: 100%; }
+html.stage .wall { bottom: auto; height: 100svh; z-index: 2; }
+html.stage .wall canvas { will-change: auto; }
+html.stage .hero { z-index: 2; }
+html.stage .controls { z-index: 4; }
+
 /* Rooms: under the first screen, each part of the page is a room a screen high, which the
    page settles on, with its words clear of the bar above and the controls below. A room's
    pages are of a piece with it, except on a phone. */

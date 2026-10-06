@@ -108,6 +108,11 @@ Each scene is drawn on a stage 1600 by 900 millimetres, scaled evenly until it c
 Below the first screen the scene runs on to a long wave, where a second picture takes over, painted from the page's measured layout: tablets and emblems become gold-framed openings, headings rest on level courses, and the material samples are medallions in the wall itself.
 The page is a column of rooms, each a screen high, which the browser settles on one at a time; on a phone, a room too full for one screen is set as pages, each a screen of its own.
 `home/rooms.js` makes sure a deliberate turn of the wheel always reaches the next room where a browser would snap a short scroll back, and leaves scrolling itself to the browser.
+Where motion is welcome and the screen is tall enough, `home/stage.js` sets the rooms on a stage: each screen under the first stands in place, one over another, and an invisible track gives the browser a screen's height to scroll and settle on for each.
+Each screen has a wall of its own, cut around its blocks, and `stageFilm` in `home/wall.js` chains them into one film, the first laid from its foot and each of the others flowing in from the one before.
+The page's scroll drives that film's clock with `play({ to })`, so the wheel turns the screens: the stones of one lift and fly into the next over a bed in a deep shade of their water, and each screen's words fade out as its stones leave and in as the next one's land.
+The first screen stays a part of the page and covers the stage as it lifts away, like a curtain, while the first wall under it is laid.
+Links, the browser's back and forward, an address naming a part of the page, and a keyboard's focus all turn the stage to the right screen; with motion reduced, or on a short screen, the page scrolls as a column of rooms instead.
 The name's letters are drawn as shapes in `examples/letters.js` rather than set in a typeface, so the word is cut the same in every browser; `examples/inscription.json` is the same first screen as a film of its own.
 `home/bar.js` and `home/nav.js` set a bar of black glass over the top of the page, naming its sections in marble stone type, in a small canvas of its own at the screen's full resolution, with a link over each name.
 The section in view is inlaid in gold, and the bar's own film flows the gold from name to name as the page moves.

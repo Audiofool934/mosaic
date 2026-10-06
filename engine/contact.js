@@ -71,8 +71,9 @@ function under(L, x, y, reach, time) {
 
 export function createContacts() {
   // How many stones the slide owes and how many it may set off now, which grows by RATE a
-  // second; when the pointer last moved, on the input's clock; and where each stone lies.
-  let owed = 0, allowed = 0, moved = -Infinity;
+  // second; when it was last heard and when the pointer last moved, on the input's clock; and
+  // where each stone lies.
+  let owed = 0, allowed = 0, heardAt = -Infinity, moved = -Infinity;
   const R = rng(1093);
 
   // layers: those drawn at time; touch: the pointer's path on the wall since the last frame
@@ -80,12 +81,15 @@ export function createContacts() {
   // in seconds, and its speed, in view widths per second, or null; view: the wall in view, in
   // metres; clock: the input's clock.
   return function hear({ layers, touch, time, view, clock }) {
+    // What it may set off grows with time, in every frame heard, moving or not, so a slide
+    // whose frames fall between frames that do not move is not cut short.
+    allowed = Math.min(allowed + RATE * Math.max(0, clock - heardAt), 3);
+    heardAt = clock;
     if (!touch || !(touch.moved > 1e-4)) return [];
     const resting = clock - moved > REST;
-    if (resting) { owed = 1 - START * DENSITY; allowed = 1; }
+    if (resting) owed = 1 - START * DENSITY;
     moved = clock;
     owed = Math.min(owed + touch.moved * DENSITY, 2);
-    allowed = Math.min(allowed + RATE * touch.dt, 3);
     const events = [], strength = 0.4 + 0.6 * Math.min(1, touch.speed / PACE), spread = touch.reach * SPREAD;
     for (; owed >= 1 && allowed >= 1; owed--, allowed--) {
       // Somewhere along this frame's path, or where it began for the first stone after a rest,

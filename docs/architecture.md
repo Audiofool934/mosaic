@@ -25,6 +25,7 @@ The studio and exports both use this renderer.
 `engine/runtime.js` exposes `createMosaic(canvas, options)`.
 Choose either a project URL or an image source and pass the target width, height, and temporal sample count.
 The returned controller owns its graphics resources and must be disposed when its canvas is removed.
+The compiled shader programs belong to the canvas's WebGL context instead: every artwork drawn on the same canvas reuses them, and a lost context compiles them again once it is restored.
 
 ```js
 import { createMosaic } from './engine/runtime.js';

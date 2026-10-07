@@ -1064,6 +1064,33 @@ function program(gl, vs, fs) {
   return { p, u };
 }
 
+// The renderer's programs, from their vertex and fragment shaders.
+const PROGRAMS = {
+  tileProg: [TILE_VS, TILE_FS], shadowProg: [SHADOW_VS, SHADOW_FS], bedProg: [BED_VS, BED_FS], clearProg: [BED_VS, CLEAR_FS],
+  accProg: [QUAD_VS, ACC_FS], prepProg: [QUAD_VS, PREP_FS], tileMaxProg: [QUAD_VS, TILEMAX_FS], dilateProg: [QUAD_VS, DILATE_FS],
+  blurProg: [QUAD_VS, BLUR_FS], finalProg: [QUAD_VS, FINAL_FS]
+};
+// Compiling the programs keeps the page waiting some tens of milliseconds, so each GL context
+// compiles them once and keeps them until it is lost. Every renderer on that context draws
+// with them, so a slab's easel, which lays one slab after another, compiles them once, and a
+// canvas drawn again at a new size compiles none. Each draw sets every uniform it reads, so no
+// renderer sees another's values.
+const compiled = new WeakMap();
+function programsFor(gl) {
+  if (compiled.has(gl)) return compiled.get(gl);
+  const programs = {};
+  try {
+    for (const [name, [vs, fs]] of Object.entries(PROGRAMS)) programs[name] = program(gl, vs, fs);
+  } catch (error) {
+    for (const { p } of Object.values(programs)) gl.deleteProgram(p);
+    throw error;
+  }
+  compiled.set(gl, programs);
+  // A lost context takes its programs with it, and compiles them again once it is restored.
+  gl.canvas.addEventListener("webglcontextlost", () => compiled.delete(gl), { once: true });
+  return programs;
+}
+
 // How a layer's stones are listed for drawing. A tall picture that asks for rows
 // (config.rows), such as a page that scrolls across one wall, lists its stones by height, and
 // a frame draws only the rows within reach of its view. Stones that fly in or leave can be
@@ -1152,27 +1179,7 @@ export function createRenderer(gl, opts) {
   try {
     if (!gl.getExtension("EXT_color_buffer_float")) fail("EXT_color_buffer_float is missing");
     const aniso = gl.getExtension("EXT_texture_filter_anisotropic");
-    const tileProg = program(gl, TILE_VS, TILE_FS);
-    own("Program", tileProg.p);
-    const shadowProg = program(gl, SHADOW_VS, SHADOW_FS);
-    own("Program", shadowProg.p);
-
-    const bedProg = program(gl, BED_VS, BED_FS);
-    own("Program", bedProg.p);
-    const clearProg = program(gl, BED_VS, CLEAR_FS);
-    own("Program", clearProg.p);
-    const accProg = program(gl, QUAD_VS, ACC_FS);
-    own("Program", accProg.p);
-    const prepProg = program(gl, QUAD_VS, PREP_FS);
-    own("Program", prepProg.p);
-    const tileMaxProg = program(gl, QUAD_VS, TILEMAX_FS);
-    own("Program", tileMaxProg.p);
-    const dilateProg = program(gl, QUAD_VS, DILATE_FS);
-    own("Program", dilateProg.p);
-    const blurProg = program(gl, QUAD_VS, BLUR_FS);
-    own("Program", blurProg.p);
-    const finalProg = program(gl, QUAD_VS, FINAL_FS);
-    own("Program", finalProg.p);
+    const { tileProg, shadowProg, bedProg, clearProg, accProg, prepProg, tileMaxProg, dilateProg, blurProg, finalProg } = programsFor(gl);
 
     // Rows of one-byte textures (the sinopia) are packed with no padding at any width.
     gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);

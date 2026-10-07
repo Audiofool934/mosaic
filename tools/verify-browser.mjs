@@ -112,12 +112,17 @@ try {
     require(await seekHash(3.5, { trace }, 'after the pass') === await seekHash(3.5, undefined, 'still water'), 'The stones did not settle after the recorded pass.');
     checks.push('a recorded pass repeats exactly and settles afterwards');
 
+    // A canvas compiles the renderer's programs once, so drawing it at a new size compiles none.
+    let compiles = 0;
+    const compileShader = gl.compileShader.bind(gl);
+    gl.compileShader = shader => { compiles++; compileShader(shader); };
     mosaic.resize(480, 270);
     require(canvas.width === 480 && canvas.height === 270 && mosaic.info.width === 480, 'Resize did not update the render surface.');
     hashes.resized = await seekHash(2, undefined, 'resized surface');
     mosaic.resize(640, 360);
     require(await seekHash(2, undefined, 'restored dimensions') === hashes.baseline, 'Resizing back changed the baseline pixels.');
-    checks.push('resize and restore preserve baseline');
+    require(compiles === 0, `Resizing compiled ${compiles} shaders again.`);
+    checks.push('resize and restore preserve baseline and compile no shaders again');
 
     const previousTime = mosaic.getState().time;
     const png = await mosaic.exportPNG({ time: 5 });
@@ -149,6 +154,7 @@ try {
     await restored;
     hashes.restored = await seekHash(2, undefined, 'fresh seek after context restoration');
     require(hashes.restored === hashes.baseline, 'Context restoration changed the baseline pixels.');
+    require(compiles > 0, 'The restored context drew with the programs it lost.');
     checks.push('context loss and restoration allow an error-free identical fresh frame');
 
     // Live input draws while the stones move and stops once they rest under a still pointer.
@@ -449,6 +455,16 @@ try {
     require(rejected, 'A disposed controller still accepted a render.');
     mosaic.dispose();
     checks.push('dispose cancels activity and rejects later renders');
+
+    // Another artwork laid on the same canvas draws with the programs the canvas already has,
+    // and draws the same frame as one that compiled its own.
+    const compiled = compiles;
+    const again = await createMosaic(canvas, { project: '/examples/nocturne.json', width: 640, height: 360, samples: 1, shadowSize: 4096 });
+    require(compiles === compiled, `A second artwork on the canvas compiled ${compiles - compiled} shaders.`);
+    again.seek(2);
+    require(await frameHash('second artwork') === hashes.baseline, 'A second artwork on the canvas drew a different frame.');
+    again.dispose();
+    checks.push('another artwork on the same canvas compiles no shaders and draws the same frame');
     return { gpu, userAgent: navigator.userAgent, checks, hashes, pngBytes: png.size, animationAfterDispose: idle };
   });
   if (errors.length) throw new Error('Browser page errors: ' + errors.join('; '));

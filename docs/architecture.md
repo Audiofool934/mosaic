@@ -98,6 +98,8 @@ The mortar is drawn once for each pair of pictures, the newest two last, and a l
 `createMosaic(canvas, { loop: [from, to] })` plays on from `to` at `from` until paused.
 `play({ to, rate })` plays toward a time, backward if it lies behind, `rate` times as fast, and stops there.
 `createMosaic(canvas, { lamp })` gives the page a lamp to hold over the wall: `setLamp({ x, y })` moves a cone of light, `lamp.height` millimetres above the wall, toward a point on the canvas, and `setLamp({ active: false })` puts it out.
+`createMosaic(canvas, { hover: { height } })` lets the page lift every seated stone off the wall together with `setHover(u)`, `u` from 0 to 1 of `height` millimetres, each stone a touch askew, in live frames only.
+A flow can do the same on its own clock: with `rise: [from, to, mm]` the outgoing picture's stones lift off together before they fly, with `arc` below 1 they fly closer to the wall, and with `settle: [from, to]` they land hovering and come down onto the wall together, so a flow played backward starts with a lift as well.
 It glides and fades on its own, lights stones and mortar alike, and shines in live frames only, so exports never show it.
 `fov` narrows the lens, so the camera stands back and looks straight at every part of a long, low panel, and `fringes: false` drops the lens's colour fringes.
 `coat` sets the colour of the bare bed, which shows wherever no stone has been set yet, or where stones have lifted off in a flow.

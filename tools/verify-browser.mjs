@@ -297,6 +297,60 @@ try {
     }
     checks.push('a lamp held over the wall lights it, goes out when let go, and never reaches an export');
 
+    // A flow whose stones lift first, fly low, and settle: lifted during its rise, and once
+    // settled the same to the pixel as a plain flow.
+    {
+      const sideBySide = (lifted) => ({ version: 1, seed: 42, fps: [60, 1], frames: 150, band: [320, 180], scenes: [
+        { id: 'one', picture: '/examples/nocturne.js', start: 0, end: 2.5, at: [0, 0], in: { type: 'settled' } },
+        { id: 'two', picture: '/examples/nocturne.js', start: 0, end: 2.5, at: [1600, 0], in: { type: 'flow', launch: [0.6, 0.7], land: [1.2, 1.4], focus: [800, 450], ...(lifted && { rise: [0.1, 0.5, 60], arc: 0.3, settle: [1.5, 1.9] }) } }
+      ] });
+      const hashAt = async (project, times) => {
+        const c = document.createElement('canvas');
+        const m = await createMosaic(c, { project, width: 320, height: 180, samples: 1 });
+        const g = c.getContext('webgl2'), out = [];
+        for (const t of times) {
+          m.seek(t);
+          const p = new Uint8Array(320 * 180 * 4);
+          g.readPixels(0, 0, 320, 180, g.RGBA, g.UNSIGNED_BYTE, p);
+          out.push(await sha256(p));
+        }
+        m.dispose();
+        return out;
+      };
+      const [plainRise, plainEnd] = await hashAt(sideBySide(false), [0.45, 2.3]);
+      const [liftedRise, liftedEnd] = await hashAt(sideBySide(true), [0.45, 2.3]);
+      require(liftedRise !== plainRise, 'The stones did not lift during the rise.');
+      require(liftedEnd === plainEnd, 'The stones did not settle into the same places as a plain flow.');
+    }
+    checks.push('a flow that lifts its stones first settles them into the same places as a plain one');
+
+    // A hover the page holds lifts every stone in live frames, lets them all down again, and
+    // never reaches an export.
+    {
+      const hoverCanvas = document.createElement('canvas');
+      const hovered = await createMosaic(hoverCanvas, { project: '/examples/nocturne.json', width: 320, height: 180, samples: 1, hover: { height: 60 } });
+      const hoverGl = hoverCanvas.getContext('webgl2');
+      const pixels = () => { const p = new Uint8Array(320 * 180 * 4); hoverGl.readPixels(0, 0, 320, 180, hoverGl.RGBA, hoverGl.UNSIGNED_BYTE, p); return p; };
+      const frames = () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      hovered.seek(2);
+      const still = await sha256(pixels());
+      hovered.setHover(1);
+      await frames();
+      require(await sha256(pixels()) !== still, 'Holding the hover did not lift the stones.');
+      const exported = await createImageBitmap(await hovered.exportPNG({ time: 2 }));
+      const scratch = new OffscreenCanvas(320, 180).getContext('2d');
+      scratch.drawImage(exported, 0, 0);
+      hovered.setHover(0);
+      await frames();
+      require(await sha256(pixels()) === still, 'The stones did not come all the way down when the hover was let go.');
+      const unlit = new OffscreenCanvas(320, 180).getContext('2d');
+      unlit.drawImage(hoverCanvas, 0, 0);
+      const a = scratch.getImageData(0, 0, 320, 180).data, b = unlit.getImageData(0, 0, 320, 180).data;
+      require(a.every((v, i) => v === b[i]), 'An export showed the hover.');
+      hovered.dispose();
+    }
+    checks.push('a hover the page holds lifts the stones live, lets them down, and never reaches an export');
+
     // The name set in front of a scene that flows into another: the stones flying past go
     // behind its letters, so every pixel bright with marble or gold at rest stays bright.
     const frontCanvas = document.createElement('canvas');

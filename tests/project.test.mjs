@@ -65,6 +65,16 @@ test('pictures placed on one wall need a position, and keep it when they flow in
   q.scenes[1].in = { type: 'flow', launch: [0, 1], land: [1, 2] };
   assert.doesNotThrow(() => validateProject(q));
 });
+test('a flow may lift its stones first, fly them low, and settle them, given plainly', () => {
+  const p = project();
+  p.scenes.push({ id: 'two', picture: './two.js', start: 1, end: 8, in: { type: 'flow', launch: [2, 3], land: [3, 4], rise: [1, 2, 60], arc: 0.3, settle: [4, 5] } });
+  assert.doesNotThrow(() => validateProject(p));
+  for (const [key, bad] of [['rise', [2, 1, 60]], ['rise', [1, 2]], ['rise', [1, 2, -5]], ['arc', -1], ['arc', 'low'], ['settle', [5, 4]], ['settle', [4]]]) {
+    const q = structuredClone(p);
+    q.scenes[1].in[key] = bad;
+    assert.throws(() => validateProject(q), new RegExp(key));
+  }
+});
 test('a picture is set in front of the others only when asked, plainly', () => {
   const p = project();
   p.scenes[0].front = true;

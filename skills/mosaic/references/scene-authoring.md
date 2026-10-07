@@ -67,6 +67,7 @@ Lighting supports a directional key and fill, ambient sky/ground, point lights, 
 The bundled `examples/laid.json` lays the nocturne outward from the moon while the camera pulls back; `"bed": 0` shows the bare mortar and its sinopia from the first frame.
 The sinopia outlines every region, or the groups of regions listed in the config's `sinopia: { groups }`; `sinopia: false` lays the stones straight onto bare plaster with no drawing first.
 `"flow"` pairs outgoing stones with an incoming picture; its `launch` and `land` intervals are on the project clock.
+A flow can lift the outgoing picture's stones off the wall together first with `"rise": [from, to, millimetres]`, fly them closer to the wall with an `"arc"` below 1, as for a long flight across it, and land them hovering to settle onto the wall together with `"settle": [from, to]`, so the flow reads the same played backward.
 Scenes with `"at": [x, y]` are placed side by side on one wall, in millimetres from its top left corner, and can share the same clock.
 A scene placed with `at` can flow in from the scene before it and keeps its place; the whole picture flows, since on a wall the page frames the view rather than the picture's own camera.
 `"front": true` keeps a scene's stones and mortar in front of every stone flying past it, so a name or emblem stays clear while the pictures behind it flow; give the pictures behind it a hole in its shape.

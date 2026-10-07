@@ -60,4 +60,6 @@ A picture that flows in from the one before it is cut in the same worker.
 For a control or plaque set in stone, `createMosaic(canvas, { lamp: { height, power, cone, color } })` lets the page hold a lamp over it with `setLamp({ x, y })` and `setLamp({ active: false })`, a light cone that marks what the pointer is on without moving any stones; exports never show it.
 `fov`, in degrees, narrows the lens for a long, low panel, so metal and glass mirror the same light from end to end, and `fringes: false` drops the lens's colour fringes.
 `coat` sets the colour of the bare bed under stones not yet set or lifted off in a flow; a dark coat keeps a page that flows between screens from flashing pale between them.
+`createMosaic(canvas, { hover: { height } })` lets the page lift every seated stone off the wall together with `setHover(u)`, from 0 to 1, as a gesture begins, in live frames only; exports never show it.
+A page that turns between pictures with gestures can drive one film's clock with `play({ to })` from the hand, so the stones follow it both ways and a turn can be rewound.
 The project page in the mosAIc source repository, `home/main.js` and `home/wall.js`, is a complete example: the page measures its own layout and has a picture painted around it.

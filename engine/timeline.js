@@ -627,7 +627,7 @@ export async function loadFilm(source, opts = {}) {
 export function packFilm(film) {
   const plain = ({ layer, picture, ...scene }) => scene;
   const layers = film.layers.map((L) => ({
-    scene: film.scenes.indexOf(L.scene), W: L.W, H: L.H, world: L.world, grout: L.grout, wet: L.wet, flicker: L.flicker, ripple: L.ripple,
+    scene: film.scenes.indexOf(L.scene), W: L.W, H: L.H, world: L.world, grout: L.grout, wet: L.wet, flicker: L.flicker, ripple: L.ripple, rise: L.rise, settle: L.settle, fly: L.fly,
     timing: L.timing, count: L.count, data: L.data, bed: L.bed, first: L.first, last: L.last, cfg: L.pic.cfg
   }));
   const film2 = { table: { ...film.table, scenes: film.table.scenes.map(plain) }, fps: film.fps, aspect: film.aspect, no: film.no, scenes: film.scenes.map(plain), layers };
@@ -756,6 +756,15 @@ function flowInto(film, A, B, flow) {
   const [l0, l1] = flow.launch;
   const [d0, d1] = flow.land;
   B.relayFrom = l0 - 0.05;
+  // A rise lifts every stone of the outgoing picture together, `rise[2]` millimetres, from
+  // rise[0] to rise[1], and the incoming picture's flights set out from that height. With a
+  // settle, they land at that height too, and come down onto the wall together from
+  // settle[0] to settle[1]. An arc below 1 keeps flights closer to the wall, for long ones
+  // across it.
+  const lift = flow.rise ? flow.rise[2] / 1000 : 0;
+  if (flow.rise) A.rise = [flow.rise[0], flow.rise[1], lift, 0];
+  if (flow.settle) B.settle = [flow.settle[0], flow.settle[1], lift, 0];
+  B.fly = [flow.arc ?? 1, lift];
   const rA = viewRect(film, A, l0);
   const rB = viewRect(film, B, d1);
   const inside = (r, p) => p[0] > r[0] && p[0] < r[1] && p[1] > r[2] && p[1] < r[3];

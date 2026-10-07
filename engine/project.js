@@ -19,6 +19,9 @@ export function validateProject(input) {
     lastStart = s.start;
     if (s.in && !['laid', 'flow', 'settled'].includes(s.in.type)) throw new Error(`${s.id}: unknown entry type.`);
     if (s.in?.type === 'flow' && (!Array.isArray(s.in.launch) || !Array.isArray(s.in.land))) throw new Error(`${s.id}: flow requires launch and land intervals.`);
+    if (s.in?.rise !== undefined && !(Array.isArray(s.in.rise) && s.in.rise.length === 3 && s.in.rise.every(Number.isFinite) && s.in.rise[0] < s.in.rise[1] && s.in.rise[2] >= 0)) throw new Error(`${s.id}: rise must be [from, to, millimetres].`);
+    if (s.in?.arc !== undefined && !(Number.isFinite(s.in.arc) && s.in.arc >= 0)) throw new Error(`${s.id}: arc must be a number from 0.`);
+    if (s.in?.settle !== undefined && !(Array.isArray(s.in.settle) && s.in.settle.length === 2 && s.in.settle.every(Number.isFinite) && s.in.settle[0] < s.in.settle[1])) throw new Error(`${s.id}: settle must be [from, to].`);
     if (s.at !== undefined && (!Array.isArray(s.at) || s.at.length !== 2 || !s.at.every(Number.isFinite))) throw new Error(`${s.id}: at must be [x, y] in millimetres.`);
     if (s.front !== undefined && typeof s.front !== 'boolean') throw new Error(`${s.id}: front must be true or false.`);
   }

@@ -16,6 +16,8 @@ import { clamp, halton, invert, lookAt, mat4Mul, ortho, perspective, v3norm, xfo
 //   I: source linear rgb, source emission
 //   J: ignition time, extinction time, glint amplitude, flags * 10 + exit duration
 export const TEXELS = 10;
+// A picture that does not rise, and flights of the usual height from the wall.
+const NO_RISE = [0, 0, 0, 0], NO_FLY = [1, 0], NO_HOVER = [0, 0];
 export const PER_ROW = 256;
 export const FLAG_TYPE = 1;
 export const POINTS = 4;
@@ -157,6 +159,30 @@ vec3 shade(vec3 P, vec3 N, vec3 V, vec3 albedo, float metal, float rough, vec3 F
 
 // The pointer's recent path, as the stones answer it. The stones and the mortar under them
 // read the same motion.
+// A rise: every seated stone of a picture lifts off the wall together, `rise.z` metres, over
+// the times rise.x to rise.y, each starting a touch earlier or later by its seed but all
+// risen by the end, and hovers there until it flies. A settle is the same the other way: the
+// stones of a picture that flew in land hovering, and come down onto the wall together over
+// its times. A hover is a rise the page holds live, `hover.x` metres times `hover.y`, for
+// frames that answer the pointer only.
+const RISE = `
+uniform vec2 uHover;
+float rising(vec4 rise, float t, float seed) {
+  float d = fract(seed * 7.31) * 0.4 * (rise.y - rise.x);
+  return rise.z > 0.0 ? smoothstep(rise.x + d, rise.y - 0.4 * (rise.y - rise.x) + d, t) : 0.0;
+}
+// How far a stone hovers off the wall, in metres.
+float hovering(vec4 rise, vec4 settle, float t, float seed) {
+  float h = max(rise.z * rising(rise, t, seed), uHover.x * uHover.y);
+  return settle.z > 0.0 ? max(h, settle.z * (1.0 - rising(settle, t, seed))) : h;
+}
+// The same, as a share of the highest it goes.
+float risen(vec4 rise, vec4 settle, float t, float seed) {
+  float top = max(max(rise.z, settle.z), uHover.x);
+  return top > 0.0 ? hovering(rise, settle, t, seed) / top : 0.0;
+}
+`;
+
 const POINTER_CURL = `
 // Cull centre xy and cull radius of the trail, and the curl radius (m); no input culls everything.
 uniform vec4 uPointer;
@@ -210,6 +236,12 @@ uniform mat4 uVP;
 uniform float uTime;
 uniform vec4 uRipple;
 uniform float uFlicker;
+// This picture's rise, if it lifts off before flying on to the next, and its own flights:
+// how high they arc, as a share of the usual, and how high they set out from, in metres.
+uniform vec4 uRise;
+uniform vec4 uSettle;
+uniform vec2 uFly;
+${RISE}
 ${POINTER_CURL}
 vec4 iA;
 vec4 iB;
@@ -294,9 +326,11 @@ void stonePose(out mat3 R, out vec3 off, out float flight) {
       float e = s * s * (3.0 - 2.0 * s);
       vec2 src = iH.xy;
       float dist = length(iA.xy - src);
-      float arc = clamp(0.3 * dist, 0.012, 0.55) * (0.6 + 0.8 * h1);
+      float arc = clamp(0.3 * dist, 0.012, 0.55) * (0.6 + 0.8 * h1) * uFly.x;
       off.xy = mix(src, iA.xy, e);
       off.z += arc * sin(3.14159265 * s);
+      // Set out from the height the stones rose to, and land at the height they settle from.
+      off.z += uFly.y * (1.0 - e) + uSettle.z * e;
       R = rotAxis(vec3(0.0, 0.0, 1.0), iH.w * (1.0 - e)) * rotAxis(axis, spin * 2.4 * sin(3.14159265 * s) + resid * e) * R;
     } else {
       float s = clamp((uTime - (T - fall)) / fall, 0.0, 1.0);
@@ -319,8 +353,14 @@ void stonePose(out mat3 R, out vec3 off, out float flight) {
     float env = exp(-zeta * w0 * tt);
     if (!letter) off.z -= 0.0006 * env * sin(wd * tt);
     R = rotAxis(axis, resid * env * cos(wd * tt)) * R;
+    // A risen stone hovers a little askew, each its own way, and comes level again just
+    // before it flies, so its flight sets out from where it hovered.
+    float up = risen(uRise, uSettle, uTime, seed);
+    off.z += hovering(uRise, uSettle, uTime, seed);
+    if (up > 0.0) R = rotAxis(axis, 0.42 * (h2 - 0.5) * up * (1.0 - smoothstep(iG.x - 0.12, iG.x, uTime))) * R;
   } else {
     float tt = uTime - iG.x;
+    off.z += hovering(uRise, uSettle, iG.x, seed);
     vec2 d = vec2(cos(iG.y), sin(iG.y));
     float v = iG.z * (0.8 + 0.4 * h1);
     off.z += 0.006 * (1.0 - exp(-tt / 0.03)) + v * 0.55 * tt;
@@ -654,6 +694,10 @@ uniform float uTime;
 uniform int uHasA;
 uniform int uOver;
 uniform int uFront;
+uniform vec4 uRiseA;
+uniform vec4 uRiseB;
+uniform vec4 uSettleA;
+uniform vec4 uSettleB;
 uniform highp sampler2D uInstA;
 uniform highp sampler2D uOwnA;
 uniform highp sampler2D uOwn2A;
@@ -672,6 +716,7 @@ uniform vec3 uCoat;
 uniform vec3 uSinopia;
 out vec4 o;
 ${GLSL_COMMON}
+${RISE}
 ${POINTER_CURL}
 vec4 seatA(highp sampler2D inst, int id) { return texelFetch(inst, ivec2((id % ${PER_ROW}) * ${TEXELS}, id / ${PER_ROW}), 0); }
 float seatT(highp sampler2D inst, int id) { return texelFetch(inst, ivec2((id % ${PER_ROW}) * ${TEXELS}, id / ${PER_ROW}), 0).z; }
@@ -681,7 +726,7 @@ vec3 stoneRgb(highp sampler2D inst, int id) { return texelFetch(inst, ivec2((id 
 vec2 panelMM(vec4 pan) { return vec2((vP.x - pan.x) * 1000.0, (pan.y - vP.y) * 1000.0); }
 // One picture's mortar at this point. alive is true while a stone of this picture
 // still sits here, which is what decides whose mortar shows during a re-lay.
-void layer(highp sampler2D inst, highp sampler2D own0, highp sampler2D own2, sampler2D sinTex, vec4 pan, vec3 grout, vec2 wetT,
+void layer(highp sampler2D inst, highp sampler2D own0, highp sampler2D own2, sampler2D sinTex, vec4 pan, vec3 grout, vec2 wetT, vec4 rise, vec4 settle,
            out vec3 albedo, out float ao, out float sheen, out bool alive, out bool owned, out bool spread) {
   vec2 mm = panelMM(pan);
   vec2 uv = mm / pan.zw;
@@ -720,6 +765,7 @@ void layer(highp sampler2D inst, highp sampler2D own0, highp sampler2D own2, sam
     vec3 turn;
     float lift;
     if (seated > 0.0 && pointerCurl(seat.xy, seat.w, shift, turn, lift)) moved = smoothstep(0.03, 0.5, lift) * seated;
+    moved = max(moved, risen(rise, settle, min(uTime, U), seat.w) * seated);
     float wet = smoothstep(T - wetT.x, T - wetT.x * 0.4, uTime);
     spread = uTime >= T - wetT.x;
     float dry = smoothstep(T + 0.3, T + wetT.y, uTime);
@@ -743,7 +789,7 @@ void main() {
   bool alive;
   bool owned;
   bool spread;
-  layer(uInstB, uOwnB, uOwn2B, uSinB, uPanelB, uGroutB, uWetB, albedo, ao, sheen, alive, owned, spread);
+  layer(uInstB, uOwnB, uOwn2B, uSinB, uPanelB, uGroutB, uWetB, uRiseB, uSettleB, albedo, ao, sheen, alive, owned, spread);
   // A picture set in front lays its mortar only where its lime is spread and its stone has not
   // lifted off again.
   if (uFront == 1 && !(owned && alive && spread)) discard;
@@ -754,7 +800,7 @@ void main() {
     float sh2;
     bool owned2;
     bool spread2;
-    layer(uInstA, uOwnA, uOwn2A, uSinA, uPanelA, uGroutA, uWetA, a2, ao2, sh2, alive2, owned2, spread2);
+    layer(uInstA, uOwnA, uOwn2A, uSinA, uPanelA, uGroutA, uWetA, uRiseA, uSettleA, a2, ao2, sh2, alive2, owned2, spread2);
     if (alive2) {
       albedo = a2;
       ao = ao2;
@@ -1154,6 +1200,8 @@ export function createRenderer(gl, opts) {
     const SH = opts.shadowSize || 4096;
     const keySh = depthTarget(SH);
     let frontSh = null;
+    // The hover the page holds over the wall in this frame, if any.
+    let hover = NO_HOVER;
 
     function colorTarget(w, h, withDepth, attachments) {
       const fb = own("Framebuffer", gl.createFramebuffer());
@@ -1280,6 +1328,10 @@ export function createRenderer(gl, opts) {
       // Each picture has its own water wave and its own flicker for lit smalti.
       gl.uniform4fv(prog.u.uRipple, layer.ripple || [1, 0, 0, 0]);
       gl.uniform1f(prog.u.uFlicker, layer.flicker || 0);
+      gl.uniform4fv(prog.u.uRise, layer.rise || NO_RISE);
+      gl.uniform4fv(prog.u.uSettle, layer.settle || NO_RISE);
+      gl.uniform2fv(prog.u.uHover, hover);
+      gl.uniform2fv(prog.u.uFly, layer.fly || NO_FLY);
       gl.bindVertexArray(geo.vao);
       const R = layer.gpu.rows;
       const first = R && span ? rowAt(R.y, span[0] - R.reach) : 0;
@@ -1344,6 +1396,8 @@ export function createRenderer(gl, opts) {
       gl.uniform4f(u["uPanel" + suffix], layer.world[0], layer.world[1], layer.W, layer.H);
       gl.uniform3fv(u["uGrout" + suffix], layer.grout);
       gl.uniform2fv(u["uWet" + suffix], layer.wet);
+      if (u["uRise" + suffix]) gl.uniform4fv(u["uRise" + suffix], layer.rise || NO_RISE);
+      if (u["uSettle" + suffix]) gl.uniform4fv(u["uSettle" + suffix], layer.settle || NO_RISE);
     }
 
     function renderScene(t, jitter, L, layers, lensOut) {
@@ -1402,6 +1456,7 @@ export function createRenderer(gl, opts) {
       gl.uniform4fv(u.uTrail, pointer?.trail || noTrail);
       gl.uniform3fv(u.uCoat, opts.coat);
       gl.uniform3fv(u.uSinopia, opts.sinopia);
+      gl.uniform2fv(u.uHover, hover);
       gl.bindVertexArray(bedVao);
       // The pictures in pairs, the newest two last, and then each picture set in front on its
       // own, shaded only by its own stones.
@@ -1438,6 +1493,7 @@ export function createRenderer(gl, opts) {
     }
 
     function render(t, subframes) {
+      hover = opts.hoverAt?.() || NO_HOVER;
       const n = Math.max(1, subframes | 0);
       const layers = opts.timeline.layersAt(t);
       const look = opts.timeline.lookAt(t);

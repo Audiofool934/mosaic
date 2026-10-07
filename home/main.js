@@ -87,6 +87,8 @@ let cycling = false;
 let holding = 0;
 let held = false;
 let heroInView = true;
+// Whether the stage holds the first screen lifted or slid away, when its scenes hold still.
+let covered = false;
 let watching = 0;
 let checked = 0;
 let frameTimes = [];
@@ -101,7 +103,7 @@ function hold(seconds) {
 }
 
 function advance() {
-  if (!live || !cycling || held || !heroInView) return;
+  if (!live || !cycling || held || !heroInView || covered) return;
   const { time, playing } = live.mosaic.getState();
   if (playing || (!live.joined && time >= live.gate)) return;
   live.mosaic.play();
@@ -157,9 +159,11 @@ function lighten() {
 async function build() {
   const token = ++generation;
   await document.fonts?.ready;
-  // The stage is set up anew for each layout, since a new width can set rooms as pages.
+  // The stage is set up anew for each layout, since a new width can set rooms as pages, and
+  // keeps the page it was on.
+  const at = stage ? Math.round(stage.view) : null;
   stage?.dispose();
-  stage = staged() ? createStage({ reduceMotion, budget: () => budget, onChange: turned, onReady: staging }) : null;
+  stage = staged() ? createStage({ reduceMotion, budget: () => budget, at, onChange: turned, onReady: staging, onCover: cover }) : null;
   bar.follow(stage ? () => sections[Math.max(0, stage.active)] ?? 0 : null);
   sections = stage ? sectionsOf(stage) : [];
   const layout = measure();
@@ -181,7 +185,9 @@ async function build() {
   const { project, loop, gate, rests } = wallFilm(layout, { module, laid: first && !reduceMotion.matches, band: view.px, page: !stage });
   let mosaic;
   try {
-    mosaic = await createMosaic(canvas, { project, loop, width: view.px[0], height: view.px[1], samples: 1, interactive: true, worker: true, onProgress: (line) => log.push(line) });
+    // On the stage the first screen's stones can be lifted together, as a page's are when
+    // it turns.
+    mosaic = await createMosaic(canvas, { project, loop, width: view.px[0], height: view.px[1], samples: 1, interactive: true, worker: true, hover: stage ? { height: 60 } : undefined, onProgress: (line) => log.push(line) });
     if (!first) await mosaic.ready;
   } catch (error) {
     if (!first) canvas.remove();
@@ -251,7 +257,7 @@ function listen() {
   unhear = () => offs.forEach((off) => off());
 }
 const bar = createBar($("bar"), { reduceMotion, onReady: listen });
-watchRooms(".hero, .room, .page, .stop", { reduceMotion });
+watchRooms(".hero, .room, .page", { reduceMotion });
 
 // How many stones the page was cut into, and how long it took from the first.
 let started = 0;
@@ -278,9 +284,22 @@ function sectionsOf(s) {
 }
 // A screen turned to the front: the bar follows it, and the gallery plays only while it is
 // in front.
-function turned(k) {
+// The first screen as the stage holds it: slid away to the left, from 0 to 1, and its stones
+// lifted, from 0 to 1. While it is lifted or slid away its scenes hold still.
+function cover(slide, lift) {
+  wall.style.transform = slide > 0 ? `translate3d(${(-slide * document.documentElement.clientWidth).toFixed(1)}px, 0, 0)` : "";
+  const now = slide > 0 || lift > 0;
+  if (now !== covered) {
+    covered = now;
+    if (covered) live?.mosaic.pause();
+    else advance();
+  }
+  // After any pause, so the redraw it asks for is not called off.
+  live?.mosaic.setHover(lift);
+}
+function turned(k, el) {
   bar.update();
-  gallery.setOnScreen(Boolean(stage?.screen(k)?.closest("#gallery")));
+  gallery.setOnScreen(Boolean(el?.closest("#gallery")));
 }
 soundButton.addEventListener("click", async () => {
   const on = soundButton.getAttribute("aria-pressed") !== "true";
@@ -314,7 +333,7 @@ addEventListener("scroll", () => { if (!stage) live?.mosaic.requestFrame(); }, {
 let lifting = null;
 function lift(event) {
   if (!live || reduceMotion.matches) return;
-  const onStage = Boolean(stage?.mosaic) && event.clientY >= $("top").getBoundingClientRect().bottom;
+  const onStage = Boolean(stage?.mosaic) && stage.view >= 0.5;
   const mosaic = onStage ? stage.mosaic : live.mosaic, canvas = onStage ? stage.canvas : live.canvas;
   if (lifting && lifting !== mosaic) lifting.setPointer({ active: false });
   lifting = mosaic;
@@ -386,5 +405,5 @@ for (const button of document.querySelectorAll(".copy")) {
 }
 
 // A small observable surface for browser verification.
-window.mosaicWall = { get mosaic() { return live?.mosaic; }, get bar() { return bar.mosaic; }, get stage() { return stage?.mosaic; }, get log() { return lastLog; }, get building() { return building; } };
+window.mosaicWall = { get mosaic() { return live?.mosaic; }, get bar() { return bar.mosaic; }, get stage() { return stage?.mosaic; }, showStage: (at) => stage?.show(at), get stageState() { return stage && { place: stage.place, view: stage.view, active: stage.active }; }, get log() { return lastLog; }, get building() { return building; } };
 building = build().then(relayout);

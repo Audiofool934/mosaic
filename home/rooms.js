@@ -22,6 +22,8 @@ export function watchRooms(selector, { reduceMotion }) {
   function settled() {
     const delta = turn;
     turn = 0;
+    // On the stage the page does not scroll; the stage turns it.
+    if (document.documentElement.classList.contains("stage")) return;
     if (Math.abs(delta) >= NUDGE && Math.abs(scrollY - rest) <= 2 && mandatory()) {
       const all = stops(), here = all.findIndex((y) => Math.abs(y - scrollY) <= 2);
       const next = here < 0 ? undefined : all[here + Math.sign(delta)];

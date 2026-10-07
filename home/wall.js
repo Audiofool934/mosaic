@@ -111,29 +111,44 @@ export function scenePicture({ scene: name, first, tail = true, ...layout }) {
   };
 }
 
-// The stage: each screen under the first, a picture of its own on one clock, the first
-// screen being the hero at rest at 0. Screen k rests at k STEPs: the first under the hero is
-// laid from its foot as the hero is lifted off it, and each of the others flows in from the
-// one before, so the page's scroll can turn them like the leaves of a book.
-const STEP = 2.4;
-export function stageFilm(screens, { module, band }) {
-  const n = screens.length, end = n * STEP + 0.2;
-  const scenes = screens.map((layout, i) => {
-    const m = layout.scale, W = layout.width * m, H = layout.height * m;
-    const rest = (i + 1) * STEP, before = i * STEP;
-    return {
-      id: `screen-${i + 1}`,
-      picture: { module, export: "screenPicture", args: { ...layout, seed: 4242 + 97 * i } },
-      start: before,
-      end: i < n - 1 ? rest + STEP : end,
-      at: [0, 0],
-      in: i
-        ? { type: "flow", launch: [before + 0.05, before + 0.85], land: [before + 0.9, rest - 0.1], focus: [W / 2, H / 2] }
-        : { type: "laid", bed: 0, build: { origin: [W / 2, H], start: 0.05, end: rest - 0.15, rise: 0.04 } }
-    };
-  });
+// The stage: the page's pages side by side along one long wall, on one clock. Page 0 is the
+// cover, a copy of the first screen's first scene, which lies under the first screen; each
+// page after it is one of the page's screens. Page k rests at k steps, and each turn to the
+// next is in three parts. Over the first `rise` of a step every stone of the page before
+// lifts off the wall together, `lift` millimetres, a touch askew; then the view travels one
+// page to the right along the wall while the stones fly on, close to the wall and almost all
+// at once, into the next page's places, landing hovering as the view arrives; and over the
+// last `settle` of the step they come down onto the wall together. A turn backward is the
+// same played in reverse, so either way it starts and ends with a lift.
+const TURN = { step: 3, rise: 0.3, settle: 0.3, lift: 60, arc: 0.3 };
+export function stageFilm(cover, screens, { module, band }) {
+  const m = cover.scale, W = cover.width * m, H = cover.height * m;
+  const pages = [
+    { export: "scenePicture", args: { ...cover, scene: SCENE_NAMES[0], tail: false } },
+    ...screens.map((layout, i) => ({ export: "screenPicture", args: { ...layout, seed: 4242 + 97 * i } }))
+  ];
+  const { step, rise, settle, lift, arc } = TURN;
+  const n = pages.length - 1, end = n * step + 0.2;
+  // The time a share f of the way through the turn to page j.
+  const at = (j, f) => (j - 1 + f) * step;
+  const scenes = pages.map((page, j) => ({
+    id: j ? `page-${j}` : "cover",
+    picture: { module, ...page },
+    start: j ? at(j, 0) : 0,
+    end: j < n ? (j + 1) * step : end,
+    at: [j * W, 0],
+    in: !j
+      ? { type: "settled" }
+      : {
+          type: "flow", arc, focus: [W / 2, H / 2],
+          rise: [at(j, 0.01), at(j, rise - 0.01), lift],
+          launch: [at(j, rise), at(j, rise + 0.04)],
+          land: [at(j, 1 - settle - 0.08), at(j, 1 - settle)],
+          settle: [at(j, 1 - settle + 0.01), at(j, 0.99)]
+        }
+  }));
   const project = { version: 1, title: "mosAIc", seed: 42, fps: [60, 1], frames: Math.ceil(end * 60) + 1, band, look: [[0, 1], [end, 1]], scenes };
-  return { project, step: STEP };
+  return { project, step, rise, settle };
 }
 
 // One screen of the stage: its water, and the frames, bands, and medallions of its own

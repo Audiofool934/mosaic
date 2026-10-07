@@ -1,71 +1,103 @@
-// The stage: under the first screen, the page's screens stand in place one over another, and
-// the page's scroll turns them. An invisible track gives the browser a screen's height to
-// scroll and settle on for each, and the scroll drives a film of the screens' walls, so as
-// the page turns, the stones of one screen lift and fly into the next. A screen's words fade
-// out as its stones leave and in as the next one's land, and the first screen covers the
-// stage as it lifts away, like a curtain.
+// The stage: where there is room for it, the page's screens become pages side by side along
+// one long wall, which the wheel, a trackpad, the keys, and touch turn sideways. The first
+// screen is page 0. A short push lifts every stone of the page in front off the wall; a
+// fuller one turns the page, the view travelling right along the wall while the stones fly
+// on into the next page's places and settle; and the turn follows the hand both ways, so it
+// can be held, rewound, or let go, when it settles back or finishes, whichever way the hand
+// was going. Under the first screen lies a copy of its first scene, whose stones fly out from
+// under it as it slides away.
 import { createMosaic } from "../engine/runtime.js";
 import { clamp, smoothstep } from "../engine/util.js";
 import { stageFilm, wallScale } from "./wall.js";
 
-// How much of a turn a screen's words take to fade, as a share of it, and how far they move
-// as they do, in pixels.
-const FADE = 0.35, RISE = 14;
+// A page's words go as its stones fly off, over these shares of the turn after their rise,
+// and come as the next page's stones land, over these before their settle.
+const GO = [-0.04, 0.06], COME = [-0.1, 0.06];
+// The hand. A whole turn takes a wheel this share of the screen's height, and a finger this
+// share of the screen's width or height; one notch of a wheel counts for at least NOTCH of a
+// turn; a wheel still for QUIET milliseconds has been let go, and one still for FRESH before
+// it moves again is a new push, not the end of a flick; and a finger let go faster than
+// FLICK turns a second finishes the turn it was making.
+const WHEEL = 0.75, TOUCH = 0.8, NOTCH = 0.13, QUIET = 170, FRESH = 90, FLICK = 0.8;
+// How fast the stones follow the hand, catching up within FOLLOW seconds; and how fast a
+// turn finishes once let go, and one asked for by a key or a link, in film seconds a second.
+const FOLLOW = 0.12, FINISH = 1.7, ASKED = 2.4;
 
-// onChange(k) hears which screen is in front whenever it changes, 0 being the first screen,
-// and onReady(mosaic) when the stage's wall is ready. budget() says how many pixels its
-// canvas may draw.
-export function createStage({ reduceMotion, budget, onChange = () => {}, onReady = () => {} }) {
+// onChange(k, el) hears which page is in front whenever it changes, 0 being the first screen,
+// and its element;
+// onReady(mosaic) when the stage's wall is ready; and onCover(slide, lift) how far the first
+// screen has slid away to the left, and how far its stones have lifted, each from 0 to 1.
+// budget() says how many pixels the stage's canvas may draw. A stage set up anew for a new
+// layout starts on the page `at` it was on.
+export function createStage({ reduceMotion, budget, at = null, onChange = () => {}, onReady = () => {}, onCover = () => {} }) {
   const root = document.documentElement;
   const hero = document.getElementById("top");
   root.classList.add("stage");
-  // The screens: each room, or each of a room's pages where it is set as pages.
+  // The pages after the first: each room, or each of a room's pages where it is set as pages.
   const screens = [...document.querySelectorAll("main > .room, body > footer.room")].flatMap((room) => {
     const pages = [...room.querySelectorAll(":scope > .page")];
     return pages.length && getComputedStyle(pages[0]).display !== "contents" ? pages : [room];
   });
   for (const el of screens) el.classList.add("screen");
-  const track = document.createElement("div");
-  track.className = "stage-track";
-  track.setAttribute("aria-hidden", "true");
-  for (let i = 0; i < screens.length; i++) track.append(Object.assign(document.createElement("div"), { className: "stop" }));
-  hero.after(track);
+  const n = screens.length;
   const host = document.createElement("div");
   host.className = "stage-wall";
   host.setAttribute("aria-hidden", "true");
   document.body.prepend(host);
 
   let film = null, active = -1, raf = 0, generation = 0, disposed = false;
-  const height = () => hero.getBoundingClientRect().height || innerHeight;
-  // Where the page is on the track: 0 on the first screen, k on screen k.
-  const place = () => clamp(scrollY / height(), 0, screens.length);
+  // Where the stage stands, 0 on the first screen and k on page k, and where it is going.
+  let place = 0, goal = 0;
+  // The hand: whether it is on the stage, the turn it is making, from page lo to lo + 1, the
+  // way it last pushed, and whether it finished that turn while still on the stage.
+  let held = false, lo = 0, heading = 0, locked = false;
+  let lastWheel = -Infinity, quiet = 0, touch = null;
 
-  // Shows the screens as they stand at a place on the track: the one there in full, and on
-  // either side of it, the words fading as the stones leave or land.
+  // Where the view stands at a place: on a page while its stones lift or settle, and
+  // travelling between pages while they fly.
+  function viewAt(at) {
+    if (!film) return at;
+    const k = Math.min(Math.floor(at), n - 1), f = at - k;
+    return k + smoothstep(film.rise, 1 - film.settle, f);
+  }
+
+  // How much of a page's words show at a place: in full while it is in front, going as its
+  // stones fly off to the next page, and coming as they land from the page before.
+  function shown(j, at) {
+    if (!film) return j === Math.round(at) ? 1 : 0;
+    const f = at - (j - 1), g = at - j, rest = 1 - film.settle;
+    if (f > 0 && f < 1) return smoothstep(rest + COME[0], rest + COME[1], f);
+    if (g > 0 && g < 1) return 1 - smoothstep(film.rise + GO[0], film.rise + GO[1], g);
+    return j === Math.round(at) ? 1 : 0;
+  }
+
+  // Shows the stage as it stands at a place: each page's words travel with their page, and
+  // show as its stones are on it; the first screen slides away to the left, its stones
+  // lifting first.
   function paint(at) {
+    place = at;
+    const view = viewAt(at), wide = root.clientWidth;
     screens.forEach((el, i) => {
-      const d = at - (i + 1);
-      const u = d < 0 ? smoothstep(-FADE, 0, d) : 1 - smoothstep(0, FADE, d);
+      const d = i + 1 - view, u = shown(i + 1, at);
       el.style.opacity = u > 0.002 ? u.toFixed(3) : "0";
-      el.style.transform = u > 0.002 && u < 0.998 ? `translate3d(0, ${((d < 0 ? 1 - u : u - 1) * RISE).toFixed(2)}px, 0)` : "";
+      el.style.transform = u > 0.002 && Math.abs(d) > 1e-4 ? `translate3d(${(d * wide).toFixed(1)}px, 0, 0)` : "";
     });
-    const k = Math.round(at);
+    onCover(clamp(view, 0, 1), at < 1 && film ? clamp(at / film.rise, 0, 1) : 0);
+    const k = Math.round(view);
     if (k !== active) {
       active = k;
       screens.forEach((el, i) => el.toggleAttribute("data-active", i + 1 === k));
-      onChange(k);
+      onChange(k, k > 0 ? screens[k - 1] : hero);
     }
   }
 
-  // The stones follow the scroll a moment behind, as quickly as they must to keep up, and
-  // the words follow the stones.
-  function turn() {
-    if (disposed) return;
-    const goal = place();
+  // Plays the stones toward where the stage is going, at `rate` film seconds a second, and
+  // the words with them.
+  function drive(rate) {
     if (!film) return paint(goal);
     const to = goal * film.step, now = film.mosaic.getState().time;
     if (Math.abs(to - now) < 1e-4) return paint(goal);
-    film.mosaic.play({ to, rate: Math.max(film.step * 2.5, Math.abs(to - now) / 0.3) });
+    film.mosaic.play({ to, rate });
     if (!raf) raf = requestAnimationFrame(follow);
   }
   function follow() {
@@ -75,28 +107,153 @@ export function createStage({ reduceMotion, budget, onChange = () => {}, onReady
     paint(time / film.step);
     if (playing) raf = requestAnimationFrame(follow);
   }
-  addEventListener("scroll", turn, { passive: true });
+  // The stones catch up with the hand quickly, wherever it goes.
+  function chase() {
+    if (!film) return paint(goal);
+    drive(Math.max(film.step * 2, Math.abs(goal * film.step - film.mosaic.getState().time) / FOLLOW));
+  }
 
-  // The screen an element is on, 0 for the first, or -1.
-  const screenOf = (el) => {
+  // A push of the hand, in turns, forward or back. A turn is from page lo to lo + 1: the hand
+  // may move anywhere within it, and finishing it under the hand locks it, so the rest of a
+  // flick turns no further, until a fresh push, or the hand lets go.
+  function push(du, fresh) {
+    if (!du) return;
+    const dir = Math.sign(du);
+    if (locked) {
+      if (dir === heading && !fresh) return;
+      locked = held = false;
+    }
+    if (!held) {
+      const from = Number.isInteger(goal) ? (dir > 0 ? goal : goal - 1) : Math.floor(goal);
+      if (from < 0 || from > n - 1) return;
+      held = true;
+      lo = from;
+    }
+    heading = dir;
+    goal = clamp(goal + du, lo, lo + 1);
+    if (goal === (dir > 0 ? lo + 1 : lo)) locked = true;
+    chase();
+  }
+  // The hand lets go: the turn finishes whichever way it was going, if it got past the lift
+  // at that end, or else settles back.
+  function letGo() {
+    if (!held) return;
+    held = locked = false;
+    const f = goal - Math.floor(goal);
+    if (f > 1e-6 && film) goal = Math.floor(goal) + (heading > 0 ? (f > film.rise ? 1 : 0) : (f < 1 - film.settle ? 0 : 1));
+    drive(FINISH);
+  }
+  // Turns to page k, as asked by a key or a link, through any pages between.
+  function turnTo(k, { instant = false } = {}) {
+    held = locked = false;
+    goal = clamp(Math.round(k), 0, n);
+    if (instant || reduceMotion.matches || !film) {
+      film?.mosaic.seek(goal * film.step);
+      return paint(goal);
+    }
+    drive(Math.max(ASKED, Math.abs(goal * film.step - film.mosaic.getState().time) / 1.6));
+  }
+
+  // Whether an element under the hand scrolls sideways itself, the way it is pushed, like a
+  // long line of code: then it is left to scroll.
+  function scrollsItself(el, dx) {
+    for (let e = el; e && e !== document.body && e.nodeType === 1; e = e.parentElement) {
+      if (e.scrollWidth > e.clientWidth + 1 && /auto|scroll/.test(getComputedStyle(e).overflowX)) {
+        if (dx > 0 ? e.scrollLeft + e.clientWidth < e.scrollWidth - 1 : e.scrollLeft > 0) return true;
+      }
+    }
+    return false;
+  }
+
+  function wheel(event) {
+    if (event.ctrlKey) return;
+    const sideways = Math.abs(event.deltaX) > Math.abs(event.deltaY);
+    if (sideways && scrollsItself(event.target, event.deltaX)) return;
+    event.preventDefault();
+    const px = event.deltaMode === 1 ? 40 : event.deltaMode === 2 ? innerHeight : 1;
+    const turn = innerHeight * WHEEL, d = (sideways ? event.deltaX : event.deltaY) * px;
+    const fresh = event.timeStamp - lastWheel > FRESH;
+    lastWheel = event.timeStamp;
+    if (!d) return;
+    // A notch of a wheel is one push, of at least NOTCH of a turn.
+    push(Math.sign(d) * Math.max(Math.abs(d) / turn, fresh ? NOTCH : 0), fresh);
+    clearTimeout(quiet);
+    quiet = setTimeout(letGo, QUIET);
+  }
+
+  function key(event) {
+    if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey) return;
+    const t = event.target;
+    if (t.closest?.("input, textarea, select, [contenteditable]")) return;
+    let k = null;
+    if (event.key === "Home") k = 0;
+    else if (event.key === "End") k = n;
+    else {
+      const step = { ArrowRight: 1, ArrowDown: 1, PageDown: 1, ArrowLeft: -1, ArrowUp: -1, PageUp: -1 }[event.key]
+        ?? (event.key === " " && !t.closest?.("button, a, summary, video") ? (event.shiftKey ? -1 : 1) : 0);
+      if (!step || (event.key.startsWith("Arrow") && scrollsItself(t, step))) return;
+      k = Math.round(goal) + step;
+    }
+    event.preventDefault();
+    turnTo(k);
+  }
+
+  // A finger: it pushes along whichever way it first moves, forward to the left or up.
+  function touchStart(event) {
+    if (event.pointerType === "mouse" || !event.isPrimary) return;
+    touch = { id: event.pointerId, x: event.clientX, y: event.clientY, axis: null, last: 0, at: event.timeStamp, speed: 0 };
+  }
+  function touchMove(event) {
+    if (!touch || event.pointerId !== touch.id) return;
+    const dx = event.clientX - touch.x, dy = event.clientY - touch.y;
+    if (!touch.axis) {
+      if (Math.hypot(dx, dy) < 8) return;
+      touch.axis = Math.abs(dx) > Math.abs(dy) ? "x" : "y";
+      if (touch.axis === "x" && scrollsItself(event.target, -dx)) {
+        touch = null;
+        return;
+      }
+    }
+    const along = touch.axis === "x" ? -dx / (root.clientWidth * TOUCH) : -dy / (innerHeight * TOUCH);
+    const du = along - touch.last, dt = Math.max(1, event.timeStamp - touch.at);
+    touch.speed = 0.7 * touch.speed + 0.3 * ((du * 1000) / dt);
+    touch.last = along;
+    touch.at = event.timeStamp;
+    push(du, false);
+    // A finger can always come back the way it went.
+    locked = false;
+  }
+  function touchEnd(event) {
+    if (!touch || event.pointerId !== touch.id) return;
+    const speed = touch.speed;
+    touch = null;
+    // A flick finishes the turn it was making.
+    if (held && Math.abs(speed) > FLICK) {
+      heading = Math.sign(speed);
+      goal = heading > 0 ? Math.max(goal, lo + 0.99) : Math.min(goal, lo + 0.01);
+    }
+    letGo();
+  }
+
+  // The page an element is on, 0 for the first screen, or -1.
+  const pageOf = (el) => {
     const s = el?.closest?.(".screen");
     return s ? screens.indexOf(s) + 1 : el?.closest?.(".hero") ? 0 : -1;
   };
-  const go = (k, behavior = reduceMotion.matches ? "instant" : "smooth") => scrollTo({ top: k * height(), behavior });
-  // The screen a part of the page named by id is on: the first screen for the top, and for
-  // a room set as pages, its first page.
+  // The page a part of the page named by id is on: the first screen for the top, and for a
+  // room set as pages, its first page.
   function target(id) {
     if (!id || id === "top") return 0;
     const el = document.getElementById(id);
     if (!el) return -1;
     if (el.classList.contains("screen")) return screens.indexOf(el) + 1;
-    const on = screenOf(el);
+    const on = pageOf(el);
     if (on > 0) return on;
     const first = el.querySelector(".screen");
     return first ? screens.indexOf(first) + 1 : -1;
   }
-  // A link to a part of the page turns to its screen, and so do the browser's back and
-  // forward, and a keyboard's focus moving onto another screen.
+  // A link to a part of the page turns to its page, and so do the browser's back and
+  // forward, and a keyboard's focus moving onto another page.
   function click(event) {
     const a = event.target.closest?.('a[href^="#"]');
     if (!a || event.defaultPrevented || event.button || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
@@ -104,26 +261,32 @@ export function createStage({ reduceMotion, budget, onChange = () => {}, onReady
     if (k < 0) return;
     event.preventDefault();
     history.pushState(null, "", a.hash);
-    go(k);
+    turnTo(k);
   }
   const travel = () => {
     const k = target(decodeURIComponent(location.hash.slice(1)));
-    if (k >= 0) go(k);
+    if (k >= 0) turnTo(k);
   };
   function focus(event) {
-    const k = screenOf(event.target);
-    if (k > 0 && k !== Math.round(place())) go(k, "instant");
+    const k = pageOf(event.target);
+    if (k >= 0 && k !== Math.round(viewAt(place))) turnTo(k, { instant: true });
   }
+  addEventListener("wheel", wheel, { passive: false });
+  addEventListener("keydown", key);
+  addEventListener("pointerdown", touchStart, { passive: true });
+  addEventListener("pointermove", touchMove, { passive: true });
+  addEventListener("pointerup", touchEnd, { passive: true });
+  addEventListener("pointercancel", touchEnd, { passive: true });
   document.addEventListener("click", click);
   document.addEventListener("focusin", focus);
   addEventListener("popstate", travel);
 
-  // Cuts the screens' walls, each around its own blocks as they stand when it is in front,
-  // and shows them once all are ready, at the page's place on the track.
+  // Cuts the pages' walls, each around its own blocks as they stand when it is in front, and
+  // shows them once all are ready, where the stage stands.
   async function build() {
     const token = ++generation;
     for (const el of screens) el.style.transform = "";
-    const width = root.clientWidth, h = Math.round(height()), m = wallScale(width);
+    const width = root.clientWidth, h = Math.round(hero.getBoundingClientRect().height || innerHeight), m = wallScale(width);
     const layouts = screens.map((el) => ({
       width, height: h, scale: m,
       blocks: [...el.querySelectorAll("[data-wall]")].filter((b) => !b.hidden && b.getClientRects().length).map((b) => {
@@ -131,15 +294,15 @@ export function createStage({ reduceMotion, budget, onChange = () => {}, onReady
         return { kind: b.dataset.wall, material: b.dataset.material, x: r.left, y: r.top, w: r.width, h: r.height };
       })
     }));
-    paint(film ? film.mosaic.getState().time / film.step : place());
+    paint(place);
     const k = Math.min(Math.min(devicePixelRatio || 1, 2), Math.sqrt(budget() / (width * h)));
     const px = [Math.round(width * k), Math.round(h * k)];
     const canvas = document.createElement("canvas");
     const module = new URL("./wall.js", import.meta.url).href;
-    const { project, step } = stageFilm(layouts, { module, band: px });
+    const { project, step, rise, settle } = stageFilm({ width, height: h, hero: h, scale: m }, layouts, { module, band: px });
     let mosaic;
     try {
-      // The bed under the screens is a deep shade of their water, so a turn shows the dark
+      // The bed under the pages is a deep shade of their water, so a turn shows the dark
       // where the stones have lifted, not bare plaster.
       mosaic = await createMosaic(canvas, { project, width: px[0], height: px[1], samples: 1, interactive: true, worker: true, coat: "#0d2029" });
       await mosaic.ready;
@@ -151,40 +314,55 @@ export function createStage({ reduceMotion, budget, onChange = () => {}, onReady
       mosaic.dispose();
       return;
     }
-    mosaic.setView({ frame: { x: (width * m) / 2, y: (h * m) / 2, w: width * m } });
     film?.mosaic.dispose();
     host.replaceChildren(canvas);
-    film = { mosaic, canvas, step };
-    mosaic.seek(place() * step);
-    paint(place());
+    film = { mosaic, canvas, step, rise, settle };
+    mosaic.seek(place * step);
+    paint(place);
     host.dataset.state = "live";
     onReady(mosaic);
   }
 
-  if (location.hash) {
+  if (at !== null) goal = clamp(at, 0, n);
+  else if (location.hash) {
     const k = target(decodeURIComponent(location.hash.slice(1)));
-    if (k > 0) go(k, "instant");
+    if (k > 0) goal = k;
   }
-  paint(place());
+  paint(goal);
 
   return {
     build,
+    turnTo,
+    // Shows the stage at a place, its stones and words alike, as if the hand held it there.
+    show(at) {
+      if (!film) return;
+      goal = clamp(at, 0, n);
+      film.mosaic.seek(goal * film.step);
+      paint(goal);
+    },
     get mosaic() { return film?.mosaic ?? null; },
     get canvas() { return film?.canvas ?? null; },
     get active() { return active; },
+    get place() { return place; },
+    get view() { return viewAt(place); },
     screen: (k) => (k > 0 ? screens[k - 1] : hero),
     // Takes the stage down and leaves the page as it was.
     dispose() {
       disposed = true;
       generation++;
       cancelAnimationFrame(raf);
-      removeEventListener("scroll", turn);
+      clearTimeout(quiet);
+      removeEventListener("wheel", wheel);
+      removeEventListener("keydown", key);
+      removeEventListener("pointerdown", touchStart);
+      removeEventListener("pointermove", touchMove);
+      removeEventListener("pointerup", touchEnd);
+      removeEventListener("pointercancel", touchEnd);
       removeEventListener("popstate", travel);
       document.removeEventListener("click", click);
       document.removeEventListener("focusin", focus);
       film?.mosaic.dispose();
       film = null;
-      track.remove();
       host.remove();
       for (const el of screens) {
         el.classList.remove("screen");
@@ -192,6 +370,7 @@ export function createStage({ reduceMotion, budget, onChange = () => {}, onReady
         el.style.opacity = "";
         el.style.transform = "";
       }
+      onCover(0, 0);
       root.classList.remove("stage");
     }
   };

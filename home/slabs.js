@@ -85,8 +85,8 @@ async function lay(canvas, state) {
     project: slabFilm(slab, px), width: px[0], height: px[1], samples: dpr < 1.5 ? 2 : 1,
     interactive: true, worker: true, lamp: LAMP, fov, fringes: false
   });
+  // Setting the view draws the slab at rest, so it needs no other frame.
   mosaic.setView({ frame: { x: slab.w / 2, y: slab.h / 2, w: slab.w } });
-  mosaic.seek(0);
   return mosaic;
 }
 

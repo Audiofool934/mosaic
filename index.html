@@ -35,155 +35,227 @@
       <div class="hero-art" id="hero" role="img" aria-label="The name MOSAIC set in white marble, with its AI inlaid in gold, laid live across the top of this page in a mosaic of still water under the moon." data-wide-label="The name MOSAIC set in white marble, with its AI inlaid in gold, laid live at the start of a mosaic wall that runs the length of this page, where moonlit water, dunes at dusk, sweeping currents, and peaks at first light flow into one another in turn."></div>
     </section>
 
+    <!-- The page's words are set on slabs of black glass, like the bar. Each slab marked
+         data-slab is cut and lit as a picture of its own; its stone type is marked data-type,
+         its recesses data-well, and its gold rules data-rule. -->
     <section class="room intro" aria-label="What mosAIc is">
-      <div class="tablet lede" data-wall="tablet">
+      <div class="slab lede" data-slab>
         <p>mosAIc is an open mosaic engine and the agent skill that lays it. Your coding agent draws a picture, a film, or a whole page, and the engine cuts it into thousands of stones of glass, marble, and gold, sets them in mortar, and lights each one. This page is one of its walls, cut in your browser around the words you are reading.</p>
-        <p class="actions"><a class="button primary" href="#studio">Give your agent the skill</a> <a class="button" href="site/">Try the studio</a></p>
+        <p class="actions">
+          <a class="stone-button" href="#studio" data-well><span class="type" data-type="GIVE YOUR AGENT THE SKILL" data-type-narrow="GIVE YOUR AGENT|THE SKILL" data-tone="gold">Give your agent the skill</span></a>
+          <a class="stone-button" href="site/" data-well><span class="type" data-type="TRY THE STUDIO">Try the studio</span></a>
+        </p>
         <p class="source"><a href="https://github.com/Audiofool934/mosaic">The source is on GitHub</a>, under the MIT License.</p>
       </div>
       <p class="wall-note"><span class="work-title">The name in stone.</span> <span id="wall-note" role="status">Cutting the stones in your browser.</span></p>
     </section>
 
     <!-- A room too full for one screen of a phone is set there as pages, each a screen of its own. -->
-    <section class="room" id="method" aria-labelledby="method-title">
+    <section class="room method" id="method" aria-labelledby="method-title">
       <div class="page">
-        <div class="section-head">
-          <h2 id="method-title" data-wall="band">How a drawing becomes a wall</h2>
-          <p class="tablet" data-wall="tablet">There is no grid underneath. The courses come from the drawing's own edges, the way a mosaicist sets them by hand.</p>
+        <div class="slab head" data-slab>
+          <h2 id="method-title" class="type" data-type="HOW A|DRAWING|BECOMES|A WALL">How a drawing becomes a wall</h2>
+          <p>There is no grid underneath. The courses come from the drawing's own edges, the way a mosaicist sets them by hand. The last band is this wall's own stones: move over them.</p>
         </div>
-        <figure class="emblem strip" data-wall="emblem">
-          <img src="home/media/method.webp" srcset="home/media/method-1200.webp 1200w, home/media/method.webp 2400w" sizes="(min-width: 1440px) 1200px, 90vw" width="2400" height="1350" loading="lazy" decoding="async" alt="One frame of the heron mosaic in four vertical bands: a flat painting, then the heron drawn as lines that follow its outline, then flat cut stones on dark mortar, then the finished, lit stones around the gold moon.">
-        </figure>
       </div>
       <div class="page">
-        <ol class="stages tablet" data-wall="tablet">
-          <li><h3><span class="numeral">I</span> Draw</h3><p>A scene is a few flat regions in code. Each region names its material, its stone size, and how its courses run.</p></li>
-          <li><h3><span class="numeral">II</span> Flow</h3><p>A field follows every edge, and courses are laid through it at an even spacing. Mosaicists call this flow andamento.</p></li>
-          <li><h3><span class="numeral">III</span> Cut</h3><p>Each course is cut into stones a little smaller than their cells, so mortar shows between them.</p></li>
-          <li><h3><span class="numeral">IV</span> Light</h3><p>Each stone gets thickness, a bevel, and a slight tilt of its own, so one light catches them one at a time.</p></li>
+        <!-- One picture in four bands, each a stage of it. The last is a hole in the page where
+             the wall itself lays the rest of the picture in finished stones. -->
+        <figure class="polyptych" data-wall="frame">
+          <img class="band" data-wall="opening" src="home/media/method-draw.webp" width="860" height="1800" decoding="async" alt="The heron by the moon as a flat drawing: a few regions of colour.">
+          <img class="band" data-wall="opening" src="home/media/method-flow.webp" width="740" height="1800" decoding="async" alt="The same stretch of the scene as courses: lines that follow every edge.">
+          <img class="band" data-wall="opening" src="home/media/method-cut.webp" width="620" height="1800" decoding="async" alt="The same scene cut into flat stones on dark mortar.">
+          <div class="band" data-wall="live" role="img" aria-label="The rest of the scene, the moon's other half and the water under it, in finished stones lit live in this wall."></div>
+        </figure>
+        <ol class="slab predella" data-slab>
+          <li><h3><span class="type" data-type="I" data-tone="gold">I</span> <span class="type" data-type="DRAW">Draw</span></h3><p>A scene is a few flat regions in code, each with its material and stone size.</p></li>
+          <li><h3><span class="type" data-type="II" data-tone="gold">II</span> <span class="type" data-type="FLOW">Flow</span></h3><p>Courses follow every edge at an even spacing. Mosaicists call this andamento.</p></li>
+          <li><h3><span class="type" data-type="III" data-tone="gold">III</span> <span class="type" data-type="CUT">Cut</span></h3><p>Each course is cut into stones a little smaller than their cells, so mortar shows.</p></li>
+          <li><h3><span class="type" data-type="IV" data-tone="gold">IV</span> <span class="type" data-type="LIGHT">Light</span></h3><p>Each stone gets a thickness, a bevel, and a tilt of its own, so the light catches them one at a time.</p></li>
         </ol>
       </div>
     </section>
 
-    <section class="room" id="materials" aria-labelledby="materials-title">
+    <section class="room materials" id="materials" aria-labelledby="materials-title">
       <div class="page">
-        <div class="section-head">
-          <h2 id="materials-title" data-wall="band">Eight materials</h2>
-          <p class="tablet" data-wall="tablet">These medallions are set in the wall itself. Move across them to tilt their stones toward the light, and turn the sound on to hear them under your hand: stone knocks softly, glass rings for a moment, and gold and silver ring on.</p>
+        <div class="slab head" data-slab>
+          <h2 id="materials-title" class="type" data-type="EIGHT|MATERIALS">Eight materials</h2>
+          <p>Each sample is one motif laid in one material and set in this wall. Move across them to tilt their stones toward the light, and turn the sound on to hear them: stone knocks softly, glass rings for a moment, and gold and silver ring on.</p>
         </div>
-        <ul class="tray">
-          <li><div class="medallion" data-wall="medallion" data-material="glass"></div><div class="label" data-wall="band"><h3>Glass</h3><p>Smalti with a broken face, rippled, with the odd bubble.</p></div></li>
-          <li><div class="medallion" data-wall="medallion" data-material="gold"></div><div class="label" data-wall="band"><h3>Gold</h3><p>Leaf under a thin glass skin, softly hammered.</p></div></li>
-          <li><div class="medallion" data-wall="medallion" data-material="silver"></div><div class="label" data-wall="band"><h3>Silver</h3><p>The same leaf, cooler.</p></div></li>
-          <li><div class="medallion" data-wall="medallion" data-material="marble"></div><div class="label" data-wall="band"><h3>Marble</h3><p>A fine grain and a soft sheen.</p></div></li>
-        </ul>
       </div>
       <div class="page">
-        <ul class="tray">
-          <li><div class="medallion" data-wall="medallion" data-material="basalt"></div><div class="label" data-wall="band"><h3>Basalt</h3><p>Dark and dense, with a rare glint.</p></div></li>
-          <li><div class="medallion" data-wall="medallion" data-material="limestone"></div><div class="label" data-wall="band"><h3>Limestone</h3><p>Matte, pitted, and quiet.</p></div></li>
-          <li><div class="medallion" data-wall="medallion" data-material="terracotta"></div><div class="label" data-wall="band"><h3>Terracotta</h3><p>Fired clay, warmer in its hollows.</p></div></li>
-          <li><div class="medallion" data-wall="medallion" data-material="light"></div><div class="label" data-wall="band"><h3>Light</h3><p>Glass that glows from inside, for lamps and windows.</p></div></li>
-        </ul>
+        <div class="board">
+          <ul class="samples" aria-hidden="true">
+            <li class="sample" data-wall="sample" data-material="glass"></li>
+            <li class="sample" data-wall="sample" data-material="gold"></li>
+            <li class="sample" data-wall="sample" data-material="silver"></li>
+            <li class="sample" data-wall="sample" data-material="marble"></li>
+          </ul>
+          <ul class="slab predella names" data-slab>
+            <li><h3 class="type" data-type="GLASS">Glass</h3><p>Smalti with a broken face and the odd bubble.</p></li>
+            <li><h3 class="type" data-type="GOLD">Gold</h3><p>Leaf under a thin glass skin, softly hammered.</p></li>
+            <li><h3 class="type" data-type="SILVER">Silver</h3><p>The same leaf, cooler.</p></li>
+            <li><h3 class="type" data-type="MARBLE">Marble</h3><p>A fine grain and a soft sheen.</p></li>
+          </ul>
+        </div>
+      </div>
+      <div class="page">
+        <div class="board">
+          <ul class="samples" aria-hidden="true">
+            <li class="sample" data-wall="sample" data-material="basalt"></li>
+            <li class="sample" data-wall="sample" data-material="limestone"></li>
+            <li class="sample" data-wall="sample" data-material="terracotta"></li>
+            <li class="sample" data-wall="sample" data-material="light"></li>
+          </ul>
+          <ul class="slab predella names" data-slab>
+            <li><h3 class="type" data-type="BASALT">Basalt</h3><p>Dark and dense, with a rare glint.</p></li>
+            <li><h3 class="type" data-type="LIMESTONE">Limestone</h3><p>Matte, pitted, and quiet.</p></li>
+            <li><h3 class="type" data-type="TERRACOTTA">Terracotta</h3><p>Fired clay, warmer in its hollows.</p></li>
+            <li><h3 class="type" data-type="LIGHT">Light</h3><p>Glass that glows from inside, for lamps and windows.</p></li>
+          </ul>
+        </div>
       </div>
     </section>
 
-    <!-- The gallery shows one work at a time, chosen from the reel under it. Each work in the
-         reel carries its own caption, so a new film is one more item. -->
-    <section class="room" id="gallery" aria-labelledby="gallery-title">
+    <!-- The gallery hangs every work at once, each in a frame of its own size with a plaque
+         under it, straight on the room; on a phone they hang a few to a page. A film plays
+         while the pointer is on it, and any work opens whole. -->
+    <section class="room gallery" id="gallery" aria-labelledby="gallery-title">
       <span id="work"></span>
-      <div class="section-head">
-        <h2 id="gallery-title" data-wall="band">Gallery</h2>
-        <p class="tablet" data-wall="tablet">Films and pictures made with mosAIc, by us and by agents with the skill.</p>
-      </div>
-      <figure class="feature">
-        <div class="emblem" data-wall="emblem">
-          <video id="film" src="home/media/moon-to-morning.mp4" poster="home/media/moon-to-morning.webp" width="1280" height="720" muted loop playsinline preload="none" aria-label="From moon to morning: the stones of a night scene lift off the wall and resettle as a coastal dawn."></video>
-          <img id="feature-still" alt="" hidden>
+      <div class="page">
+        <div class="slab head" data-slab>
+          <h2 id="gallery-title" class="type" data-type="GALLERY">Gallery</h2>
+          <p>Films and pictures made with mosAIc, by us and by agents with the skill. Point at a film to play it, and open any work to see it whole.</p>
         </div>
-        <figcaption class="tablet" data-wall="tablet" id="feature-caption" aria-live="polite">
-          <h3>From moon to morning</h3>
-          <p>A ten-second film in two scenes. The night's stones lift off the wall and resettle as a coastal dawn. <a href="site/?project=../examples/film.json">Scrub it in the studio</a>.</p>
-          <button class="text-button" id="film-toggle" type="button" hidden>Pause the film</button>
-        </figcaption>
-      </figure>
-      <ul class="reel" aria-label="Works in the gallery">
-        <li>
-          <button class="plate" type="button" aria-pressed="true" data-film="home/media/moon-to-morning.mp4" data-poster="home/media/moon-to-morning.webp" data-alt="From moon to morning: the stones of a night scene lift off the wall and resettle as a coastal dawn.">
-            <span class="emblem" data-wall="emblem"><img src="home/media/moon-to-morning.webp" width="1280" height="720" loading="lazy" decoding="async" alt=""></span>
-            <span class="plate-name">From moon to morning</span>
+      </div>
+      <div class="page salon">
+        <figure class="work lantern">
+          <button class="frame" type="button" data-wall="emblem" data-film="home/works/odyssey-lantern.mp4" aria-describedby="lantern-plaque">
+            <video src="home/works/odyssey-lantern.mp4" poster="home/works/odyssey-lantern.webp" width="1280" height="720" muted loop playsinline preload="none" aria-label="Odyssey lantern: a mosaic panel is laid stone by stone outward from a lit lantern, until Odysseus and his crew stand on dark ground under a blue-hour sky, inside a meander border."></video>
           </button>
-          <template><h3>From moon to morning</h3><p>A ten-second film in two scenes. The night's stones lift off the wall and resettle as a coastal dawn. <a href="site/?project=../examples/film.json">Scrub it in the studio</a>.</p></template>
-        </li>
-        <li>
-          <button class="plate" type="button" aria-pressed="false" data-film="home/works/odyssey.mp4" data-poster="home/works/odyssey.webp" data-alt="ΟΔΥΣΣΕΙΑ: Troy burns, its stones fly up and seat as a dawn sea with a gold road of sunlight, and the eye painted on a ship's bow becomes the Cyclops' eye.">
-            <span class="emblem" data-wall="emblem"><img src="home/works/odyssey.webp" width="1280" height="536" loading="lazy" decoding="async" alt=""></span>
-            <span class="plate-name">ΟΔΥΣΣΕΙΑ</span>
+          <div class="slab plaque" data-slab id="lantern-plaque">
+            <h3 class="type" data-type="ODYSSEY LANTERN" data-type-narrow="ODYSSEY|LANTERN">Odyssey lantern</h3>
+            <p>Film, 26 s · about 18,000 stones · the sketchbook piece the engine began in</p>
+          </div>
+          <template><p>About eighteen thousand stones, laid outward from a lantern with the border last. The engine began in this piece.</p></template>
+        </figure>
+        <figure class="work odyssey">
+          <button class="frame" type="button" data-wall="emblem" data-film="home/works/odyssey.mp4" aria-describedby="odyssey-plaque">
+            <video src="home/works/odyssey.mp4" poster="home/works/odyssey.webp" width="1280" height="536" muted loop playsinline preload="none" aria-label="ΟΔΥΣΣΕΙΑ: Troy burns, its stones fly up and seat as a dawn sea with a gold road of sunlight, and the eye painted on a ship's bow becomes the Cyclops' eye."></video>
           </button>
-          <template><h3>ΟΔΥΣΣΕΙΑ</h3><p>Troy burns, and its stones seat again as the dawn sea. A silent excerpt, made with an earlier version of the engine.</p></template>
-        </li>
-        <li>
-          <button class="plate" type="button" aria-pressed="false" data-film="home/works/odyssey-lantern.mp4" data-poster="home/works/odyssey-lantern.webp" data-alt="Odyssey lantern: a mosaic panel is laid stone by stone outward from a lit lantern, until Odysseus and his crew stand on dark ground under a blue-hour sky, inside a meander border.">
-            <span class="emblem" data-wall="emblem"><img src="home/works/odyssey-lantern.webp" width="1280" height="720" loading="lazy" decoding="async" alt=""></span>
-            <span class="plate-name">Odyssey lantern</span>
+          <div class="slab plaque" data-slab id="odyssey-plaque">
+            <h3 class="type" data-type="ΟΔΥΣΣΕΙΑ">ΟΔΥΣΣΕΙΑ</h3>
+            <p>Film, a silent 25 s excerpt · from the sketchbook, on an earlier engine</p>
+          </div>
+          <template><p>Troy burns, and its stones seat again as the dawn sea. A silent excerpt, made with an earlier version of the engine.</p></template>
+        </figure>
+      </div>
+      <div class="page salon">
+        <figure class="work morning">
+          <button class="frame" type="button" data-wall="emblem" data-film="home/media/moon-to-morning.mp4" aria-describedby="morning-plaque">
+            <video src="home/media/moon-to-morning.mp4" poster="home/media/moon-to-morning.webp" width="1280" height="720" muted loop playsinline preload="none" aria-label="From moon to morning: the stones of a night scene lift off the wall and resettle as a coastal dawn."></video>
           </button>
-          <template><h3>Odyssey lantern</h3><p>About eighteen thousand stones, laid outward from a lantern with the border last. The engine began in this piece.</p></template>
-        </li>
-        <li>
-          <button class="plate" type="button" aria-pressed="false" data-still="home/works/copper-leaf.webp" data-alt="A copper leaf with a gold midrib on deep teal glass.">
-            <span class="emblem" data-wall="emblem"><img src="home/works/copper-leaf.webp" width="1024" height="1024" loading="lazy" decoding="async" alt=""></span>
-            <span class="plate-name">Copper leaf</span>
+          <div class="slab plaque" data-slab id="morning-plaque">
+            <h3 class="type" data-type="FROM MOON TO MORNING" data-type-narrow="FROM MOON|TO MORNING">From moon to morning</h3>
+            <p>Film, 10 s · 17,387 stones · a mosAIc example</p>
+          </div>
+          <template><p>A ten-second film in two scenes. The night's stones lift off the wall and resettle as a coastal dawn. <a href="site/?project=../examples/film.json">Scrub it in the studio</a>.</p></template>
+        </figure>
+      </div>
+      <div class="page salon">
+        <figure class="work leaf">
+          <button class="frame" type="button" data-wall="emblem" aria-describedby="leaf-plaque">
+            <img src="home/works/copper-leaf.webp" width="1024" height="1024" loading="lazy" decoding="async" alt="A copper leaf with a gold midrib on deep teal glass.">
           </button>
-          <template><h3>Copper leaf, by Codex</h3><p>5,250 stones. Given a copy of the skill, the agent wrote the scene as code, rendered it from the command line, and inspected the result before showing it.</p></template>
-        </li>
-        <li>
-          <button class="plate" type="button" aria-pressed="false" data-still="home/works/gold-crescent.webp" data-alt="A gold crescent moon above three green waves on blue glass.">
-            <span class="emblem" data-wall="emblem"><img src="home/works/gold-crescent.webp" width="768" height="768" loading="lazy" decoding="async" alt=""></span>
-            <span class="plate-name">Gold crescent</span>
+          <div class="slab plaque" data-slab id="leaf-plaque">
+            <h3 class="type" data-type="COPPER LEAF" data-type-narrow="COPPER|LEAF">Copper leaf</h3>
+            <p>Still · 5,250 stones · by Codex with the skill</p>
+          </div>
+          <template><p>Given a copy of the skill, the agent wrote the scene as code, rendered it from the command line, and inspected the result before showing it.</p></template>
+        </figure>
+        <figure class="work crescent">
+          <button class="frame" type="button" data-wall="emblem" aria-describedby="crescent-plaque">
+            <img src="home/works/gold-crescent.webp" width="768" height="768" loading="lazy" decoding="async" alt="A gold crescent moon above three green waves on blue glass.">
           </button>
-          <template><h3>Gold crescent over jade waves, by Claude Code</h3><p>7,340 stones, made the same way: the agent wrote the scene, rendered it, and checked the picture before showing it.</p></template>
-        </li>
-      </ul>
+          <div class="slab plaque" data-slab id="crescent-plaque">
+            <h3 class="type" data-type="GOLD CRESCENT" data-type-narrow="GOLD|CRESCENT">Gold crescent</h3>
+            <p>Still · 7,340 stones · by Claude Code with the skill</p>
+          </div>
+          <template><p>Gold crescent over jade waves. The agent wrote the scene, rendered it, and checked the picture before showing it.</p></template>
+        </figure>
+      </div>
+      <dialog class="viewer" id="viewer" aria-labelledby="viewer-title">
+        <div class="viewer-work"></div>
+        <div class="viewer-caption">
+          <h3 id="viewer-title"></h3>
+          <p class="viewer-meta"></p>
+          <div class="viewer-text"></div>
+        </div>
+        <button class="viewer-close" type="button" aria-label="Close">Close</button>
+      </dialog>
     </section>
 
-    <section class="room" id="studio" aria-labelledby="studio-title">
+    <!-- The studio, two ways in: an image laid in stone right here, and the skill for a coding
+         agent, with the command line beside it. -->
+    <section class="room studio" id="studio" aria-labelledby="studio-title">
       <span id="use"></span>
       <div class="page">
-        <div class="section-head">
-          <h2 id="studio-title" data-wall="band">Studio</h2>
-          <p class="tablet" data-wall="tablet">Try mosAIc in your browser, or give it to your coding agent. The studio, the agent skill, and the command line share one renderer, so a picture looks the same wherever it is made.</p>
+        <div class="slab head" data-slab>
+          <h2 id="studio-title" class="type" data-type="STUDIO">Studio</h2>
+          <p>Lay an image in stone right here, or give mosAIc to your coding agent. Both use one renderer, so a picture looks the same wherever it is made.</p>
         </div>
-        <article class="route tablet" data-wall="tablet">
-          <h3>In the browser</h3>
-          <p>Move over the stones, change the light, or bring an image of your own and choose glass, stone, or gold. Your images stay in your browser.</p>
-          <p><a class="button primary" href="site/">Open the studio</a></p>
-        </article>
       </div>
       <div class="page">
-        <article class="route tablet" data-wall="tablet">
-          <h3>With your coding agent</h3>
-          <p>Build the skill and copy it into Claude Code, then install the capture browser once. Ask for a mosaic, and the agent writes the scene as code, renders it, and checks the picture before showing you.</p>
-          <div class="code"><pre><code>git clone https://github.com/Audiofool934/mosaic
+        <figure class="atelier">
+          <div class="frame" data-wall="emblem">
+            <canvas id="atelier-canvas" aria-label="Your image, cut into stone in this browser."></canvas>
+            <p class="atelier-note" id="atelier-note" role="status">Drop an image here, or pick one below.</p>
+          </div>
+          <figcaption class="slab tools" data-slab>
+            <div class="materials-pick" role="radiogroup" aria-label="Material">
+              <button class="stone-button" type="button" role="radio" aria-checked="true" data-material="glass" data-well><span class="type" data-type="GLASS">Glass</span></button>
+              <button class="stone-button" type="button" role="radio" aria-checked="false" data-material="stone" data-well><span class="type" data-type="STONE">Stone</span></button>
+              <button class="stone-button" type="button" role="radio" aria-checked="false" data-material="gold" data-well><span class="type" data-type="GOLD" data-tone="gold">Gold</span></button>
+            </div>
+            <div class="picks">
+              <button class="pick" type="button" data-image="home/media/sample-heron.webp" aria-pressed="true"><img src="home/media/sample-heron.webp" width="320" height="180" alt="The heron under the moon, a flat painting"></button>
+              <button class="pick" type="button" data-image="home/media/sample-dawn.webp" aria-pressed="false"><img src="home/media/sample-dawn.webp" width="320" height="180" alt="A coast at dawn, a flat painting"></button>
+              <button class="pick" type="button" data-image="home/media/sample-peaks.webp" aria-pressed="false"><img src="home/media/sample-peaks.webp" width="320" height="180" alt="Peaks at first light, a flat painting"></button>
+              <label class="stone-button file" data-well><input type="file" id="atelier-file" accept="image/png,image/jpeg,image/webp,image/avif,image/gif"><span class="type" data-type="YOUR OWN">Your own image</span></label>
+            </div>
+            <p class="aside">Drop an image on the picture, or choose one; it stays in your browser. <a href="site/">Open the full studio</a> to change the light, the scale, and more.</p>
+          </figcaption>
+        </figure>
+      </div>
+      <div class="page">
+        <article class="slab agent" data-slab>
+          <h3 class="type" data-type="GIVE IT TO|YOUR AGENT">Give it to your agent</h3>
+          <p>Build the skill and copy it into Claude Code, then install the capture browser once. For Codex, copy it into <code>~/.codex/skills/</code> instead.</p>
+          <div class="ways" role="tablist" aria-label="How to run it">
+            <button class="stone-button" type="button" role="tab" id="way-skill" aria-controls="code-skill" aria-selected="true" data-well><span class="type" data-type="THE SKILL">The skill</span></button>
+            <button class="stone-button" type="button" role="tab" id="way-cli" aria-controls="code-cli" aria-selected="false" tabindex="-1" data-well><span class="type" data-type="COMMAND LINE" data-type-narrow="COMMAND|LINE">Command line</span></button>
+          </div>
+          <div class="code" data-well>
+            <pre id="code-skill" role="tabpanel" aria-labelledby="way-skill"><code>git clone https://github.com/Audiofool934/mosaic
 cd mosaic &amp;&amp; npm run build
 mkdir -p ~/.claude/skills
 cp -R dist/mosaic ~/.claude/skills/
 cd ~/.claude/skills/mosaic/assets/runtime
-npm ci &amp;&amp; npx playwright-core install chromium</code></pre><button class="copy" type="button">Copy</button></div>
-          <p class="aside">For Codex, copy it into <code>~/.codex/skills/</code> instead.</p>
-        </article>
-      </div>
-      <div class="page">
-        <article class="route tablet" data-wall="tablet">
-          <h3>On the command line</h3>
-          <p>Start a scene, preview it, and export a still or a silent H.264 film. Every export is a fresh render with a receipt of its inputs.</p>
-          <div class="code"><pre><code>git clone https://github.com/Audiofool934/mosaic
+npm ci &amp;&amp; npx playwright-core install chromium</code></pre>
+            <pre id="code-cli" role="tabpanel" aria-labelledby="way-cli" hidden><code>git clone https://github.com/Audiofool934/mosaic
 cd mosaic &amp;&amp; npm ci
 npx playwright-core install chromium
 node tools/cli.mjs init art
 node tools/cli.mjs preview art/project.json
-node tools/cli.mjs still art/project.json
-node tools/cli.mjs render art/project.json</code></pre><button class="copy" type="button">Copy</button></div>
-          <p class="aside">Exports land in <code>output/</code>. Films also need FFmpeg on your <code>PATH</code>.</p>
+node tools/cli.mjs render art/project.json</code></pre>
+            <button class="copy" type="button">Copy</button>
+          </div>
+          <p class="ask">Then ask for one:</p>
+          <ul class="prompts">
+            <li>“Lay a lighthouse at dusk in glass and gold, and render a still.”</li>
+            <li>“Make a ten-second film where a winter field flows into spring.”</li>
+            <li>“Cut our landing page into a mosaic wall around its words.”</li>
+          </ul>
         </article>
       </div>
     </section>
@@ -200,9 +272,9 @@ node tools/cli.mjs render art/project.json</code></pre><button class="copy" type
   </div>
 
   <footer class="room end">
-    <div class="colophon tablet" data-wall="tablet">
+    <div class="slab colophon" data-slab>
       <div class="colophon-mark">
-        <p><svg viewBox="0 0 32 32" aria-hidden="true"><path d="m2 3 12-1-1 13-11-2Zm16 0 12 2-2 11-12-2ZM3 17l11 1 1 12-13-2Zm15 1 11 1 1 11-12-1Z" fill="currentColor"/></svg> mosAIc 0.1.0</p>
+        <p class="type" data-type="MOSAIC 0.1.0">mosAIc 0.1.0</p>
         <p><a href="https://github.com/Audiofool934/mosaic">Source on GitHub</a></p>
       </div>
       <p>mosAIc began in a sketchbook of mosaic films. Its engine was cut out of those pieces and rebuilt to take any picture. <a href="https://github.com/Audiofool934/mosaic/blob/main/docs/provenance.md">Provenance</a></p>

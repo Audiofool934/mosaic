@@ -1,13 +1,13 @@
 // The project page as one wall. Where there is room for it, the page's screens stand side by
-// side along one wide wall: the name set in stone on the first screen, every tablet, emblem,
-// band, and medallion the page marks out set where it stands, and behind them one of four
-// scenes run on along the whole wall, which every so often flows into the next. Elsewhere the
-// page is a column: the name in still water under the moon, and the page picture running its
-// water on down the page around the page's blocks, so the courses follow the page the way
-// they follow a drawing.
+// side along one wide wall: the name set in stone on the first screen, every frame, opening,
+// and sample the page marks out set where it stands, and behind them one of four scenes run
+// on along the whole wall, which every so often flows into the next. Elsewhere the page is a
+// column: the name in still water under the moon, and the page picture running its water on
+// down the page around the page's blocks, so the courses follow the page the way they follow
+// a drawing. On both, the last band of the method's picture is laid by the wall itself.
 import { nameAlone, nameAt } from "../examples/inscription.js";
 import { SCENE_NAMES, scene, stageOn } from "../examples/landscapes.js";
-import { config as house } from "../examples/nocturne.js";
+import { config as house, draw as drawNocturne, regions as nocturneRegions } from "../examples/nocturne.js";
 import { SAMPLES } from "../examples/materials.js";
 import { circle, poly } from "../engine/paint.js";
 import { clamp, rng } from "../engine/util.js";
@@ -70,10 +70,44 @@ export function wallFilm(layout, { module, laid = true, band }) {
     scenes: [
       { id: "name", picture: { module, export: "namePicture", args: layout }, start: 0, end, at: [0, 0], in: arrive, front: true },
       { id: "page", picture: { module, export: "wallPicture", args: layout }, start: 0, end, at: [0, 0], in: arrive },
-      { id: SCENE, picture: { module, export: "scenePicture", args: { ...layout, scene: SCENE } }, start: 0, end, at: [0, 0], in: arrive }
+      { id: SCENE, picture: { module, export: "scenePicture", args: { ...layout, scene: SCENE } }, start: 0, end, at: [0, 0], in: arrive },
+      ...liveScenes(layout, { module, arrive, end })
     ]
   };
   return { project, gate: GATE, rest: LAID };
+}
+
+// The method's live band, where the page has one: the rest of its picture in the wall's own
+// stones, set in front of the scenes, laid from `origin` on the wall when it is laid.
+function liveScenes(layout, { module, arrive, end, origin }) {
+  const b = layout.blocks.find((block) => block.kind === "live");
+  if (!b) return [];
+  const m = layout.scale ?? wallScale(layout.width), at = [b.x * m, b.y * m];
+  const arrival = origin && arrive.type === "laid" ? { ...arrive, build: { origin: [origin[0] - at[0], origin[1] - at[1]] } } : arrive;
+  return [{ id: "method", picture: { module, export: "methodPicture", args: { w: b.w * m, h: b.h * m } }, start: 0, end, at, in: arrival, front: true }];
+}
+
+// The last band of the method's picture: the nocturne from x0 millimetres across its panel to
+// its right edge, where the other bands leave off, scaled to fill w by h millimetres of wall.
+// It is cut from the same raster as the nocturne itself, so its stones are the nocturne's
+// own, scaled with it.
+export function methodPicture({ w, h, x0 = 1110 }) {
+  const s = w / (1600 - x0);
+  return {
+    config: {
+      panel: { w, h }, res: (house.res ?? 1) / s, background: "sky",
+      camera: { keys: [[0, w / 2, h / 2, w]], tilt: 0, yaw: 0, aperture: 0.004, drift: 0 },
+      light: house.light, sinopia: false,
+      build: { origin: [w / 2, h / 2], start: WORLD, end: LAID - 0.3, rise: 0.08 }
+    },
+    regions: () => nocturneRegions().map((r) => ({ ...r, size: r.size * s, ...(r.center && { center: [(r.center[0] - x0) * s, r.center[1] * s] }) })),
+    draw(g, mode, D) {
+      g.save();
+      g.transform(s, 0, 0, s, -x0 * s, 0);
+      drawNocturne(g, mode, D);
+      g.restore();
+    }
+  };
 }
 
 // The name alone, its letters set on the first screen, laid quickly from its middle.
@@ -114,7 +148,8 @@ export function wideFilm(layout, { module, laid = true, band, at = 0 }) {
   const { W, screen, middle } = firstScreen(layout);
   const n = layout.screens, total = W * n;
   const arrive = laid ? { type: "laid", bed: 0 } : { type: "settled" };
-  const around = laid ? { ...arrive, build: { origin: at > 0 ? [W * (at + 0.5), screen / 2] : [W / 2, middle] } } : arrive;
+  const origin = at > 0 ? [W * (at + 0.5), screen / 2] : [W / 2, middle];
+  const around = laid ? { ...arrive, build: { origin } } : arrive;
   const names = [...SCENE_NAMES, SCENE_NAMES[0]];
   const from = (i) => SWAP + LEAD + (i - 1) * (FLOW + SETTLE + LEAD);
   const rest = (i) => (i ? from(i) + FLOW + SETTLE : SWAP + 0.05);
@@ -128,6 +163,7 @@ export function wideFilm(layout, { module, laid = true, band, at = 0 }) {
       { id: "name", picture: { module, export: "namePicture", args: layout }, start: 0, end, at: [0, 0], in: arrive, front: true },
       { id: "blocks", picture: { module, export: "blocksPicture", args: { ...layout, width: layout.width * n, columns: layout.width } }, start: 0, end, at: [0, 0], in: around, front: true },
       { id: "laying", picture: picture(names[0], true), start: 0, end: SWAP, at: [0, 0], in: around },
+      ...liveScenes(layout, { module, arrive, end, origin }),
       ...names.map((name, i) => ({
         id: ids[i],
         picture: picture(name),
@@ -140,7 +176,8 @@ export function wideFilm(layout, { module, laid = true, band, at = 0 }) {
   };
   // The pictures the page waits for before it lays the wall past the gate, and before it lets
   // the scenes flow; the times it rests at; and the loop.
-  return { project, gate: GATE, laid: LAID, rests: names.map((_, i) => rest(i)), loop: [rest(0), end], first: ["name", "blocks", "laying"], cycle: ids };
+  const first = ["name", "blocks", "laying", ...project.scenes.filter((x) => x.id === "method").map((x) => x.id)];
+  return { project, gate: GATE, laid: LAID, rests: names.map((_, i) => rest(i)), loop: [rest(0), end], first, cycle: ids };
 }
 
 // Stones each scene has on a desktop's first screen at a desktop page's size, with a little
@@ -212,7 +249,10 @@ function spanAt(o, x) {
 }
 
 // layout: page width and height and the hero's foot (CSS px), the scale, and the marked
-// blocks, each { kind, x, y, w, h } in page pixels, with a material for medallions.
+// blocks, each { kind, x, y, w, h } in page pixels, with a material for samples. An emblem is
+// a picture or film the page shows, which the wall frames in gold; a frame is the gold alone,
+// round openings the page fills; live is an opening the wall fills with a picture of its own;
+// and a sample is a square of one material set in the wall, in a thin gold rim.
 export function wallPicture(layout) {
   const m = layout.scale ?? wallScale(layout.width);
   // Stones of the page's own features keep their size on screen at any scale.
@@ -223,18 +263,15 @@ export function wallPicture(layout) {
   // starts its water under the first screen.
   const seam = layout.blocksOnly ? 0 : layout.hero * m;
   const blocks = layout.blocks.map((b) => ({ ...b, x: b.x * m, y: b.y * m, w: b.w * m, h: b.h * m }));
-  const frame = 10 * k, margin = 14 * k;
-  // What each block lays on the wall: a band and its margin, a tablet or an emblem and its
-  // gold frame, or a medallion out to its gold ring.
+  const frame = 10 * k, rim = 6 * k;
+  // What each block lays on the wall, out to its gold.
   for (const b of blocks) {
-    const p = b.kind === "band" ? margin : frame;
-    b.outline = b.kind === "medallion"
-      ? { cx: b.x + b.w / 2, cy: b.y + b.h / 2, r: Math.min(b.w, b.h) / 2 + frame * 0.8 }
-      : { x: b.x - p, y: b.y - p, w: b.w + 2 * p, h: b.h + 2 * p, r: b.kind === "band" ? margin : 4 * k };
+    const p = b.kind === "sample" ? rim : b.kind === "emblem" || b.kind === "frame" ? frame : 0;
+    b.outline = { x: b.x - p, y: b.y - p, w: b.w + 2 * p, h: b.h + 2 * p, r: p ? 4 * k : 0 };
   }
 
   // The open wall decides how coarse the deep water can be and still fit the budget.
-  const covered = blocks.reduce((a, b) => a + (b.kind === "band" ? 0 : (b.w + 2 * frame) * (b.h + 2 * frame)), 0);
+  const covered = blocks.reduce((a, b) => a + (b.kind === "opening" || b.kind === "live" ? 0 : b.outline.w * b.outline.h), 0);
   const open = Math.max(1, W * Math.max(0, H - seam) - covered);
   const deep = clamp(Math.sqrt(open / ((BUDGET - 14000) * 0.8)), 14 * k, 24 * k);
   // The working raster stays within 8 megapixels and 8192 pixels a side.
@@ -299,7 +336,7 @@ export function wallPicture(layout) {
   }
   for (const c of currents) c.sunk = sunk(c);
 
-  const medallions = blocks.filter((b) => b.kind === "medallion");
+  const samples = blocks.filter((b) => b.kind === "sample");
   const sample = (name) => SAMPLES.find((s) => s.name === name) || SAMPLES[0];
 
   const regions = () => [
@@ -307,14 +344,14 @@ export function wallPicture(layout) {
     { name: "drift", size: Math.min(deep, 13 * k), mode: "contour", mat: "glass", tray: ["#1d3f4d", "#28515e", "#356471", "#467683"] },
     { name: "spray", size: 7 * k, mode: "contour", mat: "glass", tray: ["#3f6c7a", "#5d8792", "#88a9a8"] },
     { name: "frame", size: 7 * k, mode: "contour", mat: "gold", tray: ["#b18a50", "#c99d5c", "#d8b571", "#efcf91"] },
-    // Under words set on the wall the water runs level, like ruled lines, in its own colours.
-    { name: "band", size: 12 * k, mode: "flow", angle: 0, mat: "glass", tray: ["#0d2430", "#112c3a", "#163646", "#1b3f51"] },
-    ...medallions.flatMap((b, i) => {
+    // Each sample is the same motif: a disc whose courses run round its middle, in a field
+    // whose courses follow the square and wrap round the disc, both in the sample's material.
+    ...samples.flatMap((b, i) => {
       const s = sample(b.material);
       const center = [b.x + b.w / 2, b.y + b.h / 2];
       return [
-        { name: `face-${i}`, size: 8.5 * k, mode: "radial", center, mat: s.mat, tray: s.field },
-        { name: `heart-${i}`, size: 7 * k, mode: "radial", center, mat: s.mat, tray: s.disc }
+        { name: `field-${i}`, size: 8 * k, mode: "contour", mat: s.mat, tray: s.field },
+        { name: `disc-${i}`, size: 6.5 * k, mode: "radial", center, mat: s.mat, tray: s.disc }
       ];
     })
   ];
@@ -338,24 +375,23 @@ export function wallPicture(layout) {
     D.fill(poly([[-20, -10], [W + 20, -10], ...shoreline(seam, -20, W + 20).reverse()]), "none", "#bdb3a2");
   }
 
-  // Every block the page marks out, as it lies on the wall.
+  // Every block the page marks out, as it lies on the wall, in the page's order, so a frame
+  // is laid before the openings in it.
   function drawBlocks(D) {
     for (const b of blocks) {
       const o = b.outline;
-      if (b.kind === "band") {
-        D.fill(rounded(o.x, o.y, o.w, o.h, o.r), "band", "#163646");
-      } else if (b.kind === "medallion") {
-        const i = medallions.indexOf(b);
-        const r = Math.min(b.w, b.h) / 2;
-        D.fill(circle(o.cx, o.cy, o.r), "frame", "#b18a50");
-        D.fill(circle(o.cx, o.cy, r), `face-${i}`, sample(b.material).field[2]);
-        const heart = sample(b.material).disc[1];
-        D.fill(circle(o.cx, o.cy, r * 0.46), `heart-${i}`, typeof heart === "string" ? heart : heart.hex);
-      } else {
-        // A tablet or an emblem: a gold frame round a bare patch the page covers.
+      if (b.kind === "sample") {
+        const i = samples.indexOf(b), s = sample(b.material);
+        const disc = typeof s.disc[1] === "string" ? s.disc[1] : s.disc[1].hex;
         D.fill(rounded(o.x, o.y, o.w, o.h, o.r), "frame", "#b18a50");
-        D.fill(box(b.x, b.y, b.w, b.h), "none", "#bdb3a2");
+        D.fill(box(b.x, b.y, b.w, b.h), `field-${i}`, s.field[2]);
+        D.fill(circle(b.x + b.w / 2, b.y + b.h / 2, Math.min(b.w, b.h) * 0.3), `disc-${i}`, disc);
+      } else if (b.kind === "emblem" || b.kind === "frame") {
+        D.fill(rounded(o.x, o.y, o.w, o.h, o.r), "frame", "#b18a50");
       }
+      // An emblem's picture, an opening, and a live band are bare patches the page, or the
+      // wall's own picture, covers.
+      if (b.kind === "emblem" || b.kind === "opening" || b.kind === "live") D.fill(box(b.x, b.y, b.w, b.h), "none", "#bdb3a2");
     }
   }
 
@@ -377,7 +413,7 @@ export function wallPicture(layout) {
         start: WORLD,
         end: LAID - 0.3,
         rise: 0.08,
-        speeds: { frame: 2.4, band: 1.6, "face-*": 1.8, "heart-*": 1.8 }
+        speeds: { frame: 2.4, "field-*": 1.8, "disc-*": 1.8 }
       }
     },
     regions,

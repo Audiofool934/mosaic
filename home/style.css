@@ -4,12 +4,12 @@
   --light: #efebe1;
   --light-muted: #c3cbc6;
   --gilt: #d9b674;
-  /* On the tablets set into it. */
-  --paper: #ece7da;
-  --paper-deep: #dfd8c8;
-  --ink: #1d2a2e;
-  --muted: #4c5754;
-  --gold: #7a6235;
+  /* On the slabs of black glass set on it: marble ink, as the bar's names are. */
+  --marble: #e9e4d3;
+  --marble-muted: #aeb1a9;
+  --glass: #0b0f13;
+  --well: #06080b;
+  --rim: #b8924f;
   /* The bare bed, as the engine lights it, shows until the first stones are drawn. */
   --plaster: #7b807a;
   --serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
@@ -44,8 +44,6 @@ code { font: 400 0.86em / 1 var(--mono); }
 /* Words kept for screen readers and search where the page shows them in stone. */
 .unseen { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
-.wrap { width: min(100% - 2 * var(--gutter), var(--measure)); margin-inline: auto; }
-
 /* The wall. Its canvas spans the viewport and a margin above and below it, and moves with
    the page between frames, so the stones never slide against the words set in them. */
 .wall { position: absolute; inset: 0; overflow: clip; pointer-events: none; }
@@ -54,23 +52,52 @@ code { font: 400 0.86em / 1 var(--mono); }
 /* The still of the name over the night is never cropped at the sides, so every letter shows
    at any width. */
 .wall[data-state="still"] { background: url("media/hero-end.webp") center top / min(100%, var(--hero) * 1.7778) auto no-repeat, #12303f; }
-main, .colophon { position: relative; }
+main { position: relative; }
 
-/* Words set straight on the stones; the level band under them hugs the words themselves. */
-[data-wall="band"] { text-shadow: var(--lift); }
-h1[data-wall="band"], h2[data-wall="band"] { width: fit-content; }
-
-/* A tablet: a slab set into the wall, which lays a gold frame around it. */
-.tablet {
-  margin: 0; padding: 26px 30px; color: var(--ink); background: var(--paper);
-  box-shadow: inset 6px 7px 10px -7px rgb(20 24 22 / 0.55), inset -1px -1px 0 rgb(255 255 255 / 0.35);
-  text-shadow: none;
+/* A slab: words set on black glass in a thin gold rim, like the bar. home/slabs.js cuts and
+   lights it as a picture of its own and draws its stones in a canvas behind the words; until
+   then, and without WebGL2, the glass and the rim are plain colours. */
+.slab {
+  --rim-width: 2.6px; --glass-stone: 6px;
+  position: relative; margin: 0; padding: 26px 28px; border-radius: 14px; color: var(--marble);
+  background: var(--glass); box-shadow: inset 0 0 0 var(--rim-width) var(--rim), 0 22px 44px -26px rgb(0 0 0 / 0.8);
 }
-.tablet a:hover { color: var(--gold); }
+.slab[data-state="laid"] { background: none; box-shadow: 0 22px 44px -26px rgb(0 0 0 / 0.8); }
+.slab > canvas { position: absolute; inset: 0; display: block; width: 100%; height: 100%; border-radius: inherit; pointer-events: none; }
+.slab-stones { opacity: 0; transition: opacity 0.6s ease; }
+.slab[data-state="laid"] > .slab-stones { opacity: 1; }
+.slab > :not(canvas) { position: relative; min-width: 0; }
+.slab p { margin: 0; text-wrap: pretty; }
+.slab a { color: var(--marble); text-decoration-color: rgb(217 182 116 / 0.6); }
+.slab a:hover { color: var(--gilt); }
+.slab code { color: var(--marble); }
 
-/* An emblem: a picture or film set into the wall the same way. */
-.emblem { margin: 0; background: #0e1d24; }
-.emblem img, .emblem video { display: block; width: 100%; height: auto; }
+/* Stone type: a line of words set in stones on the slab, five by seven cells a letter, each
+   cell --cell pixels; lines are parted by | in data-type. home/slabs.js sizes it to its stones.
+   The words stay here for screen readers and search, and show only until the stones do. */
+.type {
+  --cell: 3px;
+  display: block; margin: 0; overflow: hidden; color: var(--marble);
+  font: 600 calc(var(--cell) * 5.4) / calc(var(--cell) * 7) var(--sans); letter-spacing: 0.06em; text-transform: uppercase;
+}
+.type[data-tone="gold"] { color: var(--gilt); }
+.slab[data-state="laid"] .type { color: transparent; }
+
+/* A button set in stone: its words in stone type in a recess with a gold rim. */
+.stone-button {
+  display: inline-grid; place-items: center; padding: 9px 13px; border: 0; border-radius: 7px;
+  background: var(--well); box-shadow: inset 0 0 0 1.6px var(--rim); color: var(--marble); text-decoration: none; cursor: pointer;
+}
+.slab[data-state="laid"] .stone-button { background: none; box-shadow: none; }
+.stone-button .type { --cell: 2.6px; }
+.stone-button:focus-visible { outline: 1px solid rgb(217 182 116 / 0.8); outline-offset: 3px; }
+/* A chosen one is marked by a gold line under it. */
+.stone-button[aria-checked="true"], .stone-button[aria-selected="true"] { box-shadow: inset 0 0 0 1.6px var(--rim), 0 4px 0 -2px var(--gilt); }
+.slab[data-state="laid"] .stone-button[aria-checked="true"], .slab[data-state="laid"] .stone-button[aria-selected="true"] { box-shadow: 0 4px 0 -2px var(--gilt); }
+
+/* A frame: a picture or film set into the wall, which lays a gold frame round it. */
+.frame { display: block; margin: 0; padding: 0; border: 0; background: #0e1d24; }
+.frame img, .frame video, .frame canvas { display: block; width: 100%; height: 100%; object-fit: cover; }
 
 /* The bar: a slab of stone set apart from the top edge, naming the sections. Its canvas is
    cut to the slab's rounded corners, and a link over each name carries its words. Without
@@ -120,10 +147,6 @@ h1[data-wall="band"], h2[data-wall="band"] { width: fit-content; }
 @media (max-aspect-ratio: 4/5) {
   .wall[data-state="still"] { background: url("media/hero-tall.webp") center top / 100% auto no-repeat, #12303f; }
 }
-.work-title { font: italic 400 16px / 1.5 var(--serif); color: var(--light); margin-right: 6px; }
-.text-button { padding: 0; border: 0; background: none; font: 500 14px / 1.5 var(--sans); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 4px; }
-.text-button:hover { color: var(--gilt); }
-.tablet .text-button:hover { color: var(--gold); }
 
 /* The wide wall, where the page has room for it: its screens stand side by side, each a
    screen wide and high, along one wall, and the page scrolls sideways along them, by the
@@ -139,135 +162,204 @@ html.wide .wall { bottom: auto; height: 100svh; }
 html.wide .wall canvas { height: 100%; }
 
 /* Rooms: under the first screen, each part of the page is a room a screen high, which the
-   page settles on, with its words clear of the bar above and the controls below. A room's
-   pages are of a piece with it, except on a phone. */
+   page settles on, with its words clear of the bar above and the controls below. Each starts
+   with a slab naming it, on the left, beside what it shows. A room's pages are of a piece
+   with it, except on a phone. --content is how wide a room's content may be, --room-h how
+   high, and --side how wide what it shows beside the slab may be. */
 .room {
-  display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: 24px; row-gap: clamp(18px, 3.4vh, 40px); align-content: center;
-  width: min(100% - 2 * var(--gutter), var(--measure)); min-height: 100svh; margin-inline: auto;
+  --content: min(100vw - 2 * var(--gutter), var(--measure));
+  --room-h: calc(100svh - var(--bar-top) - var(--bar-h, 45px) - clamp(16px, 4vh, 44px) - clamp(76px, 11vh, 104px));
+  --side: calc((var(--content) - 11 * 24px) / 12 * 8 + 7 * 24px);
+  display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: 24px; row-gap: clamp(16px, 2.6vh, 28px); align-content: center; align-items: start;
+  width: var(--content); min-height: 100svh; margin-inline: auto;
   padding-block: calc(var(--bar-top) + var(--bar-h, 45px) + clamp(16px, 4vh, 44px)) clamp(76px, 11vh, 104px);
   scroll-snap-align: start; scroll-snap-stop: always;
 }
 .page { display: contents; }
 .room > *, .page > * { grid-column: 1 / -1; min-width: 0; }
+/* The old names of two rooms, kept so links to them still arrive, take no room of their own. */
+.room > span:empty { position: absolute; }
+h2, h3 { margin: 0; font-weight: 400; }
 
-.section-head { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: 24px; row-gap: 16px; align-items: end; }
-h2 { grid-column: 1 / span 6; justify-self: start; margin: 0; font: 400 clamp(32px, min(4.4vw, 6.6vh), 60px) / 1.02 var(--serif); letter-spacing: -0.025em; text-wrap: balance; }
-.section-head p { grid-column: 8 / span 5; margin: 0; color: var(--muted); text-wrap: pretty; }
-h3 { margin: 0; font: 600 20px / 1.25 var(--serif); letter-spacing: -0.005em; }
+.head { grid-column: 1 / span 4; grid-row: 1 / span 2; display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; align-content: start; }
+.head .type { --cell: 6px; }
+.head p { font-size: 16px; line-height: 1.6; color: var(--marble-muted); }
+.method .polyptych, .method .predella, .materials .board { grid-column: 5 / -1; }
 
-/* What the page is, on one tablet, with a note on the wall under it that keeps room for two
+/* What the page is, on one slab, with a note on the wall under it that keeps room for two
    lines, so the layout the wall was cut around never moves when its words change. */
 .intro { justify-items: center; }
-.lede { width: min(100%, 720px); }
-.lede p { margin: 0 0 24px; text-wrap: pretty; }
-.lede p:first-child { font-size: clamp(18px, 1.5vw, 21px); }
-.lede .actions { display: flex; flex-wrap: wrap; gap: 12px; margin: 0; }
-.lede .source { margin: 22px 0 0; font: 400 15px / 1.5 var(--sans); color: var(--muted); }
+.lede { width: min(100%, 760px); display: grid; grid-template-columns: minmax(0, 1fr); gap: 22px; padding: 30px 34px; }
+.lede > p:first-child { font-size: clamp(18px, 1.5vw, 21px); line-height: 1.58; }
+.lede .actions { display: flex; flex-wrap: wrap; gap: 12px; }
+.lede .actions .type { --cell: 2.6px; }
+.lede .source { font: 400 15px / 1.5 var(--sans); color: var(--marble-muted); }
 .wall-note {
   width: min(100%, 680px); min-height: 3em; margin: 0; text-align: center; text-shadow: var(--lift);
   font: 400 14px / 1.5 var(--sans); color: var(--light-muted); text-wrap: balance;
 }
+.work-title { font: italic 400 16px / 1.5 var(--serif); color: var(--light); margin-right: 6px; }
 
-.button {
-  display: inline-flex; align-items: center; justify-content: center; min-height: 46px; padding: 0 20px;
-  border: 1px solid var(--ink); border-radius: 2px; font: 600 15px / 1 var(--sans); text-decoration: none; white-space: nowrap;
+/* Method: one picture in four bands, a stage each, in one gold frame; the last band is the
+   wall's own stones. Each band is as wide as its share of the picture, and all are as high
+   as the picture is for their width, so no band is cropped. A slab under it names them,
+   each name under its band. */
+.method { --mullion: 8px; --bands: min(var(--side) - 3 * var(--mullion), (var(--room-h) - 150px) * 16 / 9); }
+.polyptych {
+  display: grid; grid-template-columns: 430fr 370fr 310fr 490fr; column-gap: var(--mullion); margin: 0;
+  width: calc(var(--bands) + 3 * var(--mullion)); height: calc(var(--bands) * 9 / 16);
 }
-.button:hover { background: var(--paper-deep); }
-.button.primary { background: var(--ink); color: var(--paper); }
-.button.primary:hover { background: #33464a; color: var(--paper); }
+.band { display: block; width: 100%; height: 100%; object-fit: cover; background: #0e1d24; }
+.band[data-wall="live"] { background: none; }
+.predella { display: grid; margin: 0; padding: 16px 0; list-style: none; }
+.predella li { padding-inline: 16px; }
+.method .predella { grid-template-columns: 430fr 370fr 310fr 490fr; column-gap: var(--mullion); width: calc(var(--bands) + 3 * var(--mullion)); }
+.predella h3 { display: flex; gap: 15px; align-items: center; margin-bottom: 8px; }
+.predella .type { --cell: 3px; }
+.predella p { font: 400 13.5px / 1.45 var(--sans); color: var(--marble-muted); }
 
-/* Method: the plate beside its four stages, no taller than the room has room for. */
-.strip { grid-column: 1 / span 7; align-self: center; width: min(100%, calc((100svh - 300px) * 1.7778)); }
-.strip img { background: #0e1d24; }
-.stages { grid-column: 8 / span 5; align-self: center; display: grid; gap: 16px; margin: 0; list-style: none; }
-.stages h3 { margin-bottom: 4px; font-size: 18px; }
-.numeral { color: var(--gold); font-weight: 400; margin-right: 4px; }
-.stages p { margin: 0; font-size: 15px; line-height: 1.5; color: var(--muted); text-wrap: pretty; }
+/* Materials: two rows of four samples set in the wall, each the same motif in one material,
+   with a slab under each row naming them, each name under its sample. */
+.materials { --sample: min((var(--side) - 3 * 20px) / 4, (var(--room-h) - 250px) / 2); }
+.board { display: grid; gap: 12px; width: calc(4 * var(--sample) + 3 * 20px); }
+.samples { display: grid; grid-template-columns: repeat(4, var(--sample)); gap: 20px; margin: 0; padding: 0; list-style: none; }
+.sample { width: var(--sample); height: var(--sample); }
+.names { grid-template-columns: repeat(4, minmax(0, 1fr)); column-gap: 20px; padding-block: 14px; }
+.names li { padding-inline: 10px; text-align: center; }
+.names h3 { margin: 0 auto 6px; }
+.names .type { --cell: 2.6px; }
+.names p { font-size: 12.5px; }
 
-/* Materials: two rows of four medallions in the wall, each named beside it. */
-.tray { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: clamp(18px, 3.4vh, 36px) 28px; margin: 0; padding: 0; list-style: none; }
-.tray li { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 18px; }
-.medallion { width: clamp(72px, 13vh, 132px); aspect-ratio: 1; border-radius: 50%; }
-.label h3 { font-size: 19px; }
-.label p { margin: 4px 0 0; font: 400 14px / 1.45 var(--sans); color: var(--light-muted); text-wrap: balance; }
+/* Gallery: every work hung at once, salon style, straight on the room beside the slab naming
+   it, each in a gold frame of its own shape with a slab under it for its plaque, and each row
+   hung from a common line along its foot. */
+.gallery .salon { display: contents; }
+.work { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; align-self: end; min-width: 0; margin: 0; }
+.work.lantern { grid-column: 5 / span 4; grid-row: 1; }
+.work.odyssey { grid-column: 9 / span 4; grid-row: 1; }
+.work.morning { grid-column: 5 / span 4; grid-row: 2; }
+.work.leaf { grid-column: 9 / span 2; grid-row: 2; }
+.work.crescent { grid-column: 11 / span 2; grid-row: 2; }
+.work .frame { width: 100%; cursor: zoom-in; }
+.work.lantern .frame, .work.morning .frame { aspect-ratio: 16 / 9; }
+.work.odyssey .frame { aspect-ratio: 1280 / 536; }
+.work.leaf .frame, .work.crescent .frame { aspect-ratio: 1; }
+.plaque { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; padding: 11px 15px; border-radius: 9px; }
+.plaque .type { --cell: 2.4px; }
+.plaque p { font: 400 12.5px / 1.45 var(--sans); color: var(--marble-muted); }
 
-/* Gallery: the work chosen from the reel, beside its caption, with the reel under them. The
-   work's frame keeps its shape whatever is in it, so the wall around it never changes. */
-.feature { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: 40px; row-gap: 20px; align-items: end; margin: 0; }
-.feature .emblem { grid-column: 1 / span 8; display: grid; width: min(100%, calc((100svh - 430px) * 1.7778)); aspect-ratio: 16 / 9; }
-.feature .emblem > * { grid-area: 1 / 1; width: 100%; height: 100%; object-fit: contain; background: #0e1d24; }
-.feature figcaption { grid-column: 9 / span 4; display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
-.feature figcaption h3 { font-style: italic; font-weight: 400; font-size: 22px; }
-.feature figcaption p { margin: 0; font: 400 15px / 1.55 var(--sans); color: var(--muted); }
-.reel { display: flex; gap: 22px; margin: 0; padding: 0; list-style: none; overflow-x: auto; }
-.plate { display: grid; gap: 10px; padding: 0; border: 0; background: none; text-align: left; }
-.plate .emblem { display: block; width: clamp(112px, 10vw, 156px); aspect-ratio: 16 / 10; }
-.plate img { width: 100%; height: 100%; object-fit: cover; filter: saturate(0.45) brightness(0.62); }
-.plate[aria-pressed="true"] img { filter: none; }
-.plate-name { font: 400 13px / 1.4 var(--sans); color: var(--light-muted); text-shadow: var(--lift); }
-.plate[aria-pressed="true"] .plate-name { color: var(--light); }
+/* A work opened whole: the film or picture as large as the screen allows, over a dark ground,
+   with its caption. */
+.viewer { width: min(96vw, 1400px); max-height: 94svh; padding: 0; border: 0; background: none; color: var(--marble); overflow: visible; }
+.viewer::backdrop { background: rgb(4 8 10 / 0.88); }
+.viewer[open] { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 28px; align-items: end; }
+/* The frame hugs the work, whatever its shape. */
+.viewer-work { display: grid; justify-items: end; }
+.viewer-work img, .viewer-work video { display: block; width: auto; height: auto; max-width: 100%; max-height: 86svh; background: #0e1d24; box-shadow: 0 0 0 5px var(--rim); }
+.viewer-caption { display: grid; gap: 10px; padding-bottom: 6px; }
+.viewer-caption h3 { font: italic 400 24px / 1.25 var(--serif); }
+.viewer-meta { margin: 0; font: 400 13.5px / 1.5 var(--sans); color: var(--marble-muted); }
+.viewer-text p { margin: 0; font: 400 15px / 1.55 var(--serif); }
+.viewer-text a { color: var(--gilt); }
+.viewer-close {
+  position: absolute; top: -10px; right: 0; transform: translateY(-100%); padding: 7px 13px; border: 1px solid rgb(217 182 116 / 0.5); border-radius: 16px;
+  background: rgb(9 22 30 / 0.7); font: 500 13px / 1 var(--sans); color: var(--marble);
+}
+.viewer-close:hover { border-color: var(--gilt); color: var(--gilt); }
 
-/* Use it: three routes side by side. */
-.route { grid-column: span 4; min-width: 0; }
-.route > p { margin: 12px 0 0; color: var(--muted); text-wrap: pretty; }
-.route > p:has(.button) { margin-top: 24px; }
-.route .aside { font: 400 14px / 1.55 var(--sans); }
+/* Studio: an image laid in stone right here, in a frame in the wall, with what to lay it in
+   under it; and beside them, the skill for a coding agent, with the command line. */
+.studio .head { grid-column: 1 / span 6; grid-row: 1; }
+.studio .head .type { --cell: 5px; }
+.atelier { grid-column: 1 / span 6; grid-row: 2; display: grid; gap: 14px; margin: 0; }
+.atelier .frame { position: relative; width: min(100%, (var(--room-h) - 320px) * 16 / 9); aspect-ratio: 16 / 9; }
+.atelier .frame canvas { position: absolute; inset: 0; }
+.atelier .frame.over { box-shadow: 0 0 0 3px var(--gilt); }
+.atelier-note {
+  position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%); margin: 0; padding: 6px 12px; border-radius: 14px;
+  background: rgb(6 9 12 / 0.72); font: 400 13px / 1.4 var(--sans); color: var(--marble); white-space: nowrap; pointer-events: none;
+}
+.tools { display: flex; flex-wrap: wrap; gap: 12px 14px; align-items: center; justify-content: space-between; padding: 14px 16px; }
+.materials-pick, .picks, .ways { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.pick { width: 60px; aspect-ratio: 16 / 9; padding: 0; border: 0; border-radius: 4px; overflow: hidden; background: #0e1d24; opacity: 0.55; }
+.pick img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.pick[aria-pressed="true"], .pick:hover { opacity: 1; box-shadow: 0 0 0 1.5px var(--gilt); }
+.file input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.file:focus-within { outline: 1px solid rgb(217 182 116 / 0.8); outline-offset: 3px; }
+.tools .aside { flex: 1 0 100%; font: 400 13px / 1.5 var(--sans); color: var(--marble-muted); }
+.agent { grid-column: 7 / -1; grid-row: 1 / span 2; display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-content: start; padding: 26px 28px; }
+.agent > .type { --cell: 4px; }
+.agent > p { font-size: 15.5px; line-height: 1.55; color: var(--marble-muted); }
+.ways { display: flex; gap: 8px; }
 /* The copy button sits on its own row so it never covers a long first line. */
-.code { display: flex; flex-direction: column; margin-top: 24px; background: var(--paper-deep); border-radius: 2px; }
-.code pre { order: 2; margin: 0; padding: 4px 18px 18px; overflow-x: auto; font: 400 12.5px / 1.75 var(--mono); }
+.code { display: flex; flex-direction: column; border-radius: 9px; background: var(--well); box-shadow: inset 0 0 0 1.6px var(--rim); }
+.slab[data-state="laid"] .code { background: none; box-shadow: none; }
+.code pre { order: 2; margin: 0; padding: 2px 18px 18px; overflow-x: auto; font: 400 12.5px / 1.75 var(--mono); color: var(--marble); }
 .code pre code { font: inherit; }
 .copy {
-  order: 1; align-self: flex-end; margin: 8px 8px 0 0; padding: 5px 9px; border: 1px solid rgb(29 42 46 / 0.2); border-radius: 2px;
-  background: var(--paper); font: 500 12px / 1 var(--sans); color: var(--muted);
+  order: 1; align-self: flex-end; margin: 8px 8px 0 0; padding: 5px 9px; border: 1px solid rgb(217 182 116 / 0.45); border-radius: 12px;
+  background: none; font: 500 12px / 1 var(--sans); color: var(--marble-muted);
 }
-.copy:hover { color: var(--ink); border-color: var(--muted); }
+.copy:hover { color: var(--gilt); border-color: var(--gilt); }
+.ask { font: 400 14px / 1.5 var(--sans); color: var(--marble-muted); }
+.prompts { display: grid; gap: 8px; margin: -6px 0 0; padding: 0; list-style: none; font: italic 400 16px / 1.45 var(--serif); }
 
 /* The colophon closes the page in a room of its own. */
+.end { align-content: center; }
 .colophon {
-  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 24px 32px; margin: 0; padding: 32px 36px;
-  font: 400 14px / 1.6 var(--sans); color: var(--muted);
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 24px 32px; padding: 30px 34px;
+  font: 400 14px / 1.6 var(--sans); color: var(--marble-muted);
 }
-.colophon p { margin: 0; text-wrap: pretty; }
-.colophon-mark { display: grid; gap: 6px; align-self: start; }
-.colophon-mark p:first-child { display: flex; align-items: center; gap: 8px; color: var(--ink); font-weight: 500; }
-.colophon-mark svg { width: 15px; height: 15px; }
+.colophon-mark { display: grid; gap: 10px; align-content: start; }
+.colophon-mark .type { --cell: 3px; }
+
+@media (max-height: 820px) {
+  .head { gap: 12px; }
+  .head p, .agent > p { font-size: 14.5px; line-height: 1.5; }
+  .agent { gap: 12px; padding: 20px 22px; }
+  .agent > .type { --cell: 3.4px; }
+  .code pre { font-size: 11.5px; line-height: 1.6; }
+  .prompts { gap: 4px; font-size: 14.5px; }
+  .predella p { font-size: 12.5px; }
+}
 
 @media (max-width: 1080px) {
-  h2, .section-head p { grid-column: 1 / -1; }
-  .section-head p { max-width: 60ch; }
-  .tray li { grid-template-columns: minmax(0, 1fr); justify-items: center; align-content: start; text-align: center; gap: 12px; }
+  .head .type { --cell: 4.5px; }
   .colophon { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 /* On a phone, a room too full for one screen is set as pages, each a screen of its own. */
 @media (max-width: 720px) {
   :root { font-size: 17px; --gutter: 22px; }
-  .tablet { padding: 22px 22px; }
-  .room { grid-template-columns: minmax(0, 1fr); column-gap: 0; row-gap: 20px; padding-bottom: 84px; }
-  .room > *, .page > *, .strip, .stages, .route, .feature .emblem, .feature figcaption { grid-column: 1 / -1; }
+  .slab { padding: 20px 20px; }
+  .room { grid-template-columns: minmax(0, 1fr); column-gap: 0; row-gap: 18px; padding-bottom: 84px; }
+  .room > *, .page > * { grid-column: 1 / -1; }
   .room:has(> .page) { display: block; min-height: 0; padding-block: 0; scroll-snap-align: none; }
   /* On the wide wall a room set as pages stands as its pages, side by side. */
   html.wide .room:has(> .page) { display: contents; }
   html.wide .page { position: relative; flex: none; width: 100vw; height: 100svh; min-height: 0; padding-inline: var(--gutter); scroll-snap-align: none; }
   .page {
-    display: grid; grid-template-columns: minmax(0, 1fr); row-gap: 20px; align-content: center; min-height: 100svh;
+    --room-h: calc(100svh - var(--bar-top) - var(--bar-h, 62px) - 18px - 84px);
+    display: grid; grid-template-columns: minmax(0, 1fr); row-gap: 18px; align-content: center; align-items: start; min-height: 100svh;
     padding-block: calc(var(--bar-top) + var(--bar-h, 62px) + 18px) 84px; scroll-snap-align: start; scroll-snap-stop: always;
   }
-  .section-head { grid-template-columns: minmax(0, 1fr); row-gap: 14px; }
-  .strip, .feature .emblem { width: 100%; }
-  .stages { gap: 14px; }
-  .tray { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 16px; }
-  .tray li { gap: 8px; }
-  .medallion { width: min(100%, 92px); }
-  .label p { font-size: 13px; }
-  #gallery { row-gap: 14px; }
-  .feature { grid-template-columns: minmax(0, 1fr); row-gap: 14px; }
-  .feature figcaption { gap: 4px; padding: 16px 18px; }
-  .feature figcaption h3 { font-size: 19px; }
-  .feature figcaption p { font-size: 14px; line-height: 1.5; }
-  .reel { gap: 12px; }
-  .plate { gap: 6px; }
-  .plate .emblem { width: 88px; }
-  .plate-name { font-size: 12px; }
+  .head .type, .studio .head .type { --cell: 4px; }
+  .method .predella { grid-template-columns: 1fr 1fr; row-gap: 14px; }
+  .materials { --sample: calc((var(--content) - 20px) / 2); }
+  .board { width: var(--content); }
+  .samples, .names { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .sample { width: 100%; height: auto; aspect-ratio: 1; max-height: calc((var(--room-h) - 260px) / 2); justify-self: center; }
+  .room { --side: var(--content); }
+  .head, .method .polyptych, .method .predella, .materials .board, .studio .head, .atelier, .agent { grid-column: 1 / -1; grid-row: auto; }
+  .gallery .page.salon { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 14px; }
+  .work.lantern, .work.odyssey, .work.morning { grid-column: 1 / -1; grid-row: auto; }
+  .work.leaf, .work.crescent { grid-column: auto; grid-row: auto; }
+  .plaque .type { --cell: 2px; }
+  .slab { padding: 18px 16px; }
+  .ways .type, .materials-pick .type, .file .type { --cell: 2.2px; }
+  .atelier .frame { width: 100%; }
+  .tools { grid-template-columns: 1fr; }
+  .picks { justify-content: flex-start; flex-wrap: wrap; }
   .colophon { grid-template-columns: 1fr; }
+  .viewer[open] { grid-template-columns: 1fr; }
 }

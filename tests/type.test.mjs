@@ -18,6 +18,14 @@ test("stone type sets every glyph on its grid of five by seven cells", () => {
   assert.throws(() => typeCells("é", 0, 0, 1), /no glyph/);
 });
 
+test("Greek capitals are set too, those shaped like Latin ones as their Latin twins", () => {
+  assert.deepEqual(typeCells("Α", 0, 0, 1), typeCells("A", 0, 0, 1));
+  assert.deepEqual(typeCells("Ο", 0, 0, 1), typeCells("O", 0, 0, 1));
+  assert.notDeepEqual(typeCells("Δ", 0, 0, 1), typeCells("A", 0, 0, 1));
+  assert.notDeepEqual(typeCells("Σ", 0, 0, 1), typeCells("E", 0, 0, 1));
+  assert.equal(typeWidth("ΟΔΥΣΣΕΙΑ", 1), 47);
+});
+
 test("a grid region is set one stone to a cell, square to the panel", () => {
   // A panel 30 by 15 millimetres, two analysis pixels to the millimetre, with a block four
   // cells by two, each 5 mm, from (4, 3).

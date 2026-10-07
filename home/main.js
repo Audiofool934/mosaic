@@ -1,10 +1,12 @@
 import { createMosaic } from "../engine/runtime.js";
 import { createStoneSound } from "../engine/sound.js";
 import { clamp } from "../engine/util.js";
+import { createAtelier } from "./atelier.js";
 import { createGallery } from "./gallery.js";
 import { ITEMS } from "./bar.js";
 import { createBar } from "./nav.js";
 import { watchRooms } from "./rooms.js";
+import { createSlabs, sizeType } from "./slabs.js";
 import { wallFilm, wallScale, wideFilm } from "./wall.js";
 
 const $ = (id) => document.getElementById(id);
@@ -244,8 +246,11 @@ async function build() {
   hero.setAttribute("aria-label", wide ? heroLabel.wide : heroLabel.still);
   bar.follow(wide ? () => sectionOf(Math.round(scrollX / root.clientWidth)) : null);
   sections = wide ? sectionsOf() : [];
+  // Stone type takes the room its stones do, so the page is laid out around it first.
+  sizeType();
   if (wide) arrive(screen);
   const layout = measure();
+  slabs.update();
   const view = canvasView();
   // The first wall is laid live; a wall cut again for a new layout appears already laid,
   // on a canvas of its own, and replaces the old one once all of it is ready.
@@ -330,10 +335,12 @@ let unhear = null;
 function listen() {
   unhear?.();
   const on = soundButton.getAttribute("aria-pressed") === "true";
-  const offs = on ? [live?.mosaic, bar.mosaic].filter(Boolean).map((m) => m.onContact((events) => sound.play(events))) : [];
+  const offs = on ? [live?.mosaic, bar.mosaic, atelier.mosaic].filter(Boolean).map((m) => m.onContact((events) => sound.play(events))) : [];
   unhear = () => offs.forEach((off) => off());
 }
 const bar = createBar($("bar"), { reduceMotion, onReady: listen });
+const slabs = createSlabs(document);
+const atelier = createAtelier(document.querySelector(".atelier"), { reduceMotion, onLaid: listen });
 watchRooms(".hero, .room, .page", { reduceMotion });
 
 // How many stones the page was cut into, and how long it took from the first.
@@ -421,8 +428,9 @@ function scrollsItself(el, dy) {
   }
   return false;
 }
+const opened = () => Boolean(document.querySelector("dialog[open]"));
 addEventListener("wheel", (event) => {
-  if (!wide || event.ctrlKey) return;
+  if (!wide || event.ctrlKey || opened()) return;
   if (Math.abs(event.deltaX) >= Math.abs(event.deltaY)) {
     target = null;
     return;
@@ -437,7 +445,7 @@ addEventListener("wheel", (event) => {
 // screen, Home and End to either end, and the arrows up and down as the arrows left and right
 // do.
 addEventListener("keydown", (event) => {
-  if (!wide || event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey) return;
+  if (!wide || event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey || opened()) return;
   const t = event.target;
   if (t.closest?.("input, textarea, select, [contenteditable]")) return;
   const here = Math.round(scrollX / root.clientWidth);
@@ -485,10 +493,12 @@ addEventListener("scroll", () => {
   live?.mosaic.requestFrame();
 }, { passive: true });
 
-// The pointer lifts the stones wherever it is on the page.
+// The pointer lifts the stones wherever it is on the page, except over a slab, which holds a
+// lamp instead, over the studio's frame, which lifts its own, and behind a work opened whole.
 let lifting = false;
 function lift(event) {
   if (!live || reduceMotion.matches) return;
+  if (event.target.closest?.("[data-slab], .atelier .frame, dialog[open]")) return settle();
   lifting = true;
   const r = live.canvas.getBoundingClientRect();
   live.mosaic.setPointer({ x: (event.clientX - r.left) / r.width, y: (event.clientY - r.top) / r.height, active: true });
@@ -543,18 +553,38 @@ window.addEventListener("pageshow", (event) => {
   if (event.persisted && !live) building = building.then(build);
 });
 
-// The gallery plays its film while it is on screen.
-const gallery = createGallery($("gallery"), { reduceMotion });
-new IntersectionObserver(([entry]) => gallery.setOnScreen(entry.isIntersecting), { threshold: 0.35 }).observe(document.querySelector(".feature"));
+createGallery($("gallery"), { reduceMotion });
+
+// The ways to run it, as tabs over one block of code, which the arrows move between.
+const ways = [...document.querySelectorAll('.ways [role="tab"]')];
+function choose(tab) {
+  for (const other of ways) {
+    const on = other === tab;
+    other.setAttribute("aria-selected", String(on));
+    other.tabIndex = on ? 0 : -1;
+    $(other.getAttribute("aria-controls")).hidden = !on;
+  }
+}
+for (const tab of ways) {
+  tab.addEventListener("click", () => choose(tab));
+  tab.addEventListener("keydown", (event) => {
+    const step = { ArrowRight: 1, ArrowLeft: -1 }[event.key];
+    if (!step) return;
+    event.preventDefault();
+    const next = ways[(ways.indexOf(tab) + step + ways.length) % ways.length];
+    choose(next);
+    next.focus();
+  });
+}
 
 for (const button of document.querySelectorAll(".copy")) {
   button.addEventListener("click", async () => {
-    const text = button.parentElement.querySelector("code").textContent;
+    const code = button.parentElement.querySelector("pre:not([hidden]) code");
     try {
-      await navigator.clipboard.writeText(text);
+      await navigator.clipboard.writeText(code.textContent);
       button.textContent = "Copied";
     } catch {
-      getSelection().selectAllChildren(button.parentElement.querySelector("code"));
+      getSelection().selectAllChildren(code);
       button.textContent = "Selected";
     }
     setTimeout(() => { button.textContent = "Copy"; }, 2000);

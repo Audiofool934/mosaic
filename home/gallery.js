@@ -1,61 +1,45 @@
-// The gallery: one work shown at a time, chosen from the reel under it. A film plays while it
-// is on screen, unless motion is reduced or it was paused; a still is shown as it is.
+// The gallery: every work hung at once, each in its frame with a plaque under it. A film plays
+// while the pointer or a keyboard's focus is on it, unless motion is reduced, and any work
+// opens whole, as large as the screen allows, with its caption.
 export function createGallery(room, { reduceMotion }) {
-  const film = room.querySelector("#film");
-  const still = room.querySelector("#feature-still");
-  const caption = room.querySelector("#feature-caption");
-  const toggle = room.querySelector("#film-toggle");
-  const plates = [...room.querySelectorAll(".plate")];
-  let paused = false, onScreen = false;
+  const viewer = room.querySelector("#viewer");
+  const shown = viewer.querySelector(".viewer-work");
 
-  const sync = () => { toggle.textContent = film.paused ? "Play the film" : "Pause the film"; };
-  // Scrolling away interrupts a pending play(); only a blocked autoplay needs the native controls.
-  const play = () => film.play().catch((error) => { if (error.name === "NotAllowedError") film.controls = true; });
-  const playing = () => onScreen && !paused && !film.hidden && !reduceMotion.matches;
+  for (const work of room.querySelectorAll(".work")) {
+    const frame = work.querySelector(".frame"), video = frame.querySelector("video");
+    if (video) {
+      // A play cut short by the pointer leaving again is no error.
+      const start = () => { if (!reduceMotion.matches) video.play().catch(() => {}); };
+      const stop = () => video.pause();
+      frame.addEventListener("pointerenter", start);
+      frame.addEventListener("pointerleave", stop);
+      frame.addEventListener("focus", start);
+      frame.addEventListener("blur", stop);
+    }
+    frame.addEventListener("click", () => open(work));
+  }
 
-  function choose(plate) {
-    for (const other of plates) other.setAttribute("aria-pressed", String(other === plate));
-    caption.replaceChildren(plate.parentElement.querySelector("template").content.cloneNode(true), toggle);
-    if (plate.dataset.film) {
-      if (film.getAttribute("src") !== plate.dataset.film) {
-        film.poster = plate.dataset.poster;
-        film.src = plate.dataset.film;
-      }
-      film.setAttribute("aria-label", plate.dataset.alt);
-      film.hidden = false;
-      still.hidden = true;
-      toggle.hidden = reduceMotion.matches;
-      if (playing()) play();
+  function open(work) {
+    const media = work.querySelector(".frame video, .frame img"), plaque = work.querySelector(".plaque");
+    let copy;
+    if (media.tagName === "VIDEO") {
+      copy = document.createElement("video");
+      Object.assign(copy, { src: media.currentSrc || media.src, poster: media.poster, muted: true, loop: true, playsInline: true, controls: true });
+      copy.setAttribute("aria-label", media.getAttribute("aria-label"));
+      media.pause();
     } else {
-      film.pause();
-      film.hidden = true;
-      still.src = plate.dataset.still;
-      still.alt = plate.dataset.alt;
-      still.hidden = false;
-      toggle.hidden = true;
+      copy = media.cloneNode();
+      copy.loading = "eager";
     }
+    shown.replaceChildren(copy);
+    viewer.querySelector("#viewer-title").textContent = plaque.querySelector("h3").textContent;
+    viewer.querySelector(".viewer-meta").textContent = plaque.querySelector("p").textContent;
+    viewer.querySelector(".viewer-text").replaceChildren(work.querySelector("template").content.cloneNode(true));
+    viewer.showModal();
+    if (copy.tagName === "VIDEO" && !reduceMotion.matches) copy.play().catch(() => {});
   }
-  for (const plate of plates) plate.addEventListener("click", () => choose(plate));
-
-  if (reduceMotion.matches) film.controls = true;
-  else {
-    toggle.hidden = false;
-    toggle.addEventListener("click", () => {
-      paused = !film.paused;
-      if (paused) film.pause();
-      else play();
-    });
-    film.addEventListener("play", sync);
-    film.addEventListener("pause", sync);
-    sync();
-  }
-
-  return {
-    // Whether the gallery is on screen: a film plays only while it is.
-    setOnScreen(visible) {
-      onScreen = visible;
-      if (playing()) play();
-      else if (!visible) film.pause();
-    }
-  };
+  viewer.querySelector(".viewer-close").addEventListener("click", () => viewer.close());
+  // A click on the dark ground round the work closes it too.
+  viewer.addEventListener("click", (event) => { if (event.target === viewer) viewer.close(); });
+  viewer.addEventListener("close", () => shown.replaceChildren());
 }

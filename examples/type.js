@@ -1,8 +1,8 @@
-// Stone type: capitals, figures, and a few marks on a grid of five by seven tesserae, for
-// words too small for letters drawn as shapes, like the ones in letters.js, to keep their
-// form. Set in a region whose mode is "grid", with the region's size the cell and its origin
-// on the cells' grid, each filled cell of a glyph is one stone, so a word is laid as rows of
-// stones, the way inscriptions are set in Roman floors.
+// Stone type: Latin and Greek capitals, figures, and a few marks on a grid of five by seven
+// tesserae, for words too small for letters drawn as shapes, like the ones in letters.js, to
+// keep their form. Set in a region whose mode is "grid", with the region's size the cell and
+// its origin on the cells' grid, each filled cell of a glyph is one stone, so a word is laid
+// as rows of stones, the way inscriptions are set in Roman floors.
 const GLYPHS = {
   A: [".###.", "#...#", "#...#", "#####", "#...#", "#...#", "#...#"],
   B: ["####.", "#...#", "#...#", "####.", "#...#", "#...#", "####."],
@@ -49,8 +49,20 @@ const GLYPHS = {
   "?": [".###.", "#...#", "....#", "...#.", "..#..", ".....", "..#.."],
   "!": ["..#..", "..#..", "..#..", "..#..", "..#..", ".....", "..#.."],
   "&": [".##..", "#..#.", "#.#..", ".#...", "#.#.#", "#..#.", ".##.#"],
-  "/": ["....#", "...#.", "...#.", "..#..", ".#...", ".#...", "#...."]
+  "/": ["....#", "...#.", "...#.", "..#..", ".#...", ".#...", "#...."],
+  // Greek capitals that are not shaped like a Latin one; the rest are set as their Latin twins.
+  Γ: ["#####", "#....", "#....", "#....", "#....", "#....", "#...."],
+  Δ: ["..#..", "..#..", ".#.#.", ".#.#.", "#...#", "#...#", "#####"],
+  Θ: [".###.", "#...#", "#...#", "#.#.#", "#...#", "#...#", ".###."],
+  Λ: ["..#..", "..#..", ".#.#.", ".#.#.", "#...#", "#...#", "#...#"],
+  Ξ: ["#####", ".....", ".....", ".###.", ".....", ".....", "#####"],
+  Π: ["#####", "#...#", "#...#", "#...#", "#...#", "#...#", "#...#"],
+  Σ: ["#####", "#....", ".#...", "..#..", ".#...", "#....", "#####"],
+  Φ: ["..#..", ".###.", "#.#.#", "#.#.#", ".###.", "..#..", "..#.."],
+  Ψ: ["#.#.#", "#.#.#", "#.#.#", ".###.", "..#..", "..#..", "..#.."],
+  Ω: [".###.", "#...#", "#...#", "#...#", ".#.#.", ".#.#.", "##.##"]
 };
+for (const [greek, latin] of Object.entries({ Α: "A", Β: "B", Ε: "E", Ζ: "Z", Η: "H", Ι: "I", Κ: "K", Μ: "M", Ν: "N", Ο: "O", Ρ: "P", Τ: "T", Υ: "Y", Χ: "X" })) GLYPHS[greek] = GLYPHS[latin];
 
 // A glyph is five cells wide and seven high, and each one takes six cells across with the
 // space after it.

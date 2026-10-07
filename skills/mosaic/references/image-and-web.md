@@ -53,6 +53,7 @@ PNG export uses the current view and time with no live pointer unless a trace or
 To hear the stones, create `createStoneSound()` from `engine/sound.js`, call its `start()` from a click, and pass `artwork.onContact(events => sound.play(events))` its contacts; keep sound off until the viewer asks for it.
 
 A page that scrolls across a wall can keep one viewport-sized canvas moving with the scroll and give `setView({ frame })` a function returning `{ x, y, w }` in panel millimetres for the stretch in view; call `requestFrame()` on scroll.
+The function is given the film time it is drawn at, so a page can also move its view as its film plays.
 Scenes placed with `at: [x, y]` form one wall of several pictures, each cut in its own worker and drawn as soon as it is ready; `controller.ready` resolves when all have joined.
 A picture that flows in from the one before it is cut in the same worker.
 `createMosaic(canvas, { loop: [from, to] })` plays on from `to` at `from`, until paused; a page can pause at rest times of its own to hold each picture, so the canvas draws nothing while the stones are still.
@@ -61,5 +62,7 @@ For a control or plaque set in stone, `createMosaic(canvas, { lamp: { height, po
 `fov`, in degrees, narrows the lens for a long, low panel, so metal and glass mirror the same light from end to end, and `fringes: false` drops the lens's colour fringes.
 `coat` sets the colour of the bare bed under stones not yet set or lifted off in a flow; a dark coat keeps a page that flows between screens from flashing pale between them.
 `createMosaic(canvas, { hover: { height } })` lets the page lift every seated stone off the wall together with `setHover(u)`, from 0 to 1, as a gesture begins, in live frames only; exports never show it.
+`createMosaic(canvas, { transparent: true })` makes a see-through wall, clear wherever no picture has a stone's place, for a canvas laid over other content.
+`setHidden(id)` takes a scene's stones off the wall and leaves their bed bare, so a page can draw the same stones flying on another canvas; `setHidden(id, false)` puts them back.
 A page that turns between pictures with gestures can move one film's clock from the hand with `setTime(t)`, which keeps live input, easing it toward where the hand is, so the stones follow it both ways and a turn can be rewound.
 The project page in the mosAIc source repository, `home/main.js` and `home/wall.js`, is a complete example: the page measures its own layout and has a picture painted around it.

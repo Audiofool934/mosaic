@@ -88,7 +88,7 @@ Scenes placed with `at: [x, y]` share one wall, in millimetres from its top left
 With `worker: true`, each picture of such a wall is cut in its own worker.
 The wall is drawn from the moment the first picture is ready, and the others join it as they finish; `controller.ready` resolves once all of them have.
 `setView({ frame: { x, y, w } })` looks straight at part of the wall, in the wall's millimetres, instead of following the scene's camera.
-A frame can also be a function, read once for every frame drawn, so a page can follow its own scroll; `requestFrame()` draws once on the next animation frame.
+A frame can also be a function of the film time, read once for every frame drawn, so a page can follow its own scroll, or move its view as its film plays; `requestFrame()` draws once on the next animation frame.
 A picture whose config sets `rows: true` lists its stones by height, so each frame draws only the stones within reach of its view.
 Pictures without it keep their own drawing order and their exact pixels.
 A picture placed with `at` can flow in from the scene before it and keeps its place; the flow takes in the whole picture, since on a wall the page frames the view rather than the picture's own camera, and the pictures of such a chain are cut in one worker.
@@ -102,6 +102,8 @@ The mortar is drawn once for each pair of pictures, the newest two last, and a l
 `createMosaic(canvas, { hover: { height } })` lets the page lift every seated stone off the wall together with `setHover(u)`, `u` from 0 to 1 of `height` millimetres, each stone a touch askew, in live frames only.
 A flow can do the same on its own clock: with `rise: [from, to, mm]` the outgoing picture's stones lift off together before they fly, with `arc` below 1 they fly closer to the wall, and with `settle: [from, to]` they land hovering and come down onto the wall together, so a flow played backward starts with a lift as well.
 It glides and fades on its own, lights stones and mortar alike, and shines in live frames only, so exports never show it.
+`createMosaic(canvas, { transparent: true })` draws a see-through wall, clear wherever no picture has a stone's place, for a canvas laid over the rest of a page; it has no depth of field and no colour fringes.
+`setHidden(id)` takes the stones of a scene off the wall in every frame drawn, as when the same stones are being drawn on another canvas, and leaves their bed bare, the grout alone with the print of each stone pressed in it; `setHidden(id, false)` puts them back.
 `fov` narrows the lens, so the camera stands back and looks straight at every part of a long, low panel, and `fringes: false` drops the lens's colour fringes.
 `coat` sets the colour of the bare bed, which shows wherever no stone has been set yet, or where stones have lifted off in a flow.
 

@@ -351,6 +351,40 @@ try {
     }
     checks.push('a hover the page holds lifts the stones live, lets them down, and never reaches an export');
 
+    // A see-through wall: framed half on its picture and half past its edge, it is opaque over
+    // the stones and clear beyond them. A scene taken off the wall leaves its bed, still opaque
+    // but bare, and put back it draws the same to the pixel.
+    {
+      const clearCanvas = document.createElement('canvas');
+      const clear = await createMosaic(clearCanvas, {
+        project: { version: 1, seed: 42, fps: [60, 1], frames: 60, band: [320, 180], scenes: [{ id: 'one', picture: '/examples/nocturne.js', start: 0, end: 1, at: [0, 0], in: { type: 'settled' } }] },
+        width: 320, height: 180, samples: 1, transparent: true
+      });
+      clear.setView({ frame: { x: 1600, y: 450, w: 1600 } });
+      const clearGl = clearCanvas.getContext('webgl2');
+      const pixels = () => { clear.seek(0.5); const p = new Uint8Array(320 * 180 * 4); clearGl.readPixels(0, 0, 320, 180, clearGl.RGBA, clearGl.UNSIGNED_BYTE, p); return p; };
+      // Alpha in the left and right halves, clear of the edge between them.
+      const halves = (p) => {
+        let left = 0, right = 0;
+        for (let i = 0; i < p.length; i += 4) {
+          const x = (i / 4) % 320;
+          if (x < 150 && p[i + 3] === 255) left++;
+          if (x > 170 && p[i + 3] === 0) right++;
+        }
+        return [left / (150 * 180), right / (149 * 180)];
+      };
+      const shown = pixels(), [opaque, seeThrough] = halves(shown);
+      require(opaque > 0.99 && seeThrough === 1, `A see-through wall was opaque over ${(opaque * 100).toFixed(1)}% of its stones and clear over ${(seeThrough * 100).toFixed(1)}% past them.`);
+      clear.setHidden('one');
+      const bare = pixels(), [bed, still] = halves(bare);
+      require(bed > 0.99 && still === 1, 'A scene taken off a see-through wall did not leave its bed.');
+      require(bare.some((v, i) => v !== shown[i]), 'Taking a scene off the wall did not take its stones away.');
+      clear.setHidden('one', false);
+      require(await sha256(pixels()) === await sha256(shown), 'A scene put back on the wall did not draw the same as before.');
+      clear.dispose();
+    }
+    checks.push('a see-through wall is clear past its stones, and a scene taken off it leaves its bed and comes back the same');
+
     // The name set in front of a scene that flows into another: the stones flying past go
     // behind its letters, so every pixel bright with marble or gold at rest stays bright.
     const frontCanvas = document.createElement('canvas');

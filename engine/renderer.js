@@ -694,10 +694,13 @@ uniform float uTime;
 uniform int uHasA;
 uniform int uOver;
 uniform int uFront;
+uniform int uClear;
 uniform vec4 uRiseA;
 uniform vec4 uRiseB;
 uniform vec4 uSettleA;
 uniform vec4 uSettleB;
+uniform int uGoneA;
+uniform int uGoneB;
 uniform highp sampler2D uInstA;
 uniform highp sampler2D uOwnA;
 uniform highp sampler2D uOwn2A;
@@ -726,7 +729,7 @@ vec3 stoneRgb(highp sampler2D inst, int id) { return texelFetch(inst, ivec2((id 
 vec2 panelMM(vec4 pan) { return vec2((vP.x - pan.x) * 1000.0, (pan.y - vP.y) * 1000.0); }
 // One picture's mortar at this point. alive is true while a stone of this picture
 // still sits here, which is what decides whose mortar shows during a re-lay.
-void layer(highp sampler2D inst, highp sampler2D own0, highp sampler2D own2, sampler2D sinTex, vec4 pan, vec3 grout, vec2 wetT, vec4 rise, vec4 settle,
+void layer(highp sampler2D inst, highp sampler2D own0, highp sampler2D own2, sampler2D sinTex, vec4 pan, vec3 grout, vec2 wetT, vec4 rise, vec4 settle, bool gone,
            out vec3 albedo, out float ao, out float sheen, out bool alive, out bool owned, out bool spread) {
   vec2 mm = panelMM(pan);
   vec2 uv = mm / pan.zw;
@@ -772,12 +775,14 @@ void layer(highp sampler2D inst, highp sampler2D own0, highp sampler2D own2, sam
     sheen = wet * (1.0 - dry);
     // The lime spread ahead of a stone is plain. Once the stone is set, the grout pressed
     // in round it is tinted to suit it, darker under dark glass, and the bed a stone is lifted
-    // off is a deeper shade of the same, so a lifted stone floats over its own colour.
+    // off is a deeper shade of the same, so a lifted stone floats over its own colour. Where
+    // the stones have been taken away altogether the bed is bare grout, with the print of each
+    // stone pressed in it.
     float set = smoothstep(T - 0.01, T + 0.12, uTime);
-    vec3 tint = mix(grout, mix(grout, stoneRgb(inst, id), 0.9), set) * mix(1.0, 0.5, moved);
+    vec3 tint = gone ? grout : mix(grout, mix(grout, stoneRgb(inst, id), 0.9), set) * mix(1.0, 0.5, moved);
     vec3 bed = mix(tint * 0.62, tint, dry);
     albedo = mix(coat, bed, wet);
-    ao = 1.0 - seated * (1.0 - moved) * 0.5 * exp(-e / 0.4);
+    ao = 1.0 - (gone ? seated : seated * (1.0 - moved)) * 0.5 * exp(-e / 0.4);
     alive = uTime < U + 0.05;
   }
 }
@@ -789,18 +794,18 @@ void main() {
   bool alive;
   bool owned;
   bool spread;
-  layer(uInstB, uOwnB, uOwn2B, uSinB, uPanelB, uGroutB, uWetB, uRiseB, uSettleB, albedo, ao, sheen, alive, owned, spread);
+  layer(uInstB, uOwnB, uOwn2B, uSinB, uPanelB, uGroutB, uWetB, uRiseB, uSettleB, uGoneB == 1, albedo, ao, sheen, alive, owned, spread);
   // A picture set in front lays its mortar only where its lime is spread and its stone has not
   // lifted off again.
   if (uFront == 1 && !(owned && alive && spread)) discard;
   bool alive2 = false;
+  bool owned2 = false;
   if (uHasA == 1) {
     vec3 a2;
     float ao2;
     float sh2;
-    bool owned2;
     bool spread2;
-    layer(uInstA, uOwnA, uOwn2A, uSinA, uPanelA, uGroutA, uWetA, uRiseA, uSettleA, a2, ao2, sh2, alive2, owned2, spread2);
+    layer(uInstA, uOwnA, uOwn2A, uSinA, uPanelA, uGroutA, uWetA, uRiseA, uSettleA, uGoneA == 1, a2, ao2, sh2, alive2, owned2, spread2);
     if (alive2) {
       albedo = a2;
       ao = ao2;
@@ -809,6 +814,8 @@ void main() {
   }
   // A later pair leaves the mortar of the pairs before it wherever it has no stone.
   if (uOver == 1 && !owned && !alive2) discard;
+  // A see-through wall has no bed where no picture has a stone's place.
+  if (uClear == 1 && !owned && !owned2) discard;
   vec2 mm = vP.xy * 1000.0;
   float fp = max(length(fwidth(mm)), 1e-4);
   float f1 = 1.0 - smoothstep(0.06, 0.25, fp);
@@ -846,7 +853,10 @@ in vec2 vUv;
 uniform sampler2D uSrc;
 uniform float uW;
 out vec4 o;
-void main() { o = vec4(texture(uSrc, vUv).rgb * uW, uW); }
+void main() {
+  vec4 c = texture(uSrc, vUv);
+  o = vec4(c.rgb * uW, c.a * uW);
+}
 `;
 
 const LENS_GLSL = `
@@ -974,6 +984,7 @@ uniform float uFade;
 uniform float uFrame;
 uniform float uAspect;
 uniform float uCA;
+uniform int uClear;
 ${LENS_GLSL}
 out vec4 o;
 vec3 agxContrast(vec3 x) {
@@ -1016,6 +1027,11 @@ void main() {
   vec2 d0 = vUv - 0.5;
   vec2 shift = d0 * dot(d0, d0) * uCA;
   vec3 c = vec3(lensAt(vUv + shift).r, lensAt(vUv).g, lensAt(vUv - shift).b);
+  float a = 1.0;
+  if (uClear == 1) {
+    a = texture(uAcc, vUv).a;
+    c /= max(a, 1e-4);
+  }
   vec2 d = d0 * vec2(1.0, 1.0 / uAspect) * 1.9;
   float vig = 1.0 / (1.0 + dot(d, d) * 0.3);
   c *= uExposure * vig * vig;
@@ -1023,7 +1039,8 @@ void main() {
   float n = fract(52.9829189 * fract(dot(gl_FragCoord.xy + uFrame * vec2(5.588238, 3.17), vec2(0.06711056, 0.00583715))));
   float n2 = fract(n * 7.13 + 0.37);
   c += (n + n2 - 1.0) / 255.0;
-  o = vec4(clamp(c, 0.0, 1.0), 1.0);
+  if (uClear == 1) o = vec4(clamp(c, 0.0, 1.0) * a, a);
+  else o = vec4(clamp(c, 0.0, 1.0), 1.0);
 }
 `;
 
@@ -1316,6 +1333,7 @@ export function createRenderer(gl, opts) {
     }
     // span: the wall heights in view, padded; stones listed by row outside it are skipped.
     function drawStones(prog, layer, geo, vp, t, span) {
+      if (layer.hidden) return;
       gl.useProgram(prog.p);
       gl.uniformMatrix4fv(prog.u.uVP, false, vp);
       gl.uniform1f(prog.u.uTime, t);
@@ -1398,6 +1416,7 @@ export function createRenderer(gl, opts) {
       gl.uniform2fv(u["uWet" + suffix], layer.wet);
       if (u["uRise" + suffix]) gl.uniform4fv(u["uRise" + suffix], layer.rise || NO_RISE);
       if (u["uSettle" + suffix]) gl.uniform4fv(u["uSettle" + suffix], layer.settle || NO_RISE);
+      if (u["uGone" + suffix]) gl.uniform1i(u["uGone" + suffix], layer.hidden ? 1 : 0);
     }
 
     function renderScene(t, jitter, L, layers, lensOut) {
@@ -1408,7 +1427,8 @@ export function createRenderer(gl, opts) {
       gl.enable(gl.DEPTH_TEST);
       gl.depthFunc(gl.LEQUAL);
       gl.disable(gl.BLEND);
-      gl.clearColor(0.004, 0.004, 0.005, 1);
+      if (opts.transparent) gl.clearColor(0, 0, 0, 0);
+      else gl.clearColor(0.004, 0.004, 0.005, 1);
       gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
       // Stones first, so the mortar they cover is never shaded.
       gl.enable(gl.CULL_FACE);
@@ -1433,6 +1453,7 @@ export function createRenderer(gl, opts) {
         gl.uniform1f(clearProg.u.uTime, t);
         gl.bindVertexArray(bedVao);
         for (const layer of front) {
+          if (layer.hidden) continue;
           setBed(clearProg.u, "B", layer, 8);
           gl.drawArrays(gl.TRIANGLES, 0, 6);
         }
@@ -1457,6 +1478,7 @@ export function createRenderer(gl, opts) {
       gl.uniform3fv(u.uCoat, opts.coat);
       gl.uniform3fv(u.uSinopia, opts.sinopia);
       gl.uniform2fv(u.uHover, hover);
+      gl.uniform1i(u.uClear, opts.transparent ? 1 : 0);
       gl.bindVertexArray(bedVao);
       // The pictures in pairs, the newest two last, and then each picture set in front on its
       // own, shaded only by its own stones.
@@ -1521,7 +1543,7 @@ export function createRenderer(gl, opts) {
           gl.disable(gl.BLEND);
         }
       }
-      const useDof = lens.k > 0 && lens.k * (1 / (lens.focus * 0.85) - 1 / lens.focus) > 1.0;
+      const useDof = !opts.transparent && lens.k > 0 && lens.k * (1 / (lens.focus * 0.85) - 1 / lens.focus) > 1.0;
       const lensV = [lens.near || 0.01, lens.far || 1, lens.focus || 1, lens.k || 0];
       gl.disable(gl.DEPTH_TEST);
       if (useDof) {
@@ -1566,7 +1588,8 @@ export function createRenderer(gl, opts) {
       gl.uniform1f(finalProg.u.uFade, look.fade);
       gl.uniform1f(finalProg.u.uFrame, Math.round(t * 24));
       gl.uniform1f(finalProg.u.uAspect, W / H);
-      gl.uniform1f(finalProg.u.uCA, look.ca === undefined ? 0.0015 : look.ca);
+      gl.uniform1f(finalProg.u.uCA, opts.transparent ? 0 : look.ca === undefined ? 0.0015 : look.ca);
+      gl.uniform1i(finalProg.u.uClear, opts.transparent ? 1 : 0);
       quad(finalProg);
     }
 

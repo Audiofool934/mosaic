@@ -28,6 +28,11 @@ export const TRAIL_STEP = 0.025;
 // Each stone's spring under the pointer: natural frequency (rad/s), damping ratio, and
 // how far each stone's own frequency strays from it.
 const SPRING = { omega: 16, zeta: 0.55, spread: 0.15 };
+// Insets, squares a picture sets into the wall whose stones answer the pointer on their own:
+// how many within reach of the pointer a frame keeps, and the radius of an inset's curl, as a
+// share of its shorter side.
+export const INSETS = 16;
+export const INSET_REACH = 0.3;
 
 const GLSL_COMMON = `
 // Hash without Sine: David Hoskins, via David A Roberts MIT port.
@@ -184,18 +189,42 @@ float risen(vec4 rise, vec4 settle, float t, float seed) {
 const POINTER_CURL = `
 // Cull centre xy and cull radius of the trail, and the curl radius (m); no input culls everything.
 uniform vec4 uPointer;
-// Wall xy and strength of each trail sample (k + 0.5) * TRAIL_STEP seconds ago.
+// Wall xy and strength of each trail sample (k + 0.5) * TRAIL_STEP seconds ago, and the
+// inset it belongs to, counted from 1, or 0 for none (markTrail).
 uniform vec4 uTrail[${TRAIL}];
+// The insets within reach of the pointer, as wall x0, y0, x1, y1 (m), and how many there are.
+uniform vec4 uInset[${INSETS}];
+uniform int uInsets;
+// The inset a point of the wall is in, counted from 1, or 0 for none.
+int insetAt(vec2 p) {
+  for (int i = 0; i < ${INSETS}; i++) {
+    if (i >= uInsets) break;
+    vec4 r = uInset[i];
+    if (p.x >= r.x && p.x <= r.z && p.y >= r.y && p.y <= r.w) return i + 1;
+  }
+  return 0;
+}
+// How far a stone the pointer lifts has left its bed, from 0 to 1. Its bed shows bare by
+// as much, and its shadow is gone by the time it is fully up.
+float curlBare(float lift) { return smoothstep(0.03, 0.5, lift); }
 // How the pointer's recent path moves the stone seated at seat: its sideways shift and its
-// turn, both still to be scaled, and its lift as a share of the full curl. Each stone answers
-// the path as a damped spring of its own, so it rises under the hand, trails it, and rocks
-// back into the mortar once the hand has passed. A resting pointer holds the plain curl.
-bool pointerCurl(vec2 seat, float seed, out vec2 shift, out vec3 turn, out float lift) {
+// turn, both still to be scaled by radius, its lift as a share of the full curl, and the
+// radius of the curl it answers. Each stone answers the path as a damped spring of its own,
+// so it rises under the hand, trails it, and rocks back into the mortar once the hand has
+// passed. A resting pointer holds the plain curl. A stone set in an inset answers only the
+// stretch of the path that belongs to its inset, in a curl sized to the inset (insetRadius),
+// and any other stone only the stretch clear of every inset, so an inset moves on its own.
+bool pointerCurl(vec2 seat, float seed, out vec2 shift, out vec3 turn, out float lift, out float radius) {
   shift = vec2(0.0);
   turn = vec3(0.0);
   lift = 0.0;
+  radius = uPointer.w;
   if (uPointer.z <= 0.0 || distance(seat, uPointer.xy) >= uPointer.z) return false;
-  float radius = uPointer.w;
+  int inset = insetAt(seat);
+  if (inset > 0) {
+    vec4 r = uInset[inset - 1];
+    radius = min(radius, ${INSET_REACH.toFixed(3)} * min(r.z - r.x, r.w - r.y));
+  }
   float w0 = ${SPRING.omega.toFixed(3)} * (1.0 + ${SPRING.spread.toFixed(3)} * (2.0 * fract(seed * 71.3) - 1.0));
   float ed = exp(-${SPRING.zeta.toFixed(3)} * w0 * ${TRAIL_STEP});
   float wd = ${Math.sqrt(1 - SPRING.zeta ** 2).toFixed(4)} * w0 * ${TRAIL_STEP};
@@ -210,6 +239,7 @@ bool pointerCurl(vec2 seat, float seed, out vec2 shift, out vec3 turn, out float
     env *= ed;
     phase = vec2(phase.x * turnStep.x - phase.y * turnStep.y, phase.x * turnStep.y + phase.y * turnStep.x);
     vec4 s = uTrail[k];
+    if (int(s.w + 0.5) != inset) continue;
     vec2 delta = seat - s.xy;
     float d = length(delta);
     float q = clamp(1.0 - d / radius, 0.0, 1.0);
@@ -293,8 +323,9 @@ bool stoneHidden() {
 // flown in from another picture's stone along an arc toward the lens; then rocked into
 // the mortar by a damped spring (omega 36, zeta 0.4). Letters seat without overshoot.
 // Departure: popped out of the mortar and swept off along the exit angle, turning.
-// flight is the share of a flight done, and 1 for a stone that is not flying.
-void stonePose(out mat3 R, out vec3 off, out float flight) {
+// flight is the share of a flight done, and 1 for a stone that is not flying; bare is how far
+// the pointer has lifted it off its bed (curlBare).
+void stonePose(out mat3 R, out vec3 off, out float flight, out float bare) {
   float T = iA.z;
   float seed = iA.w;
   float fall = iF.w;
@@ -369,8 +400,10 @@ void stonePose(out mat3 R, out vec3 off, out float flight) {
   vec2 shift;
   vec3 turn;
   float lift;
-  if (uTime >= T && uTime < iG.x && pointerCurl(iA.xy, seed, shift, turn, lift)) {
-    float radius = uPointer.w;
+  float radius;
+  bare = 0.0;
+  if (uTime >= T && uTime < iG.x && pointerCurl(iA.xy, seed, shift, turn, lift, radius)) {
+    bare = curlBare(lift);
     off.xy += shift * radius * 0.12;
     // The rebound rocks the stone; the mortar keeps it from sinking more than half a millimetre.
     off.z += radius * 0.085 * max(lift, -0.02);
@@ -448,7 +481,8 @@ void main() {
   mat3 R;
   vec3 off;
   float flight;
-  stonePose(R, off, flight);
+  float bare;
+  stonePose(R, off, flight, bare);
   int k = int(aV.x + 0.5);
   int level = int(aV.y + 0.5);
   int face = int(aV.z + 0.5);
@@ -502,10 +536,14 @@ void main() {
   mat3 R;
   vec3 off;
   float flight;
-  stonePose(R, off, flight);
+  float bare;
+  stonePose(R, off, flight, bare);
   vec2 c[4] = vec2[4](iB.xy, iB.zw, iC.xy, iC.zw);
   float z = tv < 4 ? iE.x : 0.0;
-  gl_Position = uVP * vec4(R * vec3(c[tv & 3], z - 0.5 * iE.x) + off, 1.0);
+  // A stone the pointer lifts casts less shadow the higher it rises, and none once it is fully
+  // up: its caster shrinks round its middle. So no shade gathers round the hand, and the bed
+  // a stone leaves stays one plain colour.
+  gl_Position = uVP * vec4(R * vec3(c[tv & 3] * (1.0 - bare), z - 0.5 * iE.x) + off, 1.0);
 }
 `;
 
@@ -755,26 +793,29 @@ void layer(highp sampler2D inst, highp sampler2D own0, highp sampler2D own2, sam
     float T = seatT(inst, id);
     float U = liftU(inst, id);
     float seated = smoothstep(T - 0.01, T + 0.08, uTime) * (1.0 - smoothstep(U, U + 0.06, uTime));
-    // Mortar that a stone has been moved off is lit and shaded only by the stone above it,
-    // instead of the shadowed footprint the stone left in it.
+    // Mortar that a stone has been moved off loses the shadowed footprint the stone left in it.
     float moved = 0.0;
     vec4 seat = seatA(inst, id);
     vec2 shift;
     vec3 turn;
     float lift;
-    if (seated > 0.0 && pointerCurl(seat.xy, seat.w, shift, turn, lift)) moved = smoothstep(0.03, 0.5, lift) * seated;
+    float radius;
+    if (seated > 0.0 && pointerCurl(seat.xy, seat.w, shift, turn, lift, radius)) moved = curlBare(lift) * seated;
     moved = max(moved, risen(rise, settle, min(uTime, U), seat.w) * seated);
     float wet = smoothstep(T - wetT.x, T - wetT.x * 0.4, uTime);
     spread = uTime >= T - wetT.x;
     float dry = smoothstep(T + 0.3, T + wetT.y, uTime);
     sheen = wet * (1.0 - dry);
     // The lime spread ahead of a stone is plain. Once the stone is set, the grout pressed
-    // in round it is tinted to suit it, darker under dark glass, and the bed a stone is lifted
-    // off is a deeper shade of the same, so a lifted stone floats over its own colour.
+    // in round it is tinted to suit it, darker under dark glass.
     float set = smoothstep(T - 0.01, T + 0.12, uTime);
-    vec3 tint = mix(grout, mix(grout, stoneRgb(inst, id), 0.9), set) * mix(1.0, 0.5, moved);
+    vec3 tint = mix(grout, mix(grout, stoneRgb(inst, id), 0.9), set);
     vec3 bed = mix(tint * 0.62, tint, dry);
-    albedo = mix(coat, bed, wet);
+    // Wherever a stone has come off its bed, lifted by the hand or by a flow, or gone, the bed
+    // shows bare: the coat alone, one plain colour all over the wall, with no trace of the
+    // picture.
+    float bare = max(moved, set * smoothstep(U, U + 0.06, uTime));
+    albedo = mix(mix(coat, bed, wet), uCoat, bare);
     ao = 1.0 - seated * (1.0 - moved) * 0.5 * exp(-e / 0.4);
     alive = uTime < U + 0.05;
   }
@@ -1385,6 +1426,18 @@ export function createRenderer(gl, opts) {
     }
 
     const noTrail = new Float32Array(TRAIL * 4);
+    // The insets of the pictures in the frame being drawn, and the pointer as the stones read
+    // it: its trail, each point marked with the inset it belongs to, and the insets within reach.
+    let insets = [];
+    const marked = new Float32Array(TRAIL * 4), near = new Float32Array(INSETS * 4);
+    function setPointer(u, t) {
+      const pointer = opts.pointerAt?.(t);
+      const n = pointer ? insetsNear(pointer.head, insets, near) : 0;
+      gl.uniform4fv(u.uPointer, pointer?.head || [0, 0, 0, 1]);
+      gl.uniform4fv(u.uTrail, pointer ? markTrail(pointer.head, pointer.trail, near, n, marked) : noTrail);
+      gl.uniform4fv(u.uInset, near);
+      gl.uniform1i(u.uInsets, n);
+    }
     // The first stone at or past h, in a layer's rows or columns.
     function rowAt(y, h) {
       let lo = 0, hi = y.length;
@@ -1398,9 +1451,7 @@ export function createRenderer(gl, opts) {
       gl.useProgram(prog.p);
       gl.uniformMatrix4fv(prog.u.uVP, false, vp);
       gl.uniform1f(prog.u.uTime, t);
-      const pointer = opts.pointerAt?.(t);
-      gl.uniform4fv(prog.u.uPointer, pointer?.head || [0, 0, 0, 1]);
-      gl.uniform4fv(prog.u.uTrail, pointer?.trail || noTrail);
+      setPointer(prog.u, t);
       gl.activeTexture(gl.TEXTURE7);
       gl.bindTexture(gl.TEXTURE_2D, layer.gpu.inst);
       gl.uniform1i(prog.u.uInst, 7);
@@ -1543,9 +1594,7 @@ export function createRenderer(gl, opts) {
       const u = bedProg.u;
       gl.uniformMatrix4fv(u.uVP, false, C.vp);
       gl.uniform1f(u.uTime, t);
-      const pointer = opts.pointerAt?.(t);
-      gl.uniform4fv(u.uPointer, pointer?.head || [0, 0, 0, 1]);
-      gl.uniform4fv(u.uTrail, pointer?.trail || noTrail);
+      setPointer(u, t);
       gl.uniform3fv(u.uCoat, opts.coat);
       gl.uniform3fv(u.uSinopia, opts.sinopia);
       gl.bindVertexArray(bedVao);
@@ -1586,6 +1635,7 @@ export function createRenderer(gl, opts) {
     function render(t, subframes) {
       const n = Math.max(1, subframes | 0);
       const layers = opts.timeline.layersAt(t);
+      insets = wallInsets(layers);
       const look = opts.timeline.lookAt(t);
       gl.bindFramebuffer(gl.FRAMEBUFFER, acc.fb);
       gl.viewport(0, 0, W, H);
@@ -1662,6 +1712,63 @@ export function createRenderer(gl, opts) {
 
     return { render, addLayer, dispose };
   } catch (error) { dispose(); throw error; }
+}
+
+// The insets the pictures in layers set into the wall, each in its config as [x, y, w, h] in
+// the picture's millimetres, as wall rectangles [x0, y0, x1, y1] in metres.
+export function wallInsets(layers) {
+  const out = [];
+  for (const L of layers) {
+    for (const [x, y, w, h] of L.pic?.cfg?.insets || []) {
+      out.push([L.world[0] + x / 1000, L.world[1] - (y + h) / 1000, L.world[0] + (x + w) / 1000, L.world[1] - y / 1000]);
+    }
+  }
+  return out;
+}
+
+// The insets within reach of the pointer, those inside the cull circle of its head (x, y,
+// radius), nearest first and at most INSETS, written to out as x0, y0, x1, y1. Returns how
+// many.
+export function insetsNear(head, insets, out) {
+  if (!(head[2] > 0)) return 0;
+  const near = [];
+  for (const r of insets) {
+    const d = Math.hypot(Math.max(r[0] - head[0], 0, head[0] - r[2]), Math.max(r[1] - head[1], 0, head[1] - r[3]));
+    if (d < head[2]) near.push({ d, r });
+  }
+  near.sort((a, b) => a.d - b.d);
+  const n = Math.min(near.length, INSETS);
+  for (let i = 0; i < n; i++) out.set(near[i].r, i * 4);
+  return n;
+}
+
+// The radius of an inset's curl (m), given the wall's: a share of its shorter side, and never
+// more than the wall's own.
+export function insetRadius(x0, y0, x1, y1, wall) {
+  return Math.min(wall, INSET_REACH * Math.min(x1 - x0, y1 - y0));
+}
+
+// The pointer's trail, each point marked with the inset it belongs to, counted from 1, or 0
+// for none, written to out. A point belongs to the nearest of the n insets within its curl's
+// reach, so the hand moving among insets, over the narrow wall between them, still moves only
+// the nearest, and the wall answers only a hand clear of them all. head is the pointer's head:
+// x, y, cull radius, and the wall's curl radius.
+export function markTrail(head, trail, insets, n, out) {
+  out.set(trail);
+  for (let k = 0; k < TRAIL; k++) {
+    const x = trail[k * 4], y = trail[k * 4 + 1];
+    let at = 0, best = Infinity;
+    for (let i = 0; i < n; i++) {
+      const [x0, y0, x1, y1] = insets.subarray(i * 4, i * 4 + 4);
+      const d = Math.hypot(Math.max(x0 - x, 0, x - x1), Math.max(y0 - y, 0, y - y1));
+      if (d < best && d <= insetRadius(x0, y0, x1, y1, head[3])) {
+        at = i + 1;
+        best = d;
+      }
+    }
+    out[k * 4 + 3] = at;
+  }
+  return out;
 }
 
 // Directional light from azimuth and elevation in degrees (azimuth 0 is +x, 90 is +y up the wall).

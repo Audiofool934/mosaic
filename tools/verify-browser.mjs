@@ -386,6 +386,45 @@ try {
     }
     checks.push('a picture drawn by columns draws the same as when it is drawn whole, at rest and in flight');
 
+    // An inset moves on its own: with the pointer over it only its stones move, and with the
+    // pointer on the wall beside it, out of its reach but within the wall's, only the wall's.
+    // A stone lifted off its bed shows the bare coat under it, here a magenta no stone has.
+    {
+      const heron = await import('/examples/nocturne.js');
+      const c = document.createElement('canvas');
+      const m = await createMosaic(c, { project: { version: 1, seed: 42, fps: [60, 1], frames: 120, band: [320, 180], scenes: [
+        { id: 'heron', picture: { ...heron, config: { ...heron.config, insets: [[600, 250, 400, 400]] } }, start: 0, end: 2, at: [0, 0], in: { type: 'settled' } }
+      ] }, width: 320, height: 180, samples: 1, coat: '#ff00ff' });
+      // The whole picture in view, 5 mm to a pixel: the inset is x 120 to 200, y 50 to 130.
+      m.setView({ frame: { x: 800, y: 450, w: 1600 } });
+      const g = c.getContext('webgl2');
+      const pixelsWith = (pointer) => {
+        m.seek(1.5, pointer && { pointer: { ...pointer, active: true, strength: 1 } });
+        const p = new Uint8Array(320 * 180 * 4);
+        g.readPixels(0, 0, 320, 180, g.RGBA, g.UNSIGNED_BYTE, p);
+        return p;
+      };
+      const rest = pixelsWith(), over = pixelsWith({ x: 0.5, y: 0.5 }), beside = pixelsWith({ x: 1150 / 1600, y: 0.5 });
+      // Pixels clear of the inset's edge by 4 px, inside it or outside, and those that changed.
+      const count = (a, b, inside, test = (i) => a[i] !== b[i] || a[i + 1] !== b[i + 1] || a[i + 2] !== b[i + 2]) => {
+        let n = 0;
+        for (let i = 0; i < a.length; i += 4) {
+          const x = (i / 4) % 320, y = 179 - Math.floor(i / 4 / 320);
+          const within = x > 124 && x < 196 && y > 54 && y < 126, without = x < 116 || x > 204 || y < 46 || y > 134;
+          if ((inside ? within : without) && test(i)) n++;
+        }
+        return n;
+      };
+      const magenta = (p) => (i) => Math.min(p[i], p[i + 2]) > 30 && p[i + 1] < 0.3 * Math.min(p[i], p[i + 2]);
+      const moved = { overInside: count(rest, over, true), overOutside: count(rest, over, false), besideInside: count(rest, beside, true), besideOutside: count(rest, beside, false) };
+      require(moved.overInside > 300 && moved.overOutside === 0, `The pointer over the inset moved ${moved.overInside} pixels in it and ${moved.overOutside} outside it.`);
+      require(moved.besideOutside > 300 && moved.besideInside === 0, `The pointer beside the inset moved ${moved.besideOutside} pixels of the wall and ${moved.besideInside} in the inset.`);
+      const bare = count(over, over, true, magenta(over)), atRest = count(rest, rest, true, magenta(rest));
+      require(atRest === 0 && bare > 20, `The bare coat showed in ${atRest} pixels at rest and ${bare} under the lifted stones.`);
+      m.dispose();
+    }
+    checks.push('an inset moves on its own, and a stone lifted off its bed shows the bare coat');
+
     // The name set in front of a scene that flows into another: the stones flying past go
     // behind its letters, so every pixel bright with marble or gold at rest stays bright.
     const frontCanvas = document.createElement('canvas');

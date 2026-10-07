@@ -3,7 +3,8 @@
 //
 // pictures/<film>/<name>.js exports
 //   config     panel size (mm), camera, light, build order, glints, flicker, sinopia
-//              (the groups of regions it outlines, or false to lay onto bare plaster)
+//              (the groups of regions it outlines, or false to lay onto bare plaster), and
+//              insets ([x, y, w, h] in mm, squares whose stones answer the pointer on their own)
 //   regions()  every region with its stone size, course mode, material, and tray
 //   draw()     paints the picture; the same call paints labels and colour
 //   arrivals   figures that come in during the scene, tessellated apart
@@ -43,6 +44,8 @@ export async function loadPicture(source, baseURL = globalThis.location?.href) {
   if (!mod?.config?.panel || typeof mod.regions !== "function") throw new Error(`${path}: expected config, regions(), and draw().`);
   const cfg = mod.config;
   if (![cfg.panel.w, cfg.panel.h].every(v => Number.isFinite(v) && v > 0)) throw new Error(`${path}: invalid panel dimensions.`);
+  const isInset = (r) => Array.isArray(r) && r.length === 4 && r.every(Number.isFinite) && r[2] > 0 && r[3] > 0;
+  if (cfg.insets !== undefined && !(Array.isArray(cfg.insets) && cfg.insets.every(isInset))) throw new Error(`${path}: insets must be a list of [x, y, w, h] in millimetres.`);
   const res = cfg.res || 2;
   const W = cfg.panel.w;
   const H = cfg.panel.h;

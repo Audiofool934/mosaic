@@ -406,6 +406,9 @@ export function wallPicture(layout) {
       light: house.light,
       // Laid straight onto the bare plaster, like the name and the scenes.
       sinopia: false,
+      // Each material sample moves on its own under the pointer, inside its rim, and the
+      // wall round it stays still.
+      insets: samples.map((b) => [b.x, b.y, b.w, b.h]),
       // Laid from below the first screen while the first scene is laid, then on down the
       // page, all before the scenes begin to flow.
       build: {

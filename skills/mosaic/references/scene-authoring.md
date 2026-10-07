@@ -48,6 +48,8 @@ Use these helpers for shapes so colour and geometry stay aligned.
 Path2D supports custom curves.
 A region tray accepts hex colours or `{hex, mat, emit}` objects.
 Materials are `glass`, `gold`, `silver`, `marble`, `basalt`, `emit`, `limestone`, and `terracotta`.
+A config can set `insets`, a list of `[x, y, w, h]` squares in the picture's millimetres, such as samples on a board.
+Each inset moves on its own under the pointer, in a small curl sized to it, and the stones round it stay still while the pointer is over it or near it.
 The bundled `examples/materials.json` renders one sample of each, one per second.
 
 Courses support `contour`, `radial` with a centre, and `flow` with an angle; consult the original example before introducing a new layout.

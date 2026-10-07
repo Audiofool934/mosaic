@@ -110,7 +110,7 @@ The lamp glides and fades on its own, lights stones and mortar alike, and shines
 A flow can lift its stones on its own clock: with `rise: [from, to, mm]` the outgoing picture's stones lift off together before they fly, each a touch askew, with `arc` below 1 they fly closer to the wall, and with `settle: [from, to]` they land hovering and come down onto the wall together, so a flow played backward starts with a lift as well.
 A view that jumps half its width or more from one frame to the next has been cut, not slid, so the pointer's trail starts again from it.
 `fov` narrows the lens, so the camera stands back and looks straight at every part of a long, low panel, and `fringes: false` drops the lens's colour fringes.
-`coat` sets the colour of the bare bed, which shows wherever no stone has been set yet, or where stones have lifted off in a flow.
+`coat` sets the colour of the bare bed, which shows wherever no stone has been set yet, or a stone has come off its bed.
 
 The project page is such a wall.
 `home/wall.js` sets the name on the first screen, in white marble with its AI inlaid in gold, in front of four scenes from `examples/landscapes.js`: moonlit water, dunes at dusk, sweeping currents, and peaks at first light.
@@ -120,10 +120,11 @@ Where motion is welcome and the screen is tall enough, the page's screens stand 
 The wheel scrolls it sideways as it would scroll a page down, gliding there, and a trackpad's sideways stroke, the keys, touch, links, the bar, an address naming a part of the page, and the browser's back and forward all move along it.
 `wideFilm` in `home/wall.js` sets the whole wall in one film: the name, then the page's own blocks in front of each scene in turn as a panorama along all of the screens.
 The page marks its blocks with `data-wall`: an emblem is a picture or film the page shows, which the wall frames in gold; a frame is the gold alone, round openings the page fills; and a sample is a square of one material, its stones following a disc in a square field, set in the wall in a thin gold rim.
+Each sample is an inset of the wall, so the pointer moves only the stones of the sample it is on, in a small curl, and the rims and the wall round the samples stay still.
 The method's picture is the heron by the moon in four bands, each a stage of it, in one gold frame: the flat drawing, its courses, and its cut stones are images that `tools/media.mjs` renders from `examples/nocturne.js`, and the fourth band is live, an opening the wall fills with the rest of the same picture in its own stones, which lift under the pointer like the rest of the wall.
 The wall is laid outward from behind the name, or from the middle of the screen the page opens on, and then every few seconds one scene flows into the next on every screen at once, the stones of each screen flying within it, out from its middle, as the first screen's run out from behind the name.
 A flow waits while the page is being scrolled, so the wall never moves two ways at once, and a button pauses the scenes where they are.
-The bare bed between two scenes is a deep slate, so a flow never flashes pale.
+The bare bed is a deep slate, on the wide wall, in the column, and in the studio's frame, so a flow never flashes pale, and a stone the pointer lifts shows the same plain slate under it.
 The wall's canvas is a screen wide, with a margin either side, and follows the scroll, and each scene draws only the screens near the one in view.
 With motion reduced, or on a short screen, the page scrolls down as a column of rooms instead, each a screen high, which the browser settles on one at a time; it is laid over the first scene alone, which runs on below the first screen to a long wave, where a second picture painted from the page's layout takes over.
 `home/rooms.js` makes sure a deliberate turn of the wheel always reaches the next room in the column where a browser would snap a short scroll back, and leaves scrolling itself to the browser.
@@ -154,10 +155,15 @@ Each stone answers the pointer's last 0.6 seconds as a damped spring of its own:
 A resting pointer holds the plain curl, and drawing stops once the stones are still.
 On a page that follows its own scroll, each point of that trail is where the pointer was over the wall at that moment, through the view as it was then, so a wall scrolling under a still pointer ripples the stones as a moving pointer does and they settle into the same resting curl.
 Exports and replays have no such view, so their frames are unchanged.
-The mortar under a stone answers the same motion: as a stone moves off its bed, the shadowed footprint it left there gives way to a deeper shade of the stone's own grout, lit by the scene and shaded by the stone above it, so a lifted stone floats over its own colour.
+The mortar under a stone answers the same motion: as a stone moves off its bed, the shadowed footprint it left there gives way to the bare bed, the coat alone.
+The bare bed is one plain colour all over the wall, with no trace of the picture, wherever a stone has come off its bed: lifted by the pointer or by a flow, or gone.
+A picture's config can set `insets`, squares as `[x, y, w, h]` in its millimetres, which move on their own under the pointer.
+A stone in an inset answers only the stretch of the pointer's path that belongs to its inset, in a curl whose radius is three tenths of the inset's shorter side, and any other stone only the stretch clear of every inset.
+A point of the path belongs to the nearest inset within its curl's reach, so a hand moving among insets set close together moves only the nearest, and the wall round them stays still.
 `seek(time)` pauses live playback and clears unrecorded pointer input.
 An explicit pointer state or recorded trace can be passed when interaction is part of a reproducible render.
 Stone rendering and shadow rendering use the same movement transform.
+A stone the pointer lifts casts less shadow the higher it rises, and none once it is fully up, so no shade gathers round the hand; stones that rise and fly in a flow keep their shadows.
 
 Repeated renders can be compared exactly within a fixed browser and graphics environment.
 Different drivers can differ in rasterization and floating-point rounding, so a matching source hash is not a claim of universal pixel identity.

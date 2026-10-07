@@ -29,7 +29,8 @@ async function pixels(source, aspect) {
   }
 }
 
-export function createAtelier(figure, { reduceMotion, onLaid = () => {} }) {
+// coat: the colour of the bare bed, which shows under a stone the pointer lifts, as on the wall.
+export function createAtelier(figure, { reduceMotion, coat, onLaid = () => {} }) {
   const frame = figure.querySelector(".frame"), canvas = frame.querySelector("canvas"), note = figure.querySelector("#atelier-note");
   const materials = [...figure.querySelectorAll("[data-material]")], picks = [...figure.querySelectorAll(".pick")], file = figure.querySelector("#atelier-file");
   let source = picks.find((p) => p.getAttribute("aria-pressed") === "true")?.dataset.image;
@@ -52,7 +53,7 @@ export function createAtelier(figure, { reduceMotion, onLaid = () => {} }) {
         version: 1, title: "Your mosaic", seed: 7, fps: [60, 1], frames: 120, band: px,
         scenes: [{ id: "image", picture: { module: MODULE, export: "imagePicture", args: { image, options: { stoneSize: STONE, paletteSize: 14, material, maxDimension: READ } } }, start: 0, end: 2, in: { type: "settled" } }]
       };
-      const next = await createMosaic(canvas, { project, width: px[0], height: px[1], samples: 1, interactive: true, worker: true });
+      const next = await createMosaic(canvas, { project, width: px[0], height: px[1], samples: 1, interactive: true, worker: true, coat });
       if (mine !== token) return next.dispose();
       mosaic?.dispose();
       mosaic = next;

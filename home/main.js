@@ -269,9 +269,9 @@ async function build() {
   const film = wide ? wideFilm(layout, { module, laid, band: view.px, at: current }) : wallFilm(layout, { module, laid, band: view.px });
   let mosaic;
   try {
-    // The wide wall's bare bed is a deep slate, so a scene flowing into the next never flashes
-    // pale between the two.
-    mosaic = await createMosaic(canvas, { project: film.project, width: view.px[0], height: view.px[1], samples: 1, interactive: true, worker: true, ...(wide && { coat: COAT }), onProgress: (line) => log.push(line) });
+    // The wall's bare bed is a deep slate, so a scene flowing into the next never flashes pale
+    // between the two, and a stone lifted off its bed shows the same plain colour under it.
+    mosaic = await createMosaic(canvas, { project: film.project, width: view.px[0], height: view.px[1], samples: 1, interactive: true, worker: true, coat: COAT, onProgress: (line) => log.push(line) });
     if (!first) await mosaic.ready;
   } catch (error) {
     if (!first) canvas.remove();
@@ -340,7 +340,7 @@ function listen() {
 }
 const bar = createBar($("bar"), { reduceMotion, onReady: listen });
 const slabs = createSlabs(document);
-const atelier = createAtelier(document.querySelector(".atelier"), { reduceMotion, onLaid: listen });
+const atelier = createAtelier(document.querySelector(".atelier"), { reduceMotion, coat: COAT, onLaid: listen });
 watchRooms(".hero, .room, .page", { reduceMotion });
 
 // How many stones the page was cut into, and how long it took from the first.

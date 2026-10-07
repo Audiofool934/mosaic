@@ -44,6 +44,20 @@ The tests encode those fingerprints explicitly in little-endian order for portab
 Rendered appearance remains a separate verification step because shader arithmetic and browser graphics implementations can differ slightly in rounding.
 Source inspection and numerical tests do not establish cross-browser visual equivalence.
 
+## Gallery works
+
+The project page renders its own pictures and short film into `home/media/` from `examples/` with `tools/media.mjs`.
+The other works in its gallery are kept in `home/works/` as they were made, and are not rendered again by this engine.
+
+- `copper-leaf.webp` and `gold-crescent.webp` were made by Codex and by Claude Code, each given a copy of the skill.
+- `odyssey-lantern.mp4` is the 26-second master film of `piece/odyssey-lantern` at commit `ffd252e74e4aea362110d205fc36af09221a0f5e`, drawn by that piece's own single-file renderer and scaled to 1280 pixels wide.
+- `odyssey.mp4` is seconds 34 to 58.5 of the first film of `piece/odyssey-trailers`, rendered on 2026-10-03 at 3840 by 2160 with that piece's own copy of the engine, then cropped to its 2.39:1 picture band and scaled to 1280 pixels wide.
+  The piece's pictures, clock, and engine were first committed after that render, at `a7abe64f40e0cdd9f1564edc817618fb508c9e48`.
+- Each poster is a single frame of its film.
+
+Both Odyssey films draw every picture in code from Homer's poem, which is in the public domain.
+Neither excerpt carries an audio track.
+
 ## Distribution boundary
 
 Keep `LICENSE` and `THIRD_PARTY_NOTICES.md` with generated distributions that contain these implementations.

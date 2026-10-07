@@ -8,7 +8,7 @@ Continuous video stylization is outside the current scope.
 
 - `engine/` contains the rendering and scene code shared by the studio and exports.
 - `examples/` contains original scene modules and project manifests.
-- `index.html` and `home/` contain the project page; `home/media/` is rendered by `tools/media.mjs`.
+- `index.html` and `home/` contain the project page; `home/media/` is rendered by `tools/media.mjs`, and `home/works/` holds gallery works made elsewhere, with their sources in `docs/provenance.md`.
 - `site/` contains the interactive studio.
 - `tools/` contains local serving, capture, and command-line tools.
 - `skills/mosaic/` contains portable instructions and supporting resources.

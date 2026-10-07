@@ -127,7 +127,8 @@ npm run build
 ```
 
 The project page is itself a live wall, cut in the visitor's browser around the page's own layout.
-Its few pictures, the method plate, the film, the share image, and the still shown without WebGL2, are rendered from `examples/` by the same engine.
+Its few pictures, the method plate, the short film, the share image, and the still shown without WebGL2, are rendered from `examples/` by the same engine.
+The gallery's other works, in `home/works/`, were made by agents with the skill or in the sketchbook the engine came from, and [provenance](docs/provenance.md#gallery-works) records each source.
 Run `npm run media` after a visual change to render them again; it needs the same Chromium and FFmpeg as capture.
 
 Builds copy the canonical source rather than maintaining a second renderer.

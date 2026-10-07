@@ -62,8 +62,5 @@ A wide picture can set `columns` in its config, a width in millimetres, so each 
 For a control or plaque set in stone, `createMosaic(canvas, { lamp: { height, power, cone, color } })` lets the page hold a lamp over it with `setLamp({ x, y })` and `setLamp({ active: false })`, a light cone that marks what the pointer is on without moving any stones; exports never show it.
 `fov`, in degrees, narrows the lens for a long, low panel, so metal and glass mirror the same light from end to end, and `fringes: false` drops the lens's colour fringes.
 `coat` sets the colour of the bare bed under stones not yet set or lifted off in a flow; a dark coat keeps a page that flows between screens from flashing pale between them.
-`createMosaic(canvas, { transparent: true })` makes a see-through wall, clear wherever no picture has a stone's place, for a canvas laid over other content.
-`setHidden(id)` takes a scene's stones off the wall and leaves their bed bare, so a page can draw the same stones flying on another canvas; `setHidden(id, false)` puts them back.
-`setGust(id, { at, wind, away })` blows a scene's stones off downwind as `at` goes from 0 to 1, `wind` being 1 to the right or -1 to the left, or with `away: false` brings them in on the wind and sets them down, so a page can replace one picture with another in place; `setGust(id, null)` ends it.
 A page that turns between pictures with gestures can move one film's clock from the hand with `setTime(t)`, which keeps live input, easing it toward where the hand is, so the stones follow it both ways and a turn can be rewound.
 The project page in the mosAIc source repository, `home/main.js` and `home/wall.js`, is a complete example: the page measures its own layout and has a picture painted around it.

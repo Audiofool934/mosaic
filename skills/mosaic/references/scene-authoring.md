@@ -73,7 +73,6 @@ A scene placed with `at` can flow in from the scene before it and keeps its plac
 A flow's wave runs out from `"focus"`, a point in the incoming picture's millimetres or a list of points, from the nearest, over `"reach"` millimetres.
 With `"columns"`, a width in millimetres, a flow pairs the stones within each column of the wall, so a wall of screens side by side flows on every screen at once, each screen from its own middle; give the pictures `columns` of the same width in their config, so each frame draws only the screens in view.
 `"front": true` keeps a scene's stones and mortar in front of every stone flying past it, so a name or emblem stays clear while the pictures behind it flow; give the pictures behind it a hole in its shape.
-`"repeat": n` draws a scene placed with `at` n times along the wall, edge to edge to its right, with the same stones in every copy, so a long wall of one pattern is cut once; draw it so its right edge runs on into its left, and neither set it in front nor flow into or out of it.
 The bundled `examples/inscription.json` sets the mosAIc name in front of four scenes that flow in turn, and `examples/inscription-tall.json` is the same film on a tall screen.
 A scene's `picture` can be a module path, or `{ "module": "./scenes.js", "export": "scene", "args": { ... } }`, a function in a local module that returns a picture from plain arguments, so one module can draw a family of pictures.
 For a first film, inspect the timeline implementation and adapt a small two-scene test before scaling to a long sequence.

@@ -16,14 +16,8 @@ import { clamp, halton, invert, lookAt, mat4Mul, ortho, perspective, v3norm, xfo
 //   I: source linear rgb, source emission
 //   J: ignition time, extinction time, glint amplitude, flags * 10 + exit duration
 export const TEXELS = 10;
-// A picture that does not rise, flights of the usual height from the wall, and no gust.
-const NO_RISE = [0, 0, 0, 0], NO_FLY = [1, 0], NO_GUST = [0, 0, 0, 0];
-// A gust's front crosses the view over this share of the gust, each stone setting out up to
-// JITTER of it early or late, and each takes MOVE of it to go out of the view, or come in.
-const GUST_FRONT = 0.45, GUST_JITTER = 0.12, GUST_MOVE = 0.43;
-// How far past the view, in metres, a repeated picture's copy is still drawn, for the stones
-// and the shadows that reach into it.
-const REACH = 0.1;
+// A picture that does not rise, and flights of the usual height from the wall.
+const NO_RISE = [0, 0, 0, 0], NO_FLY = [1, 0];
 export const PER_ROW = 256;
 export const FLAG_TYPE = 1;
 export const POINTS = 4;
@@ -187,29 +181,6 @@ float risen(vec4 rise, vec4 settle, float t, float seed) {
 }
 `;
 
-// A gust: a wind whose front crosses the view from upwind, blowing each seated stone of a
-// picture off downwind as it reaches it, or bringing each one in on the wind and setting it
-// down. A gust is its progress from 0 to 1, the wind's way along x, and 1 to blow the stones
-// off, -1 to bring them in, or 0 for none; the sweep is the view's span of x on the wall.
-const GUST = `
-uniform vec2 uSweep;
-// How far across the view from upwind x lies, from 0 to 1.
-float downwind(vec4 gust, float x) {
-  float s = gust.y > 0.0 ? x - uSweep.x : uSweep.y - x;
-  return clamp(s / max(uSweep.y - uSweep.x, 1e-4), 0.0, 1.0);
-}
-// How far a stone seated at x has gone from its seat, from 0, seated, to 1, out of the view.
-// One blown off goes from 0 to 1, setting out as the front reaches it from upwind; one brought
-// in goes from 1 to 0, and the far end is laid first, so the first stones in cross the view.
-float gusted(vec4 gust, float x, float seed) {
-  if (gust.z == 0.0) return 0.0;
-  float s = downwind(gust, x);
-  float from = (gust.z > 0.0 ? s : 1.0 - s) * ${GUST_FRONT.toFixed(3)} + fract(seed * 5.77) * ${GUST_JITTER.toFixed(3)};
-  float p = clamp((gust.x - from) / ${GUST_MOVE.toFixed(3)}, 0.0, 1.0);
-  return gust.z > 0.0 ? p : 1.0 - p;
-}
-`;
-
 const POINTER_CURL = `
 // Cull centre xy and cull radius of the trail, and the curl radius (m); no input culls everything.
 uniform vec4 uPointer;
@@ -268,12 +239,7 @@ uniform float uFlicker;
 uniform vec4 uRise;
 uniform vec4 uSettle;
 uniform vec2 uFly;
-// Where along the wall this copy of a repeated picture lies from the first, in metres, and
-// the gust over the picture.
-uniform vec2 uShift;
-uniform vec4 uGust;
 ${RISE}
-${GUST}
 ${POINTER_CURL}
 vec4 iA;
 vec4 iB;
@@ -297,8 +263,6 @@ void fetchStone(uint id) {
   iH = texelFetch(uInst, b + ivec2(7, 0), 0);
   iI = texelFetch(uInst, b + ivec2(8, 0), 0);
   iJ = texelFetch(uInst, b + ivec2(9, 0), 0);
-  iA.xy += uShift;
-  iH.xy += uShift;
 }
 mat3 rotAxis(vec3 a, float ang) {
   float c = cos(ang);
@@ -315,10 +279,8 @@ bool stoneHidden() {
   float appear = flies() ? iH.z : iA.z - iF.w;
   if (uTime < appear) return true;
   if (uTime > iG.x + exitDur()) return true;
-  bool seated = uTime >= iA.z && uTime < iG.x;
-  if (seated && gusted(uGust, iA.x, iA.w) >= 1.0) return true;
   // A stone that sits on its own seat, or falls onto it, can be culled off screen.
-  if (uTime < iG.x && !(flies() && uTime < iA.z) && uGust.z == 0.0) {
+  if (uTime < iG.x && !(flies() && uTime < iA.z)) {
     vec4 cc = uVP * vec4(iA.xy, 0.0, 1.0);
     if (cc.w > 0.0) {
       float m = cc.w * 1.25 + 0.05;
@@ -403,21 +365,11 @@ void stonePose(out mat3 R, out vec3 off, out float flight) {
     off.xy += d * (v * tt + 2.6 * v * tt * tt);
     R = rotAxis(axis, (spin == 0.0 ? 1.2 : spin) * (tt * 9.0 + tt * tt * 14.0)) * R;
   }
-  // A gust blows a seated stone off downwind, rising and tumbling as it goes, or brings it
-  // in the same way, slowing into its seat.
-  float g = uTime >= T && uTime < iG.x ? gusted(uGust, iA.x, seed) : 0.0;
-  if (g > 0.0) {
-    float s = downwind(uGust, iA.x), span = uSweep.y - uSweep.x, gg = g * g;
-    off.x += uGust.y * (uGust.z > 0.0 ? 1.04 - s : -(s + 0.04)) * span * gg;
-    off.y += (h2 - 0.5) * 0.3 * span * gg;
-    off.z += 0.05 * smoothstep(0.0, 0.3, g) + 0.06 * gg;
-    R = rotAxis(axis, (spin == 0.0 ? 1.0 : spin) * 7.0 * gg) * R;
-  }
   // A bounded curl around the pointer. The shadow pass shares this pose.
   vec2 shift;
   vec3 turn;
   float lift;
-  if (g == 0.0 && uTime >= T && uTime < iG.x && pointerCurl(iA.xy, seed, shift, turn, lift)) {
+  if (uTime >= T && uTime < iG.x && pointerCurl(iA.xy, seed, shift, turn, lift)) {
     float radius = uPointer.w;
     off.xy += shift * radius * 0.12;
     // The rebound rocks the stone; the mortar keeps it from sinking more than half a millimetre.
@@ -703,8 +655,6 @@ uniform float uTime;
 uniform highp sampler2D uInstB;
 uniform highp sampler2D uOwnB;
 uniform vec4 uPanelB;
-uniform vec4 uGustB;
-${GUST}
 out vec4 o;
 void main() {
   vec2 uv = vec2((vP.x - uPanelB.x) * 1000.0, (uPanelB.y - vP.y) * 1000.0) / uPanelB.zw;
@@ -713,9 +663,8 @@ void main() {
   int id = int(ow.r * 255.0 + 0.5) + 256 * int(ow.g * 255.0 + 0.5);
   if (id >= 65535) discard;
   ivec2 at = ivec2((id % ${PER_ROW}) * ${TEXELS}, id / ${PER_ROW});
-  vec4 a = texelFetch(uInstB, at, 0);
-  float T = a.z, U = texelFetch(uInstB, at + ivec2(6, 0), 0).x;
-  if (uTime < T || uTime >= U || gusted(uGustB, a.x, a.w) > 0.0) discard;
+  float T = texelFetch(uInstB, at, 0).z, U = texelFetch(uInstB, at + ivec2(6, 0), 0).x;
+  if (uTime < T || uTime >= U) discard;
   o = vec4(0.0);
   gl_FragDepth = 1.0;
 }
@@ -743,17 +692,10 @@ uniform float uTime;
 uniform int uHasA;
 uniform int uOver;
 uniform int uFront;
-uniform int uClear;
 uniform vec4 uRiseA;
 uniform vec4 uRiseB;
 uniform vec4 uSettleA;
 uniform vec4 uSettleB;
-uniform int uGoneA;
-uniform int uGoneB;
-uniform vec4 uGustA;
-uniform vec4 uGustB;
-uniform float uRepeatA;
-uniform float uRepeatB;
 uniform highp sampler2D uInstA;
 uniform highp sampler2D uOwnA;
 uniform highp sampler2D uOwn2A;
@@ -773,7 +715,6 @@ uniform vec3 uSinopia;
 out vec4 o;
 ${GLSL_COMMON}
 ${RISE}
-${GUST}
 ${POINTER_CURL}
 vec4 seatA(highp sampler2D inst, int id) { return texelFetch(inst, ivec2((id % ${PER_ROW}) * ${TEXELS}, id / ${PER_ROW}), 0); }
 float seatT(highp sampler2D inst, int id) { return texelFetch(inst, ivec2((id % ${PER_ROW}) * ${TEXELS}, id / ${PER_ROW}), 0).z; }
@@ -782,19 +723,11 @@ vec3 stoneRgb(highp sampler2D inst, int id) { return texelFetch(inst, ivec2((id 
 // mm coordinates of this point on a panel.
 vec2 panelMM(vec4 pan) { return vec2((vP.x - pan.x) * 1000.0, (pan.y - vP.y) * 1000.0); }
 // One picture's mortar at this point. alive is true while a stone of this picture
-// still sits here, which is what decides whose mortar shows during a re-lay. A picture that
-// repeats along the wall lays the same mortar in each copy; copy is how far along the wall
-// this one lies from the first, in millimetres.
-void layer(highp sampler2D inst, highp sampler2D own0, highp sampler2D own2, sampler2D sinTex, vec4 pan, vec3 grout, vec2 wetT, vec4 rise, vec4 settle, bool gone,
-           vec4 gust, float repeat, out vec3 albedo, out float ao, out float sheen, out bool alive, out bool owned, out bool spread, out float copy) {
+// still sits here, which is what decides whose mortar shows during a re-lay.
+void layer(highp sampler2D inst, highp sampler2D own0, highp sampler2D own2, sampler2D sinTex, vec4 pan, vec3 grout, vec2 wetT, vec4 rise, vec4 settle,
+           out vec3 albedo, out float ao, out float sheen, out bool alive, out bool owned, out bool spread) {
   vec2 mm = panelMM(pan);
   vec2 uv = mm / pan.zw;
-  copy = 0.0;
-  if (repeat > 1.0 && uv.x >= 1.0 && uv.x < repeat) {
-    float k = floor(uv.x);
-    uv.x -= k;
-    copy = k * pan.z;
-  }
   albedo = uCoat;
   ao = 1.0;
   sheen = 0.0;
@@ -826,11 +759,6 @@ void layer(highp sampler2D inst, highp sampler2D own0, highp sampler2D own2, sam
     // instead of the shadowed footprint the stone left in it.
     float moved = 0.0;
     vec4 seat = seatA(inst, id);
-    seat.x += copy / 1000.0;
-    // Mortar a gust has blown the stone off, or not yet brought it to, is left to whatever
-    // lies under it.
-    bool blown = seated > 0.0 && gusted(gust, seat.x, seat.w) > 0.0;
-    if (blown) seated = 0.0;
     vec2 shift;
     vec3 turn;
     float lift;
@@ -842,15 +770,13 @@ void layer(highp sampler2D inst, highp sampler2D own0, highp sampler2D own2, sam
     sheen = wet * (1.0 - dry);
     // The lime spread ahead of a stone is plain. Once the stone is set, the grout pressed
     // in round it is tinted to suit it, darker under dark glass, and the bed a stone is lifted
-    // off is a deeper shade of the same, so a lifted stone floats over its own colour. Where
-    // the stones have been taken away altogether the bed is bare grout, with the print of each
-    // stone pressed in it.
+    // off is a deeper shade of the same, so a lifted stone floats over its own colour.
     float set = smoothstep(T - 0.01, T + 0.12, uTime);
-    vec3 tint = gone ? grout : mix(grout, mix(grout, stoneRgb(inst, id), 0.9), set) * mix(1.0, 0.5, moved);
+    vec3 tint = mix(grout, mix(grout, stoneRgb(inst, id), 0.9), set) * mix(1.0, 0.5, moved);
     vec3 bed = mix(tint * 0.62, tint, dry);
     albedo = mix(coat, bed, wet);
-    ao = 1.0 - (gone ? seated : seated * (1.0 - moved)) * 0.5 * exp(-e / 0.4);
-    alive = uTime < U + 0.05 && !blown;
+    ao = 1.0 - seated * (1.0 - moved) * 0.5 * exp(-e / 0.4);
+    alive = uTime < U + 0.05;
   }
 }
 void main() {
@@ -861,33 +787,27 @@ void main() {
   bool alive;
   bool owned;
   bool spread;
-  float copy;
-  layer(uInstB, uOwnB, uOwn2B, uSinB, uPanelB, uGroutB, uWetB, uRiseB, uSettleB, uGoneB == 1, uGustB, uRepeatB, albedo, ao, sheen, alive, owned, spread, copy);
+  layer(uInstB, uOwnB, uOwn2B, uSinB, uPanelB, uGroutB, uWetB, uRiseB, uSettleB, albedo, ao, sheen, alive, owned, spread);
   // A picture set in front lays its mortar only where its lime is spread and its stone has not
   // lifted off again.
   if (uFront == 1 && !(owned && alive && spread)) discard;
   bool alive2 = false;
-  bool owned2 = false;
   if (uHasA == 1) {
     vec3 a2;
     float ao2;
     float sh2;
+    bool owned2;
     bool spread2;
-    float copy2;
-    layer(uInstA, uOwnA, uOwn2A, uSinA, uPanelA, uGroutA, uWetA, uRiseA, uSettleA, uGoneA == 1, uGustA, uRepeatA, a2, ao2, sh2, alive2, owned2, spread2, copy2);
+    layer(uInstA, uOwnA, uOwn2A, uSinA, uPanelA, uGroutA, uWetA, uRiseA, uSettleA, a2, ao2, sh2, alive2, owned2, spread2);
     if (alive2) {
       albedo = a2;
       ao = ao2;
       sheen = sh2;
-      copy = copy2;
     }
   }
   // A later pair leaves the mortar of the pairs before it wherever it has no stone.
   if (uOver == 1 && !owned && !alive2) discard;
-  // A see-through wall has no bed where no picture has a stone's place.
-  if (uClear == 1 && !owned && !owned2) discard;
-  // The mortar's grain, the same in every copy of a repeated picture.
-  vec2 mm = vP.xy * 1000.0 - vec2(copy, 0.0);
+  vec2 mm = vP.xy * 1000.0;
   float fp = max(length(fwidth(mm)), 1e-4);
   float f1 = 1.0 - smoothstep(0.06, 0.25, fp);
   float f2 = 1.0 - smoothstep(0.6, 2.5, fp);
@@ -924,10 +844,7 @@ in vec2 vUv;
 uniform sampler2D uSrc;
 uniform float uW;
 out vec4 o;
-void main() {
-  vec4 c = texture(uSrc, vUv);
-  o = vec4(c.rgb * uW, c.a * uW);
-}
+void main() { o = vec4(texture(uSrc, vUv).rgb * uW, uW); }
 `;
 
 const LENS_GLSL = `
@@ -1055,7 +972,6 @@ uniform float uFade;
 uniform float uFrame;
 uniform float uAspect;
 uniform float uCA;
-uniform int uClear;
 ${LENS_GLSL}
 out vec4 o;
 vec3 agxContrast(vec3 x) {
@@ -1098,11 +1014,6 @@ void main() {
   vec2 d0 = vUv - 0.5;
   vec2 shift = d0 * dot(d0, d0) * uCA;
   vec3 c = vec3(lensAt(vUv + shift).r, lensAt(vUv).g, lensAt(vUv - shift).b);
-  float a = 1.0;
-  if (uClear == 1) {
-    a = texture(uAcc, vUv).a;
-    c /= max(a, 1e-4);
-  }
   vec2 d = d0 * vec2(1.0, 1.0 / uAspect) * 1.9;
   float vig = 1.0 / (1.0 + dot(d, d) * 0.3);
   c *= uExposure * vig * vig;
@@ -1110,8 +1021,7 @@ void main() {
   float n = fract(52.9829189 * fract(dot(gl_FragCoord.xy + uFrame * vec2(5.588238, 3.17), vec2(0.06711056, 0.00583715))));
   float n2 = fract(n * 7.13 + 0.37);
   c += (n + n2 - 1.0) / 255.0;
-  if (uClear == 1) o = vec4(clamp(c, 0.0, 1.0) * a, a);
-  else o = vec4(clamp(c, 0.0, 1.0), 1.0);
+  o = vec4(clamp(c, 0.0, 1.0), 1.0);
 }
 `;
 
@@ -1457,12 +1367,10 @@ export function createRenderer(gl, opts) {
       while (lo < hi) { const mid = (lo + hi) >> 1; if (y[mid] < h) lo = mid + 1; else hi = mid; }
       return lo;
     }
-    // fp: the wall in view, [x0, x1, y0, y1]; stones listed by row outside its heights are
-    // skipped, and a repeated picture is drawn once for each copy in reach of it. slope: how
-    // far the key light throws a shadow sideways for each metre a stone rises, when drawing
-    // shadows.
+    // fp: the wall in view, [x0, x1, y0, y1]; stones listed by row or column outside it are
+    // skipped. slope: how far the key light throws a shadow sideways for each metre a stone
+    // rises, when drawing shadows.
     function drawStones(prog, layer, geo, vp, t, fp, slope = 0) {
-      if (layer.hidden) return;
       gl.useProgram(prog.p);
       gl.uniformMatrix4fv(prog.u.uVP, false, vp);
       gl.uniform1f(prog.u.uTime, t);
@@ -1478,8 +1386,6 @@ export function createRenderer(gl, opts) {
       gl.uniform4fv(prog.u.uRise, layer.rise || NO_RISE);
       gl.uniform4fv(prog.u.uSettle, layer.settle || NO_RISE);
       gl.uniform2fv(prog.u.uFly, layer.fly || NO_FLY);
-      gl.uniform4fv(prog.u.uGust, layer.gust || NO_GUST);
-      gl.uniform2f(prog.u.uSweep, fp[0], fp[1]);
       gl.bindVertexArray(geo.vao);
       const R = layer.gpu.rows, C = layer.gpu.columns;
       // The stretches of the layer's list to draw, as [first, last) pairs.
@@ -1495,15 +1401,9 @@ export function createRenderer(gl, opts) {
         if (C.roam.length) spans.push(n + (all ? 0 : rowAt(C.roam, fp[0] - reach)), n + (all ? C.roam.length : rowAt(C.roam, fp[1] + reach)));
       } else if (R) spans.push(rowAt(R.y, fp[2] - R.reach), rowAt(R.y, fp[3] + R.reach));
       else spans.push(0, layer.count);
-      const copies = layer.scene.repeat || 1, w = layer.W / 1000;
-      const k0 = copies > 1 ? Math.max(0, Math.floor((fp[0] - REACH - layer.world[0]) / w)) : 0;
-      const k1 = copies > 1 ? Math.min(copies - 1, Math.floor((fp[1] + REACH - layer.world[0]) / w)) : 0;
-      for (let k = k0; k <= k1; k++) {
-        gl.uniform2f(prog.u.uShift, k * w, 0);
-        for (let i = 0; i < spans.length; i += 2) {
-          const [first, last] = [spans[i], spans[i + 1]];
-          if (last > first) gl.drawElements(gl.TRIANGLES, (last - first) * geo.per, gl.UNSIGNED_INT, first * geo.per * 4);
-        }
+      for (let i = 0; i < spans.length; i += 2) {
+        const [first, last] = [spans[i], spans[i + 1]];
+        if (last > first) gl.drawElements(gl.TRIANGLES, (last - first) * geo.per, gl.UNSIGNED_INT, first * geo.per * 4);
       }
     }
 
@@ -1567,9 +1467,6 @@ export function createRenderer(gl, opts) {
       gl.uniform2fv(u["uWet" + suffix], layer.wet);
       if (u["uRise" + suffix]) gl.uniform4fv(u["uRise" + suffix], layer.rise || NO_RISE);
       if (u["uSettle" + suffix]) gl.uniform4fv(u["uSettle" + suffix], layer.settle || NO_RISE);
-      if (u["uGone" + suffix]) gl.uniform1i(u["uGone" + suffix], layer.hidden ? 1 : 0);
-      if (u["uGust" + suffix]) gl.uniform4fv(u["uGust" + suffix], layer.gust || NO_GUST);
-      if (u["uRepeat" + suffix]) gl.uniform1f(u["uRepeat" + suffix], layer.scene.repeat || 1);
     }
 
     function renderScene(t, jitter, L, layers, lensOut) {
@@ -1580,8 +1477,7 @@ export function createRenderer(gl, opts) {
       gl.enable(gl.DEPTH_TEST);
       gl.depthFunc(gl.LEQUAL);
       gl.disable(gl.BLEND);
-      if (opts.transparent) gl.clearColor(0, 0, 0, 0);
-      else gl.clearColor(0.004, 0.004, 0.005, 1);
+      gl.clearColor(0.004, 0.004, 0.005, 1);
       gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
       // Stones first, so the mortar they cover is never shaded.
       gl.enable(gl.CULL_FACE);
@@ -1603,10 +1499,8 @@ export function createRenderer(gl, opts) {
         gl.useProgram(clearProg.p);
         gl.uniformMatrix4fv(clearProg.u.uVP, false, C.vp);
         gl.uniform1f(clearProg.u.uTime, t);
-        gl.uniform2f(clearProg.u.uSweep, fp[0], fp[1]);
         gl.bindVertexArray(bedVao);
         for (const layer of front) {
-          if (layer.hidden) continue;
           setBed(clearProg.u, "B", layer, 8);
           gl.drawArrays(gl.TRIANGLES, 0, 6);
         }
@@ -1630,8 +1524,6 @@ export function createRenderer(gl, opts) {
       gl.uniform4fv(u.uTrail, pointer?.trail || noTrail);
       gl.uniform3fv(u.uCoat, opts.coat);
       gl.uniform3fv(u.uSinopia, opts.sinopia);
-      gl.uniform1i(u.uClear, opts.transparent ? 1 : 0);
-      gl.uniform2f(u.uSweep, fp[0], fp[1]);
       gl.bindVertexArray(bedVao);
       // The pictures in pairs, the newest two last, and then each picture set in front on its
       // own, shaded only by its own stones.
@@ -1695,7 +1587,7 @@ export function createRenderer(gl, opts) {
           gl.disable(gl.BLEND);
         }
       }
-      const useDof = !opts.transparent && lens.k > 0 && lens.k * (1 / (lens.focus * 0.85) - 1 / lens.focus) > 1.0;
+      const useDof = lens.k > 0 && lens.k * (1 / (lens.focus * 0.85) - 1 / lens.focus) > 1.0;
       const lensV = [lens.near || 0.01, lens.far || 1, lens.focus || 1, lens.k || 0];
       gl.disable(gl.DEPTH_TEST);
       if (useDof) {
@@ -1740,8 +1632,7 @@ export function createRenderer(gl, opts) {
       gl.uniform1f(finalProg.u.uFade, look.fade);
       gl.uniform1f(finalProg.u.uFrame, Math.round(t * 24));
       gl.uniform1f(finalProg.u.uAspect, W / H);
-      gl.uniform1f(finalProg.u.uCA, opts.transparent ? 0 : look.ca === undefined ? 0.0015 : look.ca);
-      gl.uniform1i(finalProg.u.uClear, opts.transparent ? 1 : 0);
+      gl.uniform1f(finalProg.u.uCA, look.ca === undefined ? 0.0015 : look.ca);
       quad(finalProg);
     }
 

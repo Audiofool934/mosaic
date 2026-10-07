@@ -95,25 +95,6 @@ test('a picture is set in front of the others only when asked, plainly', () => {
     assert.throws(() => validateProject(q), /front must be/);
   }
 });
-test('a picture placed on a wall repeats along it in whole copies, never set in front or flowing in', () => {
-  const p = project();
-  p.scenes[0].at = [0, 0];
-  p.scenes[0].repeat = 4;
-  assert.doesNotThrow(() => validateProject(p));
-  for (const repeat of [0, 1.5, 65, '2']) {
-    const q = structuredClone(p);
-    q.scenes[0].repeat = repeat;
-    assert.throws(() => validateProject(q), /repeat must be/);
-  }
-  for (const change of [(s) => delete s.at, (s) => (s.front = true)]) {
-    const q = structuredClone(p);
-    change(q.scenes[0]);
-    assert.throws(() => validateProject(q), /can repeat/);
-  }
-  const q = structuredClone(p);
-  q.scenes.push({ id: 'next', picture: './two.js', start: 1, end: 8, in: { type: 'flow', launch: [2, 3], land: [3, 4] } });
-  assert.throws(() => validateProject(q), /cannot flow in from one that repeats/);
-});
 test('a built film crosses to the page as plain data and comes back whole', () => {
   const cfg = { camera: { keys: [[0, 50, 40, 100], [1, 60, 40, 90]] }, light: { exposure: 0.5 } };
   const scene = { id: 'one', index: 0, start: 0, end: 1, at: [0, 0], picture: { module: './one.js' }, in: { type: 'laid' } };
@@ -168,29 +149,6 @@ test('a sliding hand sets off stones near its path like a pour, at once and more
   for (let f = 1; f <= 60; f++) assert.deepEqual(quiet({ layers, touch: null, time: f / 30, view, clock: f / 60 }), []);
   assert.deepEqual(quiet({ layers, touch: { from: [0.5, -0.2], at: [0.5007, -0.2], reach: 0.0045, moved: 0.0007, dt: 1 / 60, speed: 0.04 }, time: 3, view, clock: 2 }), []);
   assert.deepEqual(slide(quiet, 0.6, 60, -0.6), []);
-});
-test('a repeated picture is heard in every copy, where its stones lie there', () => {
-  // A strip of 9 mm stones 1.6 m long, repeated twice more along the wall.
-  const STRIDE = TEXELS * 4, count = 160, data = new Float32Array(count * STRIDE);
-  for (let i = 0; i < count; i++) {
-    const o = i * STRIDE, h = 0.0045;
-    data[o] = i * 0.01 + 0.005; data[o + 1] = -0.2; data[o + 2] = 0;
-    [[-h, -h], [h, -h], [h, h], [-h, h]].forEach(([x, y], k) => { data[o + 4 + k * 2] = x; data[o + 5 + k * 2] = y; });
-    data[o + 15] = MATERIALS.glass; data[o + 24] = Infinity;
-  }
-  const heardAt = (repeat) => {
-    const hear = createContacts(), layers = [{ data, count, W: 1600, world: [0, 0], scene: { repeat } }], view = { x: 2.4, y: -0.2, w: 1.6, h: 0.4 }, heard = [];
-    for (let f = 0; f < 30; f++) {
-      const from = [2.0 + f * 0.01, -0.2], at = [2.01 + f * 0.01, -0.2];
-      heard.push(...hear({ layers, touch: { from, at, reach: 0.0045, moved: 0.01 / 1.6, dt: 1 / 60, speed: 0.4 }, time: 3, view, clock: 10 + f / 60 }));
-    }
-    return heard;
-  };
-  assert.deepEqual(heardAt(1), []);
-  const heard = heardAt(3);
-  assert.ok(heard.length > 3, `${heard.length} stones heard in the second copy`);
-  // Each where it lies in the view: the slide runs from a quarter of the way across.
-  assert.ok(heard.every((e) => e.x > 0.24 && e.x < 0.45), heard.map((e) => e.x.toFixed(3)).join(' '));
 });
 test('each material sounds as it was measured: metal lowest and longest, fired clay the dullest stone', () => {
   const v = Object.fromEntries(['glass', 'emit', 'marble', 'basalt', 'limestone', 'terracotta', 'silver', 'gold'].map(m => [m, voiceOf(m)]));

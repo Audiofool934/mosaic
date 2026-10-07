@@ -132,11 +132,7 @@ export async function createMosaic(canvas, options = {}) {
   const lampLook = options.lamp ? { height: 60, power: 0.01, color: '#fff1dc', cone: 76, ...options.lamp } : null;
   const lampRgb = lampLook ? hexRgb(lampLook.color).map(toLinear) : null;
   let lampGoal = null, lampPos = null, lampOn = 0;
-  // The scenes whose stones the page has taken off the wall, as when the same stones are
-  // being drawn somewhere else, whose bed is left bare; and the gusts it has set over scenes.
-  const hidden = new Set(), gusts = new Map();
-  // A see-through canvas shows what lies under it wherever its wall has no stones.
-  const gl = canvas.getContext('webgl2', { alpha: options.transparent === true, premultipliedAlpha: true, antialias: false, depth: false, preserveDrawingBuffer: true, powerPreference: 'high-performance' });
+  const gl = canvas.getContext('webgl2', { alpha: false, antialias: false, depth: false, preserveDrawingBuffer: true, powerPreference: 'high-performance' });
   if (!gl) throw new Error('This artwork needs WebGL2. Try a browser with hardware acceleration enabled.');
   let renderer, base;
   const info = { title: film.table.title || 'Untitled mosaic', width, height, aspect: film.aspect, duration, fps: film.fps, stoneCount: 0, stones: [], setupMs: 0 };
@@ -216,7 +212,7 @@ export async function createMosaic(canvas, options = {}) {
     base = makeTimeline(film, width, height);
     renderer = createRenderer(gl, { W: width, H: height, FOVY: fovy, timeline, pointerAt: pointerTrail, lampAt: lampNow,
       shadowSize: options.shadowSize || 2048, shutter: .5 / film.fps, aperture: .03,
-      coat: hexRgb(options.coat || '#bdb3a2').map(toLinear), sinopia: hexRgb('#7a2a18').map(toLinear), transparent: options.transparent === true });
+      coat: hexRgb(options.coat || '#bdb3a2').map(toLinear), sinopia: hexRgb('#7a2a18').map(toLinear) });
     for (const l of film.layers) renderer.addLayer(l);
     info.width = width; info.height = height;
   }
@@ -226,8 +222,6 @@ export async function createMosaic(canvas, options = {}) {
     for (const L of built.layers) {
       const scene = film.scenes[L.scene.index];
       L.scene = scene;
-      L.hidden = hidden.has(scene.id);
-      L.gust = gusts.get(scene.id) ?? null;
       scene.layer = L;
       film.layers.push(L);
       if (!lost) renderer.addLayer(L);
@@ -300,7 +294,7 @@ export async function createMosaic(canvas, options = {}) {
       heardOn = at;
     } else heardOn = null;
     heardAt = c;
-    const events = hear({ layers: base.layersAt(time).filter((L) => !L.hidden && !L.gust), touch, time, clock: c,
+    const events = hear({ layers: base.layersAt(time), touch, time, clock: c,
       view: { x: cam.target[0], y: cam.target[1], w, h: w / (width / height) } });
     if (events.length) for (const listener of listeners) listener(events);
   }
@@ -399,26 +393,6 @@ export async function createMosaic(canvas, options = {}) {
     },
     // Draws once on the next animation frame, for a view that reads its frame as it draws.
     requestFrame() { ensure(); schedule(); },
-    // Takes the stones of the scene with this id off the wall, leaving their bed bare, or puts
-    // them back, and draws the wall so.
-    setHidden(id, on = true) {
-      ensure();
-      if (on === hidden.has(id)) return;
-      if (on) hidden.add(id); else hidden.delete(id);
-      for (const L of film.layers) if (L.scene.id === id) L.hidden = on;
-      schedule();
-    },
-    // Sets a gust over the scene with this id, in every frame drawn: its front crosses the view
-    // from upwind, and blows each seated stone off downwind as it passes, or, with away false,
-    // brings each one in on the wind and sets it down. at is how far the gust has gone, from 0
-    // to 1, and wind the way it blows, 1 to the right or -1 to the left. null takes it away.
-    setGust(id, gust = null) {
-      ensure();
-      const g = gust ? [clamp(finite(gust.at, 0), 0, 1), gust.wind < 0 ? -1 : 1, gust.away === false ? -1 : 1, 0] : null;
-      if (g) gusts.set(id, g); else gusts.delete(id);
-      for (const L of film.layers) if (L.scene.id === id) L.gust = g;
-      schedule();
-    },
     // Holds the lamp, if the artwork has one, over a point on the canvas, x and y from 0 to 1,
     // or takes it away when active is false.
     setLamp(p = {}) {

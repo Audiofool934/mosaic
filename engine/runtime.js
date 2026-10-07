@@ -360,6 +360,13 @@ export async function createMosaic(canvas, options = {}) {
       playing = true; lastNow = 0; schedule();
     },
     pause() { playing = false; goal = null; cancelAnimationFrame(raf); raf = 0; lastNow = 0; },
+    // Moves the film to time t and draws it now, keeping live input: for a page that moves
+    // the film's clock itself, as a gesture does.
+    setTime(t) {
+      ensure();
+      playing = false; goal = null;
+      render(finite(t, time), live, clock());
+    },
     setPointer(p) {
       ensure();
       if (options.interactive === false) return;

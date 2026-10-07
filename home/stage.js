@@ -19,9 +19,11 @@ const GO = [-0.04, 0.06], COME = [-0.1, 0.06];
 // it moves again is a new push, not the end of a flick; and a finger let go faster than
 // FLICK turns a second finishes the turn it was making.
 const WHEEL = 0.75, TOUCH = 0.8, NOTCH = 0.13, QUIET = 170, FRESH = 90, FLICK = 0.8;
-// How fast the stones follow the hand, catching up within FOLLOW seconds; and how fast a
-// turn finishes once let go, and one asked for by a key or a link, in film seconds a second.
-const FOLLOW = 0.12, FINISH = 1.7, ASKED = 2.4;
+// The stones move like a weight on a spring toward where the stage is going, carrying their
+// speed from one notch of a wheel to the next. Following the hand they settle within about
+// FOLLOW seconds; finishing a turn once let go, or one asked for by a key or a link, within
+// about EASE seconds and no faster than FINISH or ASKED film seconds a second.
+const FOLLOW = 0.16, EASE = 0.32, FINISH = 1.8, ASKED = 2.4, QUICK = 14;
 
 // onChange(k, el) hears which page is in front whenever it changes, 0 being the first screen,
 // and its element;
@@ -52,6 +54,8 @@ export function createStage({ reduceMotion, budget, at = null, onChange = () => 
   // way it last pushed, and whether it finished that turn while still on the stage.
   let held = false, lo = 0, heading = 0, locked = false;
   let lastWheel = -Infinity, quiet = 0, touch = null;
+  // The film's clock as the stones move, its speed, the pace it moves at, and the last frame.
+  let clock = 0, speed = 0, pace = { tau: EASE, top: FINISH }, last = 0;
 
   // Where the view stands at a place: on a page while its stones lift or settle, and
   // travelling between pages while they fly.
@@ -91,27 +95,39 @@ export function createStage({ reduceMotion, budget, at = null, onChange = () => 
     }
   }
 
-  // Plays the stones toward where the stage is going, at `rate` film seconds a second, and
-  // the words with them.
-  function drive(rate) {
+  // Moves the stones toward where the stage is going, at a pace, and the words with them.
+  function drive(next) {
+    pace = next;
     if (!film) return paint(goal);
-    const to = goal * film.step, now = film.mosaic.getState().time;
-    if (Math.abs(to - now) < 1e-4) return paint(goal);
-    film.mosaic.play({ to, rate });
-    if (!raf) raf = requestAnimationFrame(follow);
+    if (!raf) {
+      last = 0;
+      raf = requestAnimationFrame(follow);
+    }
   }
-  function follow() {
+  // Each frame, a critically damped spring pulls the clock toward the goal, its speed held
+  // under the pace's top, without overshooting it.
+  function follow(now) {
     raf = 0;
     if (!film || disposed) return;
-    const { time, playing } = film.mosaic.getState();
-    paint(time / film.step);
-    if (playing) raf = requestAnimationFrame(follow);
+    const dt = last ? Math.min(0.05, (now - last) / 1000) : 1 / 60;
+    last = now;
+    const to = goal * film.step, w = 2 / pace.tau, from = clock;
+    for (let left = dt; left > 1e-6; left -= 1 / 240) {
+      const h = Math.min(left, 1 / 240);
+      speed = clamp(speed + (w * w * (to - clock) - 2 * w * speed) * h, -pace.top, pace.top);
+      clock += speed * h;
+    }
+    // Within a hundredth of a second of the film it is there: the rest would not show.
+    if ((clock - to) * (from - to) < 0 || (Math.abs(to - clock) < 0.01 && Math.abs(speed) < 0.1)) {
+      clock = to;
+      speed = 0;
+    }
+    film.mosaic.setTime(clock);
+    paint(clock / film.step);
+    if (clock !== to || speed !== 0) raf = requestAnimationFrame(follow);
   }
   // The stones catch up with the hand quickly, wherever it goes.
-  function chase() {
-    if (!film) return paint(goal);
-    drive(Math.max(film.step * 2, Math.abs(goal * film.step - film.mosaic.getState().time) / FOLLOW));
-  }
+  const chase = () => drive({ tau: FOLLOW, top: QUICK });
 
   // A push of the hand, in turns, forward or back. A turn is from page lo to lo + 1: the hand
   // may move anywhere within it, and finishing it under the hand locks it, so the rest of a
@@ -141,17 +157,19 @@ export function createStage({ reduceMotion, budget, at = null, onChange = () => 
     held = locked = false;
     const f = goal - Math.floor(goal);
     if (f > 1e-6 && film) goal = Math.floor(goal) + (heading > 0 ? (f > film.rise ? 1 : 0) : (f < 1 - film.settle ? 0 : 1));
-    drive(FINISH);
+    drive({ tau: EASE, top: FINISH });
   }
   // Turns to page k, as asked by a key or a link, through any pages between.
   function turnTo(k, { instant = false } = {}) {
     held = locked = false;
     goal = clamp(Math.round(k), 0, n);
     if (instant || reduceMotion.matches || !film) {
-      film?.mosaic.seek(goal * film.step);
+      clock = goal * (film?.step ?? 0);
+      speed = 0;
+      film?.mosaic.seek(clock);
       return paint(goal);
     }
-    drive(Math.max(ASKED, Math.abs(goal * film.step - film.mosaic.getState().time) / 1.6));
+    drive({ tau: EASE, top: Math.max(ASKED, Math.abs(goal * film.step - clock) / 1.6) });
   }
 
   // Whether an element under the hand scrolls sideways itself, the way it is pushed, like a
@@ -317,7 +335,9 @@ export function createStage({ reduceMotion, budget, at = null, onChange = () => 
     film?.mosaic.dispose();
     host.replaceChildren(canvas);
     film = { mosaic, canvas, step, rise, settle };
-    mosaic.seek(place * step);
+    clock = place * step;
+    speed = 0;
+    mosaic.seek(clock);
     paint(place);
     host.dataset.state = "live";
     onReady(mosaic);
@@ -337,7 +357,9 @@ export function createStage({ reduceMotion, budget, at = null, onChange = () => 
     show(at) {
       if (!film) return;
       goal = clamp(at, 0, n);
-      film.mosaic.seek(goal * film.step);
+      clock = goal * film.step;
+      speed = 0;
+      film.mosaic.seek(clock);
       paint(goal);
     },
     get mosaic() { return film?.mosaic ?? null; },

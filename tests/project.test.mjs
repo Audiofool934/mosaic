@@ -75,6 +75,16 @@ test('a flow may lift its stones first, fly them low, and settle them, given pla
     assert.throws(() => validateProject(q), new RegExp(key));
   }
 });
+test('a flow across a wall of screens is given its focus points, reach, and columns plainly', () => {
+  const p = project();
+  p.scenes.push({ id: 'two', picture: './two.js', start: 1, end: 8, in: { type: 'flow', launch: [2, 3], land: [3, 4], focus: [[800, 450], [2400, 450]], reach: 1200, columns: 1600 } });
+  assert.doesNotThrow(() => validateProject(p));
+  for (const [key, bad, message] of [['focus', [800], /focus/], ['focus', [], /focus/], ['focus', [[800, 450], [2400]], /focus/], ['reach', 0, /reach/], ['columns', -1, /columns/], ['columns', '1600', /columns/]]) {
+    const q = structuredClone(p);
+    q.scenes[1].in[key] = bad;
+    assert.throws(() => validateProject(q), message);
+  }
+});
 test('a picture is set in front of the others only when asked, plainly', () => {
   const p = project();
   p.scenes[0].front = true;

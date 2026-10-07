@@ -350,8 +350,9 @@ function bedData(layer) {
   const { GW, GH, res } = pic;
   const N = GW * GH;
   const label = pic.label;
-  // The sinopia, unless the picture is laid straight onto the bare plaster.
-  const sin = new Uint8Array(N);
+  // The sinopia, unless the picture is laid straight onto the bare plaster, when it is a
+  // single bare texel.
+  const sin = new Uint8Array(pic.cfg.sinopia !== false ? N : 1);
   if (pic.cfg.sinopia !== false) drawSinopia(pic, sin);
   // Ownership. Stones of an arrival own their patch once they start to land; before
   // that the stones they replace do, which is the same patch.
@@ -379,9 +380,10 @@ function bedData(layer) {
     }
     return L;
   });
-  const make = () => new Uint8Array(N * 4).fill(255);
-  const own = make();
-  const own2 = make();
+  const make = (n) => new Uint8Array(n * 4).fill(255);
+  const own = make(N);
+  // The mortar arriving figures own, if the picture has any, or else a single empty texel.
+  const own2 = make(layer.owners.length > 1 ? N : 1);
   layer.owners.forEach((src, k) => {
     const dst = k === 0 ? own : own2;
     const { owner, offset } = src;
@@ -803,52 +805,75 @@ function flowInto(film, A, B, flow) {
       t.fall = 0.0005;
     }
   }
-  for (const t of As) t.k = keyOf(t, A, rA);
-  for (const t of Bs) t.k = keyOf(t, B, rB);
-  As.sort((a, b) => a.k - b.k);
-  Bs.sort((a, b) => a.k - b.k);
-  const focus = toWorld(B, ...(flow.focus || [B.cam.X(d1), B.cam.Y(d1)]));
-  const wB = B.cam.W(d1) / 1000;
+  // The wave runs out from the nearest of its focus points, over `reach` millimetres.
+  const foci = (Array.isArray(flow.focus?.[0]) ? flow.focus : [flow.focus || [B.cam.X(d1), B.cam.Y(d1)]]).map((f) => toWorld(B, ...f));
+  const reach = flow.reach ? flow.reach / 1000 : 0.75 * (B.cam.W(d1) / 1000);
   const order = (t) => {
     const p = toWorld(B, t.x, t.y);
-    return clamp01(Math.hypot(p[0] - focus[0], (p[1] - focus[1]) * 1.3) / (0.75 * wB));
+    let d = Infinity;
+    for (const f of foci) d = Math.min(d, Math.hypot(p[0] - f[0], (p[1] - f[1]) * 1.3));
+    return clamp01(d / reach);
   };
-  const used = new Uint8Array(As.length);
-  for (let i = 0; i < Bs.length; i++) {
-    const b = Bs[i];
-    if (!As.length) {
-      b.T = d0 + order(b) * (d1 - d0);
-      continue;
+  // A wall set as columns `columns` millimetres wide, side by side from the left of the
+  // incoming picture, pairs its stones within each column, so none flies further than its
+  // own; otherwise they are paired across the whole.
+  const colW = flow.columns ? flow.columns / 1000 : 0;
+  const columnOf = (layer, t) => (colW ? Math.floor((toWorld(layer, t.x, t.y)[0] - B.world[0]) / colW) : 0);
+  const columns = new Map();
+  for (const [list, layer, side] of [[As, A, 0], [Bs, B, 1]]) {
+    for (const t of list) {
+      const c = columnOf(layer, t);
+      if (!columns.has(c)) columns.set(c, [[], []]);
+      columns.get(c)[side].push(t);
     }
-    const j = Math.min(As.length - 1, Math.floor(((i + 0.5) * As.length) / Bs.length));
-    const a = As[j];
-    const u = Math.pow(order(b), flow.curve || 1);
-    const jit = (b.seed - 0.5) * 0.06;
-    b.launch = l0 + u * (l1 - l0) + jit;
-    b.T = Math.max(d0 + u * (d1 - d0) + jit, b.launch + 0.25);
-    b.src = toWorld(A, a.x, a.y);
-    b.srcLin = a.lin2;
-    b.srcEmit = a.stone.emit || 0;
-    let dAng = b.ang - a.ang;
-    dAng = ((dAng + Math.PI / 2) % Math.PI + Math.PI) % Math.PI - Math.PI / 2;
-    b.dAng = dAng;
-    b.fall = 0.3;
-    if (!used[j] || b.launch < a.U) a.U = b.launch;
-    used[j] = 1;
-    a.exitDur = 0;
   }
-  // Stones of A with no partner scatter toward the lens.
-  for (let j = 0; j < As.length; j++) {
-    if (used[j]) continue;
-    const a = As[j];
-    const p = norm(rA, toWorld(A, a.x, a.y));
-    a.U = l0 + (0.3 + 0.7 * a.seed) * (l1 - l0);
-    a.exitAng = Math.atan2(0.5 - p[1], p[0] - 0.5) + (a.seed - 0.5) * 0.8;
-    a.exitV = 0.8 + 0.8 * a.seed;
-    a.exitDur = 0.7;
+  for (const [c, [Ac, Bc]] of columns) {
+    const span = (r) => (colW ? [B.world[0] + c * colW, B.world[0] + (c + 1) * colW, r[2], r[3]] : r);
+    pairUp(Ac, Bc, span(rA), span(rB));
   }
   for (const t of As) delete t.k;
   for (const t of Bs) delete t.k;
+
+  function pairUp(As, Bs, rA, rB) {
+    for (const t of As) t.k = keyOf(t, A, rA);
+    for (const t of Bs) t.k = keyOf(t, B, rB);
+    As.sort((a, b) => a.k - b.k);
+    Bs.sort((a, b) => a.k - b.k);
+    const used = new Uint8Array(As.length);
+    for (let i = 0; i < Bs.length; i++) {
+      const b = Bs[i];
+      if (!As.length) {
+        b.T = d0 + order(b) * (d1 - d0);
+        continue;
+      }
+      const j = Math.min(As.length - 1, Math.floor(((i + 0.5) * As.length) / Bs.length));
+      const a = As[j];
+      const u = Math.pow(order(b), flow.curve || 1);
+      const jit = (b.seed - 0.5) * 0.06;
+      b.launch = l0 + u * (l1 - l0) + jit;
+      b.T = Math.max(d0 + u * (d1 - d0) + jit, b.launch + 0.25);
+      b.src = toWorld(A, a.x, a.y);
+      b.srcLin = a.lin2;
+      b.srcEmit = a.stone.emit || 0;
+      let dAng = b.ang - a.ang;
+      dAng = ((dAng + Math.PI / 2) % Math.PI + Math.PI) % Math.PI - Math.PI / 2;
+      b.dAng = dAng;
+      b.fall = 0.3;
+      if (!used[j] || b.launch < a.U) a.U = b.launch;
+      used[j] = 1;
+      a.exitDur = 0;
+    }
+    // Stones of A with no partner scatter toward the lens.
+    for (let j = 0; j < As.length; j++) {
+      if (used[j]) continue;
+      const a = As[j];
+      const p = norm(rA, toWorld(A, a.x, a.y));
+      a.U = l0 + (0.3 + 0.7 * a.seed) * (l1 - l0);
+      a.exitAng = Math.atan2(0.5 - p[1], p[0] - 0.5) + (a.seed - 0.5) * 0.8;
+      a.exitV = 0.8 + 0.8 * a.seed;
+      a.exitDur = 0.7;
+    }
+  }
 }
 
 // ---------------------------------------------------------------------------

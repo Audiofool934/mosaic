@@ -324,6 +324,35 @@ try {
     }
     checks.push('a flow that lifts its stones first settles them into the same places as a plain one');
 
+    // A wide picture whose stones keep to columns draws only the stones within a column of its
+    // view: the same to the pixel as when every stone is drawn, at rest and in the middle of a
+    // flow paired within the columns.
+    {
+      const { scene } = await import('/examples/landscapes.js');
+      const pictureOf = (name, columns) => { const p = scene({ name, w: 1600, h: 900 }); return { ...p, config: { ...p.config, columns } }; };
+      const wallOf = (columns) => ({ version: 1, seed: 42, fps: [60, 1], frames: 180, band: [320, 180], scenes: [
+        { id: 'night', picture: pictureOf('night', columns), start: 0, end: 2.5, at: [0, 0], in: { type: 'settled' } },
+        { id: 'dunes', picture: pictureOf('dunes', columns), start: 0.5, end: 3, at: [0, 0], in: { type: 'flow', launch: [0.5, 1], land: [1.1, 2.4], focus: [[200, 450], [600, 450], [1000, 450], [1400, 450]], reach: 300, columns: 400 } }
+      ] });
+      const hashesOf = async (columns) => {
+        const c = document.createElement('canvas');
+        const m = await createMosaic(c, { project: wallOf(columns), width: 320, height: 180, samples: 1 });
+        const g = c.getContext('webgl2'), out = [];
+        for (const [t, x] of [[0.2, 300], [0.2, 1100], [1.3, 600], [1.3, 1000], [1.8, 1350]]) {
+          m.setView({ frame: { x, y: 450, w: 400 } });
+          m.seek(t);
+          const p = new Uint8Array(320 * 180 * 4);
+          g.readPixels(0, 0, 320, 180, g.RGBA, g.UNSIGNED_BYTE, p);
+          out.push(await sha256(p));
+        }
+        m.dispose();
+        return out;
+      };
+      const culled = await hashesOf(400), whole = await hashesOf(1e6);
+      require(culled.every((h, i) => h === whole[i]), `Drawing only the columns in view changed ${culled.filter((h, i) => h !== whole[i]).length} of ${culled.length} frames.`);
+    }
+    checks.push('a picture drawn by columns draws the same as when it is drawn whole, at rest and in flight');
+
     // A see-through wall: framed half on its picture and half past its edge, it is opaque over
     // the stones and clear beyond them. A scene taken off the wall leaves its bed, still opaque
     // but bare, and put back it draws the same to the pixel.

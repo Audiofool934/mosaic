@@ -56,6 +56,7 @@ A page that scrolls across a wall can keep one viewport-sized canvas moving with
 The function is given the film time it is drawn at, so a page can also move its view as its film plays.
 Scenes placed with `at: [x, y]` form one wall of several pictures, each cut in its own worker and drawn as soon as it is ready; `controller.ready` resolves when all have joined.
 A picture that flows in from the one before it is cut in the same worker.
+A wide picture can set `columns` in its config, a width in millimetres, so each frame draws only the stones within a column of the view; pair its flows within the same columns, so a page of screens side by side draws only the screens near the one in view.
 `createMosaic(canvas, { loop: [from, to] })` plays on from `to` at `from`, until paused; a page can pause at rest times of its own to hold each picture, so the canvas draws nothing while the stones are still.
 `play({ to, rate })` plays toward a time, backward if it lies behind, at `rate` times speed, and stops there, which suits a page that moves a film between states as it scrolls.
 For a control or plaque set in stone, `createMosaic(canvas, { lamp: { height, power, cone, color } })` lets the page hold a lamp over it with `setLamp({ x, y })` and `setLamp({ active: false })`, a light cone that marks what the pointer is on without moving any stones; exports never show it.

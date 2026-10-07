@@ -811,7 +811,7 @@ void layer(highp sampler2D inst, highp sampler2D own0, highp sampler2D own2, sam
   int id = int(ow.r * 255.0 + 0.5) + 256 * int(ow.g * 255.0 + 0.5);
   float e = texture(own0, uv).b * 255.0 / 48.0;
   // A figure that arrives later owns this mortar from the moment it starts to land.
-  vec4 ow2 = texelFetch(own2, ip, 0);
+  vec4 ow2 = texelFetch(own2, min(ip, textureSize(own2, 0) - 1), 0);
   int id2 = int(ow2.r * 255.0 + 0.5) + 256 * int(ow2.g * 255.0 + 0.5);
   if (id2 < 65535 && uTime >= seatT(inst, id2) - 0.15) {
     id = id2;
@@ -1235,8 +1235,46 @@ export function createRenderer(gl, opts) {
     // A layer: one shot's stones and its bed, uploaded once.
     // A tall picture that asks for rows (config.rows), such as a page that scrolls across one
     // wall, lists its stones by height, and a frame draws only the rows within reach of its
-    // view. Stones that fly in or leave can be anywhere, so their picture is drawn whole.
-    // Other pictures keep their own drawing order, and so their exact pixels.
+    // view. Stones that fly in or leave can be anywhere, so their picture is drawn whole. A
+    // wide picture set as columns (config.columns, in millimetres) lists its stones along the
+    // wall, and a frame draws only those within a column of its view: a stone that keeps
+    // within a column of its seat, as one flying within its column does in a flow paired
+    // within columns, never shows further off. Any other, such as one scattering when it has
+    // no partner in a flow, is listed after them, and drawn whole while any of them is on its
+    // way. Other pictures keep their own drawing order, and so their exact pixels.
+    function columns(L) {
+      const w = L.pic?.cfg?.columns;
+      if (!w) return null;
+      const n = L.count, d = L.data, reach = w / 1000;
+      const keep = [], roam = [];
+      let from = Infinity, to = -Infinity, arc = 0, drop = 0, until = -Infinity;
+      for (let i = 0; i < n; i++) {
+        const o = i * TEXELS * 4;
+        // How far it goes from its seat: leaving at speed, flying in from elsewhere, and
+        // falling in from a side.
+        const dur = d[o + 39] % 10, v = 1.2 * d[o + 26];
+        const leaves = d[o + 24] < 1e5 && v > 0 && v * (dur + 2.6 * dur * dur) > reach;
+        const flies = d[o + 30] < 1e5 && Math.abs(d[o + 28] - d[o]) > reach;
+        const falls = d[o + 27] < 100 && 2.2 * d[o + 22] > reach;
+        if (!leaves && !flies && !falls) {
+          keep.push(i);
+          // How high it rises on its way, for the shadow it throws: the arc of a flight, or
+          // the height it falls from, until it is seated, or until it leaves.
+          if (d[o + 30] < 1e5) arc = Math.max(arc, 1.4 * Math.min(0.55, 0.3 * Math.hypot(d[o + 28] - d[o], d[o + 29] - d[o + 1])));
+          drop = Math.max(drop, d[o + 22]);
+          until = Math.max(until, d[o + 2], d[o + 24] < 1e5 ? d[o + 24] : -Infinity);
+          continue;
+        }
+        roam.push(i);
+        from = Math.min(from, leaves ? d[o + 24] : flies ? d[o + 30] : d[o + 2] - d[o + 23] * 1.2);
+        to = Math.max(to, leaves ? d[o + 24] + dur : d[o + 2]);
+      }
+      const byX = (a, b) => d[a * TEXELS * 4] - d[b * TEXELS * 4] || a - b;
+      keep.sort(byX);
+      roam.sort(byX);
+      const xs = (list) => Float32Array.from(list, (i) => d[i * TEXELS * 4]);
+      return { order: Uint32Array.from([...keep, ...roam]), x: xs(keep), roam: xs(roam), on: [from, to], reach, arc, drop, until };
+    }
     function rows(L) {
       if (!L.pic?.cfg?.rows) return null;
       const n = L.count, d = L.data;
@@ -1250,19 +1288,38 @@ export function createRenderer(gl, opts) {
       return { order, y: Float32Array.from(order, (i) => d[i * TEXELS * 4 + 1]), reach };
     }
 
+    // Pictures cut alike, as copies of one scene are, share one ownership map.
+    const owners = [];
+    function ownTexture(L) {
+      const { w, h, own } = L.bed;
+      const words = own.byteOffset % 4 ? own : new Uint32Array(own.buffer, own.byteOffset, own.byteLength >> 2);
+      let hash = 2166136261;
+      for (let i = 0; i < words.length; i++) hash = Math.imul(hash ^ words[i], 16777619);
+      const same = owners.find((o) => o.w === w && o.h === h && o.hash === hash && o.data.length === own.length && o.data.every((v, i) => v === own[i]));
+      if (same) {
+        L.bed.own = same.data;
+        return same.tex;
+      }
+      const t = tex(w, h, gl.RGBA8, gl.RGBA, gl.UNSIGNED_BYTE, own, gl.LINEAR, false);
+      owners.push({ w, h, hash, data: own, tex: t });
+      return t;
+    }
+
     function addLayer(L) {
       const instH = Math.ceil(L.count / PER_ROW);
       const data = new Float32Array(PER_ROW * TEXELS * instH * 4);
       data.set(L.data);
-      const byRow = rows(L);
+      const byColumn = columns(L), byRow = byColumn ? null : rows(L), order = (byColumn ?? byRow)?.order;
       const g = {
         inst: tex(PER_ROW * TEXELS, instH, gl.RGBA32F, gl.RGBA, gl.FLOAT, data, gl.NEAREST, false),
         rows: byRow,
-        stones: stoneVao(L.count, MESH, byRow?.order),
-        casters: stoneVao(L.count, shadowMesh(), byRow?.order),
-        own: tex(L.bed.w, L.bed.h, gl.RGBA8, gl.RGBA, gl.UNSIGNED_BYTE, L.bed.own, gl.LINEAR, false),
-        own2: tex(L.bed.w, L.bed.h, gl.RGBA8, gl.RGBA, gl.UNSIGNED_BYTE, L.bed.own2, gl.LINEAR, false),
-        sin: tex(L.bed.w, L.bed.h, gl.R8, gl.RED, gl.UNSIGNED_BYTE, L.bed.sin, gl.LINEAR, true)
+        columns: byColumn,
+        stones: stoneVao(L.count, MESH, order),
+        casters: stoneVao(L.count, shadowMesh(), order),
+        own: ownTexture(L),
+        // A picture with no arriving figures, or no sinopia, has a single texel of each.
+        own2: L.bed.own2.length === 4 ? tex(1, 1, gl.RGBA8, gl.RGBA, gl.UNSIGNED_BYTE, L.bed.own2, gl.LINEAR, false) : tex(L.bed.w, L.bed.h, gl.RGBA8, gl.RGBA, gl.UNSIGNED_BYTE, L.bed.own2, gl.LINEAR, false),
+        sin: L.bed.sin.length === 1 ? tex(1, 1, gl.R8, gl.RED, gl.UNSIGNED_BYTE, L.bed.sin, gl.LINEAR, true) : tex(L.bed.w, L.bed.h, gl.R8, gl.RED, gl.UNSIGNED_BYTE, L.bed.sin, gl.LINEAR, true)
       };
       L.gpu = g;
       return L;
@@ -1394,15 +1451,17 @@ export function createRenderer(gl, opts) {
     }
 
     const noTrail = new Float32Array(TRAIL * 4);
-    // The first stone at or above height y, in a layer's rows.
+    // The first stone at or past h, in a layer's rows or columns.
     function rowAt(y, h) {
       let lo = 0, hi = y.length;
       while (lo < hi) { const mid = (lo + hi) >> 1; if (y[mid] < h) lo = mid + 1; else hi = mid; }
       return lo;
     }
     // fp: the wall in view, [x0, x1, y0, y1]; stones listed by row outside its heights are
-    // skipped, and a repeated picture is drawn once for each copy in reach of it.
-    function drawStones(prog, layer, geo, vp, t, fp) {
+    // skipped, and a repeated picture is drawn once for each copy in reach of it. slope: how
+    // far the key light throws a shadow sideways for each metre a stone rises, when drawing
+    // shadows.
+    function drawStones(prog, layer, geo, vp, t, fp, slope = 0) {
       if (layer.hidden) return;
       gl.useProgram(prog.p);
       gl.uniformMatrix4fv(prog.u.uVP, false, vp);
@@ -1422,16 +1481,29 @@ export function createRenderer(gl, opts) {
       gl.uniform4fv(prog.u.uGust, layer.gust || NO_GUST);
       gl.uniform2f(prog.u.uSweep, fp[0], fp[1]);
       gl.bindVertexArray(geo.vao);
-      const R = layer.gpu.rows;
-      const first = R ? rowAt(R.y, fp[2] - R.reach) : 0;
-      const last = R ? rowAt(R.y, fp[3] + R.reach) : layer.count;
-      if (last <= first) return;
+      const R = layer.gpu.rows, C = layer.gpu.columns;
+      // The stretches of the layer's list to draw, as [first, last) pairs.
+      const spans = [];
+      if (C) {
+        // A stone a little past the reach can still throw its shadow into the view, from as
+        // high as it rises while any is on its way, or a pointer lifts it.
+        const lift = Math.max(layer.fly?.[1] ?? 0, layer.rise?.[2] ?? 0, layer.settle?.[2] ?? 0);
+        const high = (t <= Math.max(C.until, layer.settle?.[1] ?? -Infinity) ? C.arc * (layer.fly?.[0] ?? 1) + lift + C.drop : 0) + 0.02;
+        const reach = C.reach + slope * high;
+        spans.push(rowAt(C.x, fp[0] - reach), rowAt(C.x, fp[1] + reach));
+        const n = C.x.length, all = t >= C.on[0] && t <= C.on[1];
+        if (C.roam.length) spans.push(n + (all ? 0 : rowAt(C.roam, fp[0] - reach)), n + (all ? C.roam.length : rowAt(C.roam, fp[1] + reach)));
+      } else if (R) spans.push(rowAt(R.y, fp[2] - R.reach), rowAt(R.y, fp[3] + R.reach));
+      else spans.push(0, layer.count);
       const copies = layer.scene.repeat || 1, w = layer.W / 1000;
       const k0 = copies > 1 ? Math.max(0, Math.floor((fp[0] - REACH - layer.world[0]) / w)) : 0;
       const k1 = copies > 1 ? Math.min(copies - 1, Math.floor((fp[1] + REACH - layer.world[0]) / w)) : 0;
       for (let k = k0; k <= k1; k++) {
         gl.uniform2f(prog.u.uShift, k * w, 0);
-        gl.drawElements(gl.TRIANGLES, (last - first) * geo.per, gl.UNSIGNED_INT, first * geo.per * 4);
+        for (let i = 0; i < spans.length; i += 2) {
+          const [first, last] = [spans[i], spans[i + 1]];
+          if (last > first) gl.drawElements(gl.TRIANGLES, (last - first) * geo.per, gl.UNSIGNED_INT, first * geo.per * 4);
+        }
       }
     }
 
@@ -1464,7 +1536,8 @@ export function createRenderer(gl, opts) {
       gl.bindFramebuffer(gl.FRAMEBUFFER, keySh.fb);
       gl.viewport(0, 0, SH, SH);
       gl.clear(gl.DEPTH_BUFFER_BIT);
-      for (const layer of layers) drawStones(shadowProg, layer, layer.gpu.casters, keyM, t, fp);
+      const slope = Math.hypot(kd[0], kd[1]) / Math.max(kd[2], 0.05);
+      for (const layer of layers) drawStones(shadowProg, layer, layer.gpu.casters, keyM, t, fp, slope);
       // A picture set in front is shaded only by its own stones, never by the stones flying
       // past behind it.
       const front = layers.filter((layer) => layer.scene.front);
@@ -1472,7 +1545,7 @@ export function createRenderer(gl, opts) {
         frontSh ??= depthTarget(SH);
         gl.bindFramebuffer(gl.FRAMEBUFFER, frontSh.fb);
         gl.clear(gl.DEPTH_BUFFER_BIT);
-        for (const layer of front) drawStones(shadowProg, layer, layer.gpu.casters, keyM, t, fp);
+        for (const layer of front) drawStones(shadowProg, layer, layer.gpu.casters, keyM, t, fp, slope);
       }
       gl.disable(gl.POLYGON_OFFSET_FILL);
       return L;

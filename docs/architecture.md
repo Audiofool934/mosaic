@@ -90,8 +90,13 @@ The wall is drawn from the moment the first picture is ready, and the others joi
 `setView({ frame: { x, y, w } })` looks straight at part of the wall, in the wall's millimetres, instead of following the scene's camera.
 A frame can also be a function of the film time, read once for every frame drawn, so a page can follow its own scroll, or move its view as its film plays; `requestFrame()` draws once on the next animation frame.
 A picture whose config sets `rows: true` lists its stones by height, so each frame draws only the stones within reach of its view.
-Pictures without it keep their own drawing order and their exact pixels.
+A wide picture whose config sets `columns`, a width in millimetres, lists its stones along the wall, and each frame draws only those seated within a column of its view, as far out as the shadows they can throw into it.
+That suits a picture whose stones keep within a column of their seats, as a flow paired within columns keeps them; a stone that goes further, as one that scatters when it has no partner in a flow, is listed apart and drawn wherever the view is while any such stone is on its way, so a frame comes out the same to the pixel as one drawn whole.
+Pictures without either keep their own drawing order and their exact pixels.
+Pictures cut alike, as copies of one scene are, share one map of which stone owns each patch of mortar on the graphics card, and a picture with no figures arriving apart, or no sinopia, holds a single texel in place of that map, so a long wall of pictures takes less memory.
 A picture placed with `at` can flow in from the scene before it and keeps its place; the flow takes in the whole picture, since on a wall the page frames the view rather than the picture's own camera, and the pictures of such a chain are cut in one worker.
+A flow's wave runs out from its `focus`, a point in the incoming picture's millimetres, or from the nearest of a list of them, over `reach` millimetres, three quarters of the view's width unless set.
+With `columns`, a width in millimetres, a flow pairs the stones within each column of the wall, counted from the incoming picture's left edge, so none flies further than its own column; a wall of screens side by side can then flow on every screen at once, each from its own middle, and draw only the screens in view.
 A scene set `front: true` stays in front of every stone flying past it.
 Where its stones are seated the depth is cleared before they are drawn, it is shaded only by its own stones, and its mortar is laid last; where its stones have not landed yet, or have lifted off, whatever lies under them shows.
 The mortar is drawn once for each pair of pictures, the newest two last, and a later pair covers an earlier one only where it has a stone or a seat, so a wall of more than two pictures keeps every picture's mortar.

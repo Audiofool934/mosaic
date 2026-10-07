@@ -1,4 +1,6 @@
 // The portable project contract. No browser or rendering dependency.
+const isPoint = (p) => Array.isArray(p) && p.length === 2 && p.every(Number.isFinite);
+
 export function validateProject(input) {
   if (!input || typeof input !== 'object' || Array.isArray(input)) throw new Error('Project must be an object.');
   const p = { version: 1, seed: 7, ...input };
@@ -22,6 +24,10 @@ export function validateProject(input) {
     if (s.in?.rise !== undefined && !(Array.isArray(s.in.rise) && s.in.rise.length === 3 && s.in.rise.every(Number.isFinite) && s.in.rise[0] < s.in.rise[1] && s.in.rise[2] >= 0)) throw new Error(`${s.id}: rise must be [from, to, millimetres].`);
     if (s.in?.arc !== undefined && !(Number.isFinite(s.in.arc) && s.in.arc >= 0)) throw new Error(`${s.id}: arc must be a number from 0.`);
     if (s.in?.settle !== undefined && !(Array.isArray(s.in.settle) && s.in.settle.length === 2 && s.in.settle.every(Number.isFinite) && s.in.settle[0] < s.in.settle[1])) throw new Error(`${s.id}: settle must be [from, to].`);
+    if (s.in?.focus !== undefined && !(isPoint(s.in.focus) || (Array.isArray(s.in.focus) && s.in.focus.length > 0 && s.in.focus.every(isPoint)))) throw new Error(`${s.id}: focus must be [x, y], or a list of them.`);
+    for (const key of ['reach', 'columns']) {
+      if (s.in?.[key] !== undefined && !(Number.isFinite(s.in[key]) && s.in[key] > 0)) throw new Error(`${s.id}: ${key} must be a length in millimetres.`);
+    }
     if (s.at !== undefined && (!Array.isArray(s.at) || s.at.length !== 2 || !s.at.every(Number.isFinite))) throw new Error(`${s.id}: at must be [x, y] in millimetres.`);
     if (s.front !== undefined && typeof s.front !== 'boolean') throw new Error(`${s.id}: front must be true or false.`);
     if (s.repeat !== undefined) {

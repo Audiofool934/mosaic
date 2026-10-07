@@ -119,8 +119,11 @@ Given a `total` width, a scene is drawn as a panorama that keeps the first scree
 Where motion is welcome and the screen is tall enough, the page's screens stand side by side along one wide wall that scrolls sideways: the first screen, then each room, or on a phone each of a room's pages.
 The wheel scrolls it sideways as it would scroll a page down, gliding there, and a trackpad's sideways stroke, the keys, touch, links, the bar, an address naming a part of the page, and the browser's back and forward all move along it.
 `wideFilm` in `home/wall.js` sets the whole wall in one film: the name, then the page's own blocks in front of each scene in turn as a panorama along all of the screens.
+The name is set on the wall with the scenes, not in front of them: it holds its place, since every scene leaves a hole the shape of the name, but the stones flying past in a flow may cross it for a moment.
 The page marks its blocks with `data-wall`: an emblem is a picture or film the page shows, which the wall frames in gold; a frame is the gold alone, round openings the page fills; and a sample is a square of one material, its stones following a disc in a square field, set in the wall in a thin gold rim.
-Each sample is an inset of the wall, so the pointer moves only the stones of the sample it is on, in a small curl, and the rims and the wall round the samples stay still.
+Each sample is an inset of the wall, so the pointer moves only the stones of the sample it is on, in a small curl, and the wall round the samples stays still; the method's live band is an inset the same way.
+The gold of every frame and rim is a region set `still`, whose stones never answer the pointer, so a frame holds still from whichever side the pointer comes.
+The method, materials, and gallery rooms have no slab naming them: each shows its picture, samples, or works across the middle of the room, and names them only in the slabs under them.
 The method's picture is the heron by the moon in four bands, each a stage of it, in one gold frame: the flat drawing, its courses, and its cut stones are images that `tools/media.mjs` renders from `examples/nocturne.js`, and the fourth band is live, an opening the wall fills with the rest of the same picture in its own stones, which lift under the pointer like the rest of the wall.
 The wall is laid outward from behind the name, or from the middle of the screen the page opens on, and then every few seconds one scene flows into the next on every screen at once, the stones of each screen flying within it, out from its middle, as the first screen's run out from behind the name.
 A flow waits while the page is being scrolled, so the wall never moves two ways at once, and a button pauses the scenes where they are.
@@ -138,7 +141,7 @@ The glass round each line of stone type is laid on the type's own grid, a square
 `home/slabs.js` sizes each line of stone type from its cell, so the page lays out around it, and sets it on more lines, from `data-type-narrow`, where it would not fit its slab; then it cuts and lights every slab at the screen's full resolution, the ones in view first, and keeps each as a still canvas behind the slab's words.
 The camera stands four metres from every slab with a lens just wide enough for it, so it looks almost straight down and the whole slab stays within its reach.
 The pointer holds the bar's lamp over the slab it is on, and so does a keyboard's focus: that slab is cut again on a canvas of its own, to the same stones, and drawn live over its still while the lamp is held.
-The gallery hangs every work at once, each in its frame with a slab under it for its plaque; a film plays while it is pointed at, and any work opens whole, as large as the screen allows, with its caption.
+The gallery hangs every work at once in two rows, each in its frame with a slab under it for its plaque: each row's frames stand as high as each other and both rows reach the same width, so the hang's four outer edges are straight, and a work whose shape differs a little from its frame's is cropped to it; a film plays while it is pointed at, and any work opens whole, uncropped, as large as the screen allows, with its caption.
 The studio's room lays an image in stone in a frame on the page, with `home/atelier.js`: one of three flat paintings `tools/media.mjs` renders from the examples, or an image of one's own, dropped on the frame or chosen, in glass, stone, or gold.
 The image is read on the page, cropped to the frame, and analysed and cut in a worker by `home/image.js`, so the page stays responsive, and it never leaves the browser.
 `home/main.js` measures the layout, has the pictures cut in workers, keeps the canvas moving with the scroll, and cuts the wall again when a new size reflows the page, on the screen that was in view.
@@ -157,6 +160,7 @@ On a page that follows its own scroll, each point of that trail is where the poi
 Exports and replays have no such view, so their frames are unchanged.
 The mortar under a stone answers the same motion: as a stone moves off its bed, the shadowed footprint it left there gives way to the bare bed, the coat alone.
 The bare bed is one plain colour all over the wall, with no trace of the picture, wherever a stone has come off its bed: lifted by the pointer or by a flow, or gone.
+A region set `still: true` never answers the pointer, as the gold frame round a picture.
 A picture's config can set `insets`, squares as `[x, y, w, h]` in its millimetres, which move on their own under the pointer.
 A stone in an inset answers only the stretch of the pointer's path that belongs to its inset, in a curl whose radius is three tenths of the inset's shorter side, and any other stone only the stretch clear of every inset.
 A point of the path belongs to the nearest inset within its curl's reach, so a hand moving among insets set close together moves only the nearest, and the wall round them stays still.

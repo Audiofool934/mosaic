@@ -162,10 +162,9 @@ html.wide .wall { bottom: auto; height: 100svh; }
 html.wide .wall canvas { height: 100%; }
 
 /* Rooms: under the first screen, each part of the page is a room a screen high, which the
-   page settles on, with its words clear of the bar above and the controls below. Each starts
-   with a slab naming it, on the left, beside what it shows. A room's pages are of a piece
-   with it, except on a phone. --content is how wide a room's content may be, --room-h how
-   high, and --side how wide what it shows beside the slab may be. */
+   page settles on, with its words clear of the bar above and the controls below. A room's
+   pages are of a piece with it, except on a phone. --content is how wide a room's content may
+   be, --room-h how high, and --side how wide what it shows beside a slab naming it may be. */
 .room {
   --content: min(100vw - 2 * var(--gutter), var(--measure));
   --room-h: calc(100svh - var(--bar-top) - var(--bar-h, 45px) - clamp(16px, 4vh, 44px) - clamp(76px, 11vh, 104px));
@@ -184,7 +183,10 @@ h2, h3 { margin: 0; font-weight: 400; }
 .head { grid-column: 1 / span 4; grid-row: 1 / span 2; display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; align-content: start; }
 .head .type { --cell: 6px; }
 .head p { font-size: 16px; line-height: 1.6; color: var(--marble-muted); }
-.method .polyptych, .method .predella, .materials .board { grid-column: 5 / -1; }
+.method .polyptych, .method .predella, .materials .board { grid-column: 1 / -1; justify-self: center; }
+/* Method, materials, and the gallery need no slab naming them: what they show says it, across
+   the room and in its middle. */
+.method, .materials { --side: var(--content); }
 
 /* What the page is, on one slab, with a note on the wall under it that keeps room for two
    lines, so the layout the wall was cut around never moves when its words change. */
@@ -230,21 +232,32 @@ h2, h3 { margin: 0; font-weight: 400; }
 .names .type { --cell: 2.6px; }
 .names p { font-size: 12.5px; }
 
-/* Gallery: every work hung at once, salon style, straight on the room beside the slab naming
-   it, each in a gold frame of its own shape with a slab under it for its plaque, and each row
-   hung from a common line along its foot. */
+/* Gallery: every work hung at once in two rows, the three films over a film and two pictures,
+   each in a gold frame with a slab under it for its plaque. Each row's frames stand as high as
+   each other, and both rows reach the same width, so the hang's outer edges are straight; a
+   work whose shape differs a little from its frame's is cropped to it. The five columns are
+   where the frames of either row meet: the films are 16:9 and about 1.89:1, the pictures
+   square. --gw is as wide as the hang can be and still fit the room's height. */
+.gallery {
+  --gap: 20px; --plaque: 86px;
+  --gw: min(var(--content), (var(--room-h) - 2 * var(--plaque) - 40px) / 0.4482 + 4 * var(--gap));
+  width: var(--gw);
+  grid-template-columns: minmax(0, 1.778fr) minmax(0, 0.786fr) minmax(0, 1.107fr) minmax(0, 0.336fr) minmax(0, 1.442fr);
+  grid-template-rows: calc((var(--gw) - 4 * var(--gap)) / 5.449) auto calc((var(--gw) - 4 * var(--gap)) * 1.442 / 5.449) auto;
+  column-gap: var(--gap); row-gap: 12px;
+}
+html.wide .gallery { padding-inline: max(var(--gutter), (100vw - var(--gw)) / 2); }
 .gallery .salon { display: contents; }
-.work { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; align-self: end; min-width: 0; margin: 0; }
-.work.lantern { grid-column: 5 / span 4; grid-row: 1; }
-.work.odyssey { grid-column: 9 / span 4; grid-row: 1; }
-.work.morning { grid-column: 5 / span 4; grid-row: 2; }
-.work.leaf { grid-column: 9 / span 2; grid-row: 2; }
-.work.crescent { grid-column: 11 / span 2; grid-row: 2; }
-.work .frame { width: 100%; cursor: zoom-in; }
-.work.lantern .frame, .work.morning .frame { aspect-ratio: 16 / 9; }
-.work.odyssey .frame { aspect-ratio: 1280 / 536; }
-.work.leaf .frame, .work.crescent .frame { aspect-ratio: 1; }
-.plaque { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; padding: 11px 15px; border-radius: 9px; }
+.work { display: grid; grid-row: span 2; grid-template-rows: subgrid; row-gap: 12px; min-width: 0; margin: 0; }
+.work.lantern { grid-column: 1; grid-row: 1 / span 2; }
+.work.light { grid-column: 2 / span 2; grid-row: 1 / span 2; }
+.work.road { grid-column: 4 / span 2; grid-row: 1 / span 2; }
+.work.lantern, .work.light, .work.road { margin-bottom: 16px; }
+.work.morning { grid-column: 1 / span 2; grid-row: 3 / span 2; }
+.work.leaf { grid-column: 3 / span 2; grid-row: 3 / span 2; }
+.work.crescent { grid-column: 5; grid-row: 3 / span 2; }
+.work .frame { width: 100%; height: 100%; cursor: zoom-in; }
+.plaque { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; align-content: start; padding: 11px 15px; border-radius: 9px; }
 .plaque .type { --cell: 2.4px; }
 .plaque p { font: 400 12.5px / 1.45 var(--sans); color: var(--marble-muted); }
 
@@ -351,9 +364,15 @@ h2, h3 { margin: 0; font-weight: 400; }
   .sample { width: 100%; height: auto; aspect-ratio: 1; max-height: calc((var(--room-h) - 260px) / 2); justify-self: center; }
   .room { --side: var(--content); }
   .head, .method .polyptych, .method .predella, .materials .board, .studio .head, .atelier, .agent { grid-column: 1 / -1; grid-row: auto; }
+  .gallery { width: auto; grid-template-rows: none; }
+  html.wide .gallery { padding-inline: 0; }
   .gallery .page.salon { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 14px; }
-  .work.lantern, .work.odyssey, .work.morning { grid-column: 1 / -1; grid-row: auto; }
+  .work { grid-row: auto; grid-template-rows: none; row-gap: 12px; margin-bottom: 0; }
+  .work.lantern, .work.light, .work.road, .work.morning { grid-column: 1 / -1; grid-row: auto; margin-bottom: 0; }
   .work.leaf, .work.crescent { grid-column: auto; grid-row: auto; }
+  .work.lantern .frame, .work.road .frame, .work.morning .frame { height: auto; aspect-ratio: 16 / 9; }
+  .work.light .frame { height: auto; aspect-ratio: 1280 / 676; }
+  .work.leaf .frame, .work.crescent .frame { height: auto; aspect-ratio: 1; }
   .plaque .type { --cell: 2px; }
   .slab { padding: 18px 16px; }
   .ways .type, .materials-pick .type, .file .type { --cell: 2.2px; }

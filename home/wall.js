@@ -68,7 +68,7 @@ export function wallFilm(layout, { module, laid = true, band }) {
   const project = {
     version: 1, title: "mosAIc", seed: 42, fps: [60, 1], frames: Math.ceil(end * 60) + 1, band, look: [[0, 1], [end, 1]],
     scenes: [
-      { id: "name", picture: { module, export: "namePicture", args: layout }, start: 0, end, at: [0, 0], in: arrive, front: true },
+      { id: "name", picture: { module, export: "namePicture", args: layout }, start: 0, end, at: [0, 0], in: arrive },
       { id: "page", picture: { module, export: "wallPicture", args: layout }, start: 0, end, at: [0, 0], in: arrive },
       { id: SCENE, picture: { module, export: "scenePicture", args: { ...layout, scene: SCENE } }, start: 0, end, at: [0, 0], in: arrive },
       ...liveScenes(layout, { module, arrive, end })
@@ -98,6 +98,8 @@ export function methodPicture({ w, h, x0 = 1110 }) {
       panel: { w, h }, res: (house.res ?? 1) / s, background: "sky",
       camera: { keys: [[0, w / 2, h / 2, w]], tilt: 0, yaw: 0, aperture: 0.004, drift: 0 },
       light: house.light, sinopia: false,
+      // The band moves on its own under the pointer, inside its frame, as a sample does.
+      insets: [[0, 0, w, h]],
       build: { origin: [w / 2, h / 2], start: WORLD, end: LAID - 0.3, rise: 0.08 }
     },
     regions: () => nocturneRegions().map((r) => ({ ...r, size: r.size * s, ...(r.center && { center: [(r.center[0] - x0) * s, r.center[1] * s] }) })),
@@ -160,7 +162,7 @@ export function wideFilm(layout, { module, laid = true, band, at = 0 }) {
   const project = {
     version: 1, title: "mosAIc", seed: 42, fps: [60, 1], frames: Math.ceil(end * 60) + 1, band, look: [[0, 1], [end, 1]],
     scenes: [
-      { id: "name", picture: { module, export: "namePicture", args: layout }, start: 0, end, at: [0, 0], in: arrive, front: true },
+      { id: "name", picture: { module, export: "namePicture", args: layout }, start: 0, end, at: [0, 0], in: arrive },
       { id: "blocks", picture: { module, export: "blocksPicture", args: { ...layout, width: layout.width * n, columns: layout.width } }, start: 0, end, at: [0, 0], in: around, front: true },
       { id: "laying", picture: picture(names[0], true), start: 0, end: SWAP, at: [0, 0], in: around },
       ...liveScenes(layout, { module, arrive, end, origin }),
@@ -343,7 +345,9 @@ export function wallPicture(layout) {
     { name: "deep", size: deep, mode: "contour", mat: "glass", tray: ["#0e2633", "#12303f", "#173a4a", "#1d4456", "#235066"] },
     { name: "drift", size: Math.min(deep, 13 * k), mode: "contour", mat: "glass", tray: ["#1d3f4d", "#28515e", "#356471", "#467683"] },
     { name: "spray", size: 7 * k, mode: "contour", mat: "glass", tray: ["#3f6c7a", "#5d8792", "#88a9a8"] },
-    { name: "frame", size: 7 * k, mode: "contour", mat: "gold", tray: ["#b18a50", "#c99d5c", "#d8b571", "#efcf91"] },
+    // The gold round every picture, sample, and opening holds still under the pointer, from
+    // whichever side it comes.
+    { name: "frame", size: 7 * k, mode: "contour", mat: "gold", still: true, tray: ["#b18a50", "#c99d5c", "#d8b571", "#efcf91"] },
     // Each sample is the same motif: a disc whose courses run round its middle, in a field
     // whose courses follow the square and wrap round the disc, both in the sample's material.
     ...samples.flatMap((b, i) => {

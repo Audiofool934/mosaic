@@ -6,7 +6,7 @@ import { readProject } from "./project.js";
 // is a pure function of t.
 import { loadPicture } from "./picture.js";
 import { tessellate } from "./tessellate.js";
-import { FLAG_TYPE, drawLists, lightDir } from "./renderer.js";
+import { FLAG_STILL, FLAG_TYPE, drawLists, lightDir } from "./renderer.js";
 import { clamp, clamp01, edt, fbm, hash, hexRgb, lerp, monotone, noise1, smoothstep, strSeed, toLinear } from "./util.js";
 
 export const FOVY = (24 * Math.PI) / 180;
@@ -521,6 +521,7 @@ export async function loadFilm(source, opts = {}) {
       t.lin2 = [st.lin[0] * v * (1 + 0.03 * (h2 - 0.5)), st.lin[1] * v, st.lin[2] * v * (1 + 0.03 * (h3 - 0.5))];
       const reg = pic.regions[t.L];
       if (reg.type) t.flags = (t.flags || 0) | FLAG_TYPE;
+      if (reg.still) t.flags = (t.flags || 0) | FLAG_STILL;
       if (reg.ripple) t.ripple = reg.ripple;
     });
 

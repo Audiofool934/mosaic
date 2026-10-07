@@ -20,6 +20,8 @@ export const TEXELS = 10;
 const NO_RISE = [0, 0, 0, 0], NO_FLY = [1, 0];
 export const PER_ROW = 256;
 export const FLAG_TYPE = 1;
+// A stone of a region set still: it never answers the pointer, as a frame round a picture.
+export const FLAG_STILL = 2;
 export const POINTS = 4;
 // The pointer's recent path: TRAIL samples, TRAIL_STEP seconds apart, newest first,
 // long enough for the slowest stone's spring to come to rest.
@@ -331,6 +333,7 @@ void stonePose(out mat3 R, out vec3 off, out float flight, out float bare) {
   float fall = iF.w;
   float thick = iE.x;
   bool letter = mod(stoneFlags(), 2.0) > 0.5;
+  bool still = mod(floor(stoneFlags() / 2.0), 2.0) > 0.5;
   vec2 tilt = iE.zw;
   // Water: the stone rocks with a wave that runs across the wall, so the glint travels.
   if (iJ.z > 0.0) {
@@ -402,7 +405,7 @@ void stonePose(out mat3 R, out vec3 off, out float flight, out float bare) {
   float lift;
   float radius;
   bare = 0.0;
-  if (uTime >= T && uTime < iG.x && pointerCurl(iA.xy, seed, shift, turn, lift, radius)) {
+  if (!still && uTime >= T && uTime < iG.x && pointerCurl(iA.xy, seed, shift, turn, lift, radius)) {
     bare = curlBare(lift);
     off.xy += shift * radius * 0.12;
     // The rebound rocks the stone; the mortar keeps it from sinking more than half a millimetre.
@@ -756,6 +759,7 @@ ${RISE}
 ${POINTER_CURL}
 vec4 seatA(highp sampler2D inst, int id) { return texelFetch(inst, ivec2((id % ${PER_ROW}) * ${TEXELS}, id / ${PER_ROW}), 0); }
 float seatT(highp sampler2D inst, int id) { return texelFetch(inst, ivec2((id % ${PER_ROW}) * ${TEXELS}, id / ${PER_ROW}), 0).z; }
+bool stoneStill(highp sampler2D inst, int id) { return mod(floor(texelFetch(inst, ivec2((id % ${PER_ROW}) * ${TEXELS} + 9, id / ${PER_ROW}), 0).w / 20.0), 2.0) > 0.5; }
 float liftU(highp sampler2D inst, int id) { return texelFetch(inst, ivec2((id % ${PER_ROW}) * ${TEXELS} + 6, id / ${PER_ROW}), 0).x; }
 vec3 stoneRgb(highp sampler2D inst, int id) { return texelFetch(inst, ivec2((id % ${PER_ROW}) * ${TEXELS} + 3, id / ${PER_ROW}), 0).rgb; }
 // mm coordinates of this point on a panel.
@@ -800,7 +804,7 @@ void layer(highp sampler2D inst, highp sampler2D own0, highp sampler2D own2, sam
     vec3 turn;
     float lift;
     float radius;
-    if (seated > 0.0 && pointerCurl(seat.xy, seat.w, shift, turn, lift, radius)) moved = curlBare(lift) * seated;
+    if (seated > 0.0 && !stoneStill(inst, id) && pointerCurl(seat.xy, seat.w, shift, turn, lift, radius)) moved = curlBare(lift) * seated;
     moved = max(moved, risen(rise, settle, min(uTime, U), seat.w) * seated);
     float wet = smoothstep(T - wetT.x, T - wetT.x * 0.4, uTime);
     spread = uTime >= T - wetT.x;

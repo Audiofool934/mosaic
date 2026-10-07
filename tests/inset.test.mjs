@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { loadPicture } from "../engine/picture.js";
 import { INSETS, INSET_REACH, TRAIL, insetRadius, insetsNear, markTrail, wallInsets } from "../engine/renderer.js";
-import { wallPicture } from "../home/wall.js";
+import { methodPicture, wallPicture } from "../home/wall.js";
 
 const close = (actual, expected, message) => {
   assert.equal(actual.length, expected.length, message);
@@ -55,4 +55,10 @@ test("the page sets each material sample into its wall as an inset, and nothing 
   const { config } = wallPicture({ width: 1440, height: 900, hero: 900, scale: 1.11, blocksOnly: true, blocks });
   assert.equal(config.insets.length, 2);
   close(config.insets[0], [731, 150, 190, 190].map((v) => v * 1.11), "the gold sample, in the wall's millimetres");
+});
+
+test("the page's gold frames hold still under the pointer, and the method's live band is an inset", () => {
+  const { regions } = wallPicture({ width: 1440, height: 900, hero: 900, scale: 1.11, blocksOnly: true, blocks: [] });
+  assert.equal(regions().find((r) => r.name === "frame").still, true);
+  assert.deepEqual(methodPicture({ w: 400, h: 600 }).config.insets, [[0, 0, 400, 600]]);
 });

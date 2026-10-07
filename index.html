@@ -52,12 +52,7 @@
 
     <!-- A room too full for one screen of a phone is set there as pages, each a screen of its own. -->
     <section class="room method" id="method" aria-labelledby="method-title">
-      <div class="page">
-        <div class="slab head" data-slab>
-          <h2 id="method-title" class="type" data-type="HOW A|DRAWING|BECOMES|A WALL">How a drawing becomes a wall</h2>
-          <p>There is no grid underneath. The courses come from the drawing's own edges, the way a mosaicist sets them by hand. The last band is this wall's own stones: move over them.</p>
-        </div>
-      </div>
+      <h2 id="method-title" class="unseen">How a drawing becomes a wall</h2>
       <div class="page">
         <!-- One picture in four bands, each a stage of it. The last is a hole in the page where
              the wall itself lays the rest of the picture in finished stones. -->
@@ -77,12 +72,7 @@
     </section>
 
     <section class="room materials" id="materials" aria-labelledby="materials-title">
-      <div class="page">
-        <div class="slab head" data-slab>
-          <h2 id="materials-title" class="type" data-type="EIGHT|MATERIALS">Eight materials</h2>
-          <p>Each sample is one motif laid in one material and set in this wall. Move across them to tilt their stones toward the light, and turn the sound on to hear them: stone knocks softly, glass rings for a moment, and gold and silver ring on.</p>
-        </div>
-      </div>
+      <h2 id="materials-title" class="unseen">Eight materials</h2>
       <div class="page">
         <div class="board">
           <ul class="samples" aria-hidden="true">
@@ -117,17 +107,12 @@
       </div>
     </section>
 
-    <!-- The gallery hangs every work at once, each in a frame of its own size with a plaque
-         under it, straight on the room; on a phone they hang a few to a page. A film plays
-         while the pointer is on it, and any work opens whole. -->
+    <!-- The gallery hangs every work at once, in two rows whose frames line up along all four
+         outer edges, each with a plaque under it; on a phone they hang a few to a page. A film
+         plays while the pointer is on it, and any work opens whole. -->
     <section class="room gallery" id="gallery" aria-labelledby="gallery-title">
       <span id="work"></span>
-      <div class="page">
-        <div class="slab head" data-slab>
-          <h2 id="gallery-title" class="type" data-type="GALLERY">Gallery</h2>
-          <p>Films and pictures made with mosAIc, by us and by agents with the skill. Point at a film to play it, and open any work to see it whole.</p>
-        </div>
-      </div>
+      <h2 id="gallery-title" class="unseen">Gallery</h2>
       <div class="page salon">
         <figure class="work lantern">
           <button class="frame" type="button" data-wall="emblem" data-film="home/works/odyssey-lantern.mp4" aria-describedby="lantern-plaque">
@@ -139,18 +124,28 @@
           </div>
           <template><p>About eighteen thousand stones, laid outward from a lantern with the border last. The engine began in this piece.</p></template>
         </figure>
-        <figure class="work odyssey">
-          <button class="frame" type="button" data-wall="emblem" data-film="home/works/odyssey.mp4" aria-describedby="odyssey-plaque">
-            <video src="home/works/odyssey.mp4" poster="home/works/odyssey.webp" width="1280" height="536" muted loop playsinline preload="none" aria-label="ΟΔΥΣΣΕΙΑ: Troy burns, its stones fly up and seat as a dawn sea with a gold road of sunlight, and the eye painted on a ship's bow becomes the Cyclops' eye."></video>
+        <figure class="work light">
+          <button class="frame" type="button" data-wall="emblem" data-film="home/works/a-light-that-endures.mp4" aria-describedby="light-plaque">
+            <video src="home/works/a-light-that-endures.mp4" poster="home/works/a-light-that-endures.webp" width="1280" height="676" muted loop playsinline preload="none" aria-label="A light that endures: a jewelled crown under dark peaks, the One Ring burning gold over Mordor, and the white city on its hill, each scene laid in stone."></video>
           </button>
-          <div class="slab plaque" data-slab id="odyssey-plaque">
-            <h3 class="type" data-type="ΟΔΥΣΣΕΙΑ">ΟΔΥΣΣΕΙΑ</h3>
+          <div class="slab plaque" data-slab id="light-plaque">
+            <h3 class="type" data-type="A LIGHT THAT ENDURES" data-type-narrow="A LIGHT|THAT ENDURES">A light that endures</h3>
             <p>Film, a silent 25 s excerpt · from the sketchbook, on an earlier engine</p>
           </div>
-          <template><p>Troy burns, and its stones seat again as the dawn sea. A silent excerpt, made with an earlier version of the engine.</p></template>
+          <template><p>Middle-earth from the first star to the Grey Havens, scene by scene in stone. A silent excerpt, made with an earlier version of the engine.</p></template>
         </figure>
       </div>
       <div class="page salon">
+        <figure class="work road">
+          <button class="frame" type="button" data-wall="emblem" data-film="home/works/the-road-home.mp4" aria-describedby="road-plaque">
+            <video src="home/works/the-road-home.mp4" poster="home/works/the-road-home.webp" width="1280" height="720" muted loop playsinline preload="none" aria-label="The road home: a round green door in a hill, a gold ring, a forest gate, and a fiery mountain, and back to the door at dusk."></video>
+          </button>
+          <div class="slab plaque" data-slab id="road-plaque">
+            <h3 class="type" data-type="THE ROAD HOME" data-type-narrow="THE ROAD|HOME">The road home</h3>
+            <p>Film, 36 s · from the sketchbook, on an earlier engine</p>
+          </div>
+          <template><p>From a round door in the hill to the mountain of fire and home again. Made with an earlier version of the engine.</p></template>
+        </figure>
         <figure class="work morning">
           <button class="frame" type="button" data-wall="emblem" data-film="home/media/moon-to-morning.mp4" aria-describedby="morning-plaque">
             <video src="home/media/moon-to-morning.mp4" poster="home/media/moon-to-morning.webp" width="1280" height="720" muted loop playsinline preload="none" aria-label="From moon to morning: the stones of a night scene lift off the wall and resettle as a coastal dawn."></video>

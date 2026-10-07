@@ -249,8 +249,7 @@ export function createStage({ reduceMotion, budget, at = null, onChange = () => 
     toFront(b);
   }
   const sceneOf = (k) => (k ? `page-${k}` : "name");
-  // Each frame of a jump. It asks for the next frame first, so the wall, which draws in a frame
-  // of its own once the gust has moved, draws after it in the same frame as the words move.
+  // Each frame of a jump.
   function blow(now) {
     const J = jump;
     if (!J || disposed || !film) return;
@@ -268,11 +267,7 @@ export function createStage({ reduceMotion, budget, at = null, onChange = () => 
     J.view = J.a === 0 && !cut ? s : J.b === 0 && cut ? 1 - s : null;
     mosaic.setGust(sceneOf(J.a), cut ? null : { at: u, wind: J.wind });
     mosaic.setGust(sceneOf(J.b), cut ? { at: v, wind: J.wind, away: false } : null);
-    const at = (cut ? J.b : J.a) * film.step;
-    if (clock !== at) {
-      clock = at;
-      mosaic.setTime(clock);
-    }
+    clock = (cut ? J.b : J.a) * film.step;
     screens.forEach((el, i) => {
       const k = i + 1;
       let shown = 0, drift = 0;
@@ -283,6 +278,8 @@ export function createStage({ reduceMotion, budget, at = null, onChange = () => 
     });
     host.style.visibility = "visible";
     onCover(J.a === 0 ? s : J.b === 0 && cut ? 1 - s : 1, true);
+    // The wall is drawn now, in the same frame as the words and the first screen move.
+    mosaic.setTime(clock);
   }
   // The jump is over: the stage stands on its page, and goes on to any asked for meanwhile.
   function land() {
@@ -504,7 +501,6 @@ export function createStage({ reduceMotion, budget, at = null, onChange = () => 
       calm();
       jump = plan(a, b);
       jumpAt(jump, t);
-      film.mosaic.requestFrame();
     },
     get mosaic() { return film?.mosaic ?? null; },
     get canvas() { return film?.canvas ?? null; },

@@ -113,6 +113,8 @@ export async function createMosaic(canvas, options = {}) {
   // stops on it.
   let goal = null, rate = 1;
   let raf = 0, lastNow = 0, input = [], record = null, recordStart = 0;
+  // Whether a frame has been asked for since the wall was last drawn.
+  let asked = false;
   // What the stones answer in the frame being drawn: the pointer at a time on the input's
   // own clock, and that clock's reading at the frame's film time.
   let frameInput = () => IDLE, frameClock = 0;
@@ -251,6 +253,7 @@ export async function createMosaic(canvas, options = {}) {
   // A replay reads its own clock at the film time; live input passes the page clock.
   function render(t, source = frameInput, at) {
     ensure(); time = clamp(finite(t, 0), 0, Math.max(0, duration - 1 / film.fps));
+    asked = false;
     frameInput = source; frameClock = at ?? time;
     // A page that follows its own scroll gives a function, read once for each frame drawn,
     // with the film time it is drawn at.
@@ -273,7 +276,7 @@ export async function createMosaic(canvas, options = {}) {
     while (old < looked.length - 1 && looked[old + 1].at < frameClock - settleTime) old++;
     looked.splice(0, old);
   }
-  function schedule() { if (!raf && !disposed && !lost) raf = requestAnimationFrame(tick); }
+  function schedule() { asked = true; if (!raf && !disposed && !lost) raf = requestAnimationFrame(tick); }
   // Listeners hear the stones the pointer touches as it slides over them, in each live frame.
   const listeners = new Set();
   // Where the pointer was on the wall when last heard, and when.
@@ -324,7 +327,7 @@ export async function createMosaic(canvas, options = {}) {
     if (disposed || lost) return;
     const dt = lastNow ? Math.min(.1, (now - lastNow) / 1000) : 1 / 60;
     lastNow = now;
-    const lamping = stepLamp(dt);
+    const lamping = stepLamp(dt), moved = playing;
     if (playing && goal !== null) {
       const left = goal - time;
       if (Math.abs(left) <= dt * rate) { time = goal; goal = null; playing = false; }
@@ -335,11 +338,16 @@ export async function createMosaic(canvas, options = {}) {
       else if (time >= duration - 1 / film.fps) playing = false;
     }
     const c = clock();
-    render(time, live, c);
-    if (listeners.size) heard(c);
     // The stones keep moving until the newest input, and the wall's last move under the
     // pointer, have passed through the whole trail.
-    if (playing || lamping || c - Math.max(input.at(-1)?.t ?? -Infinity, slidAt) < settleTime) schedule(); else lastNow = 0;
+    const settling = c - Math.max(input.at(-1)?.t ?? -Infinity, slidAt) < settleTime;
+    // A frame asked for draws the wall, unless a page has drawn it since, as setTime does, and
+    // nothing moves on.
+    if (asked || moved || lamping || settling) {
+      render(time, live, c);
+      if (listeners.size) heard(c);
+    }
+    if (playing || lamping || settling) schedule(); else lastNow = 0;
   }
   const contextLost = event => { event.preventDefault(); lost = true; playing = false; renderer?.dispose(); cancelAnimationFrame(raf); raf = 0; progress('Graphics context interrupted. Restoring the artwork…'); };
   const contextRestored = () => { if (disposed) return; lost = false; try { setup(); redraw(); progress('Artwork restored'); } catch (e) { progress(e.message); } };

@@ -1,12 +1,14 @@
 // The stage: where there is room for it, the page's screens become pages side by side along
 // one long wall in one sea, which the wheel, a trackpad, the keys, and touch turn sideways.
-// The first screen is page 0. A short push lifts the stones of the page's own blocks off the
-// wall; a fuller one turns the page, the view travelling right along the sea while those
-// stones fly on into the next page's places and settle; and the turn follows the hand both
-// ways, so it can be held, rewound, or let go, when it settles back or finishes, whichever
-// way the hand was going. From the first screen, its name flies: the stage's canvas lies over
-// it, see-through but for a copy of the name, which takes the name's place as a turn begins,
-// leaving the letters' bed bare in the first screen's scene as that slides away to the left.
+// The first screen is page 0. A turn is bound to the hand: a little of a push lifts the
+// stones of the page's own blocks off the wall a little, more lifts them further, and more
+// again turns the page, the view travelling right along the sea while those stones fly on
+// into the next page's places and settle. It follows the hand both ways and stays where a
+// wheel leaves it, so it can be held, rewound, or carried on; a finger let go settles it on
+// the nearer page, or finishes a flick. From the first screen, its name flies: the stage's
+// canvas lies over it, see-through but for a copy of the name, which takes the name's place
+// as a turn begins, leaving the letters' bed bare in the first screen's scene as that slides
+// away to the left.
 import { createMosaic } from "../engine/runtime.js";
 import { clamp, smoothstep } from "../engine/util.js";
 import { stageFilm, wallScale } from "./wall.js";
@@ -15,16 +17,16 @@ import { stageFilm, wallScale } from "./wall.js";
 // and come as the next page's stones land, over these before their settle.
 const GO = [-0.04, 0.06], COME = [-0.1, 0.06];
 // The hand. A whole turn takes a wheel this share of the screen's height, and a finger this
-// share of the screen's width or height; one notch of a wheel counts for at least NOTCH of a
-// turn; a wheel still for QUIET milliseconds has been let go, and one still for FRESH before
-// it moves again is a new push, not the end of a flick; and a finger let go faster than
+// share of the screen's width or height; a wheel still for QUIET milliseconds has been let
+// go, and one still for FRESH before it moves again is a new push, not the end of a flick;
+// a wheel let go within NEAR of a page settles onto it; and a finger let go faster than
 // FLICK turns a second finishes the turn it was making.
-const WHEEL = 0.75, TOUCH = 0.8, NOTCH = 0.13, QUIET = 170, FRESH = 90, FLICK = 0.8;
+const WHEEL = 0.75, TOUCH = 0.8, QUIET = 170, FRESH = 90, NEAR = 0.03, FLICK = 0.8;
 // The stones move like a weight on a spring toward where the stage is going, carrying their
 // speed from one notch of a wheel to the next. Following the hand they settle within about
-// FOLLOW seconds; finishing a turn once let go, or one asked for by a key or a link, within
-// about EASE seconds and no faster than FINISH or ASKED film seconds a second.
-const FOLLOW = 0.16, EASE = 0.32, FINISH = 1.8, ASKED = 2.4, QUICK = 14;
+// FOLLOW seconds; settling a turn a finger let go, or making one asked for by a key or a
+// link, within about EASE seconds and no faster than FINISH or ASKED film seconds a second.
+const FOLLOW = 0.1, EASE = 0.32, FINISH = 1.8, ASKED = 2.4, QUICK = 14;
 
 // onChange(k, el) hears which page is in front whenever it changes, 0 being the first screen,
 // and its element;
@@ -153,14 +155,16 @@ export function createStage({ reduceMotion, budget, at = null, onChange = () => 
     if (goal === (dir > 0 ? lo + 1 : lo)) locked = true;
     chase();
   }
-  // The hand lets go: the turn finishes whichever way it was going, if it got past the lift
-  // at that end, or else settles back.
+  // A wheel lets go: the stage stays where the wheel left it, as a page stays where it is
+  // scrolled to, unless that is a hair from a page, which it settles onto.
   function letGo() {
     if (!held) return;
     held = locked = false;
-    const f = goal - Math.floor(goal);
-    if (f > 1e-6 && film) goal = Math.floor(goal) + (heading > 0 ? (f > film.rise ? 1 : 0) : (f < 1 - film.settle ? 0 : 1));
-    drive({ tau: EASE, top: FINISH });
+    const k = Math.round(goal);
+    if (goal !== k && Math.abs(goal - k) < NEAR) {
+      goal = k;
+      drive({ tau: EASE, top: FINISH });
+    }
   }
   // Turns to page k, as asked by a key or a link, through any pages between.
   function turnTo(k, { instant = false } = {}) {
@@ -196,8 +200,7 @@ export function createStage({ reduceMotion, budget, at = null, onChange = () => 
     const fresh = event.timeStamp - lastWheel > FRESH;
     lastWheel = event.timeStamp;
     if (!d) return;
-    // A notch of a wheel is one push, of at least NOTCH of a turn.
-    push(Math.sign(d) * Math.max(Math.abs(d) / turn, fresh ? NOTCH : 0), fresh);
+    push(d / turn, fresh);
     clearTimeout(quiet);
     quiet = setTimeout(letGo, QUIET);
   }
@@ -244,16 +247,15 @@ export function createStage({ reduceMotion, budget, at = null, onChange = () => 
     // A finger can always come back the way it went.
     locked = false;
   }
+  // A finger let go settles the stage on the nearer page, or finishes the turn it flicked.
   function touchEnd(event) {
     if (!touch || event.pointerId !== touch.id) return;
     const speed = touch.speed;
     touch = null;
-    // A flick finishes the turn it was making.
-    if (held && Math.abs(speed) > FLICK) {
-      heading = Math.sign(speed);
-      goal = heading > 0 ? Math.max(goal, lo + 0.99) : Math.min(goal, lo + 0.01);
-    }
-    letGo();
+    if (!held) return;
+    held = locked = false;
+    goal = Math.abs(speed) > FLICK ? lo + (speed > 0 ? 1 : 0) : Math.round(goal);
+    drive({ tau: EASE, top: FINISH });
   }
 
   // The page an element is on, 0 for the first screen, or -1.

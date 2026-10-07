@@ -1,24 +1,33 @@
 import { createMosaic } from "../engine/runtime.js";
 import { createStoneSound } from "../engine/sound.js";
+import { clamp } from "../engine/util.js";
 import { createGallery } from "./gallery.js";
 import { ITEMS } from "./bar.js";
 import { createBar } from "./nav.js";
 import { watchRooms } from "./rooms.js";
-import { createStage } from "./stage.js";
-import { wallFilm, wallScale } from "./wall.js";
+import { wallFilm, wallScale, wideFilm } from "./wall.js";
 
 const $ = (id) => document.getElementById(id);
+const root = document.documentElement;
 const wall = $("wall");
 const note = $("wall-note");
+const pauseButton = $("wall-pause");
+const hero = $("hero");
+const heroLabel = { still: hero.getAttribute("aria-label"), wide: hero.dataset.wideLabel };
 const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)");
-// The canvas reaches this share of the viewport above and below it, so a fast scroll never
-// outruns the stones between two frames.
+// The canvas reaches this share of the viewport past it, above and below on a column of
+// rooms and on either side on the wide wall, so a fast scroll never outruns the stones
+// between two frames.
 const OVERSCAN = 0.15;
-// The page turns its screens on a stage where motion is welcome and the screen is tall
-// enough to hold a room; elsewhere it scrolls as a page.
-const STAGE_HEIGHT = 540;
-const staged = () => !reduceMotion.matches && innerHeight >= STAGE_HEIGHT && wall.dataset.state !== "still";
-let stage = null;
+// Where motion is welcome and the screen is tall enough to hold a room, the page's screens
+// stand side by side along one wide wall that scrolls sideways; elsewhere the page is a
+// column of rooms.
+const WIDE_HEIGHT = 540;
+const wants = () => !reduceMotion.matches && innerHeight >= WIDE_HEIGHT && wall.dataset.state !== "still";
+let wide = false;
+// On the wide wall, the screen in view, kept as the page scrolls while its screens are the
+// width they were set at, so a new window size reopens the page on it.
+let current = 0, screenWidth = 0;
 
 // The wall on screen: its controller, its canvas, the millimetres of wall in each CSS
 // pixel, and the stretch of page its canvas covers.
@@ -30,66 +39,152 @@ let resizeTimer = 0;
 let building = Promise.resolve();
 let lastLog = [];
 
+// The wide wall's screens in order: the first screen, then each room, or each of a room's
+// pages where it is set as pages.
+function screens() {
+  return [$("top"), ...[...document.querySelectorAll("main > .room, body > footer.room")].flatMap((room) => {
+    const pages = [...room.querySelectorAll(":scope > .page")];
+    return pages.length && getComputedStyle(pages[0]).display !== "contents" ? pages : [room];
+  })];
+}
+
+// The part of a block that the scrollers around it show, such as a plate half out of the
+// gallery's reel: a frame for the rest would land on the wall past the reel, or on the next
+// screen of the wide wall.
+function shown(el) {
+  let { left, top, right, bottom } = el.getBoundingClientRect();
+  for (let p = el.parentElement; p && p !== document.body; p = p.parentElement) {
+    if (getComputedStyle(p).overflowX === "visible") continue;
+    const c = p.getBoundingClientRect();
+    left = Math.max(left, c.left);
+    top = Math.max(top, c.top);
+    right = Math.min(right, c.right);
+    bottom = Math.min(bottom, c.bottom);
+  }
+  return right - left >= 1 && bottom - top >= 1 ? { left, top, width: right - left, height: bottom - top } : null;
+}
+
 // Every block marked data-wall, in page pixels: the stones are cut around these.
 function measure() {
-  const top = window.scrollY;
-  const blocks = [...document.querySelectorAll("[data-wall]")].filter((el) => !el.hidden).map((el) => {
-    const r = el.getBoundingClientRect();
-    return { kind: el.dataset.wall, material: el.dataset.material, x: r.left, y: r.top + top, w: r.width, h: r.height };
+  const left = scrollX, top = scrollY;
+  const blocks = [...document.querySelectorAll("[data-wall]")].filter((el) => !el.hidden && el.getClientRects().length).flatMap((el) => {
+    const r = shown(el);
+    return r ? [{ kind: el.dataset.wall, material: el.dataset.material, x: r.left + left, y: r.top + top, w: r.width, h: r.height }] : [];
   });
-  const width = document.documentElement.clientWidth;
-  return { width, height: document.documentElement.scrollHeight, hero: $("hero").getBoundingClientRect().bottom + top, blocks, scale: wallScale(width) };
+  const width = root.clientWidth;
+  if (wide) {
+    const height = Math.round($("top").getBoundingClientRect().height);
+    return { width, height, hero: height, screens: screens().length, blocks, scale: wallScale(width) };
+  }
+  return { width, height: root.scrollHeight, hero: hero.getBoundingClientRect().bottom + top, blocks, scale: wallScale(width) };
 }
 
 // The canvas spans the page width and the tallest viewport seen, with a margin above and
-// below; a dense display draws at most `budget` pixels and is upscaled past that. On the
-// stage it covers the first screen only, and goes with it.
+// below, or on the wide wall the screen and a margin either side; a dense display draws at
+// most `budget` pixels and is upscaled past that.
 function canvasView() {
-  tallest = Math.max(tallest, window.innerHeight);
-  const width = document.documentElement.clientWidth;
-  const margin = stage ? 0 : Math.round(tallest * OVERSCAN);
-  const height = stage ? Math.round($("top").getBoundingClientRect().height) : tallest + 2 * margin;
-  const k = Math.min(Math.min(devicePixelRatio || 1, 2), Math.sqrt(budget / (width * height)));
-  return { width, height, margin, px: [Math.round(width * k), Math.round(height * k)] };
+  const width = root.clientWidth;
+  let w = width, h, margin;
+  if (wide) {
+    margin = Math.round(width * OVERSCAN);
+    w = width + 2 * margin;
+    h = Math.round($("top").getBoundingClientRect().height);
+  } else {
+    tallest = Math.max(tallest, innerHeight);
+    margin = Math.round(tallest * OVERSCAN);
+    h = tallest + 2 * margin;
+  }
+  const k = Math.min(Math.min(devicePixelRatio || 1, 2), Math.sqrt(budget / (w * h)));
+  return { width: w, height: h, margin, px: [Math.round(w * k), Math.round(h * k)] };
 }
 
 // Read once for each frame drawn: the canvas follows the scroll, and the camera looks at
-// the same stretch of wall, so both move in the same task. On the stage the first screen's
-// canvas scrolls with it, and looks at it alone.
+// the same stretch of wall, so both move in the same task.
 function framing(canvas, scale, view) {
-  if (stage) return { x: (view.width * scale) / 2, y: (view.height * scale) / 2, w: view.width * scale };
+  canvas.style.width = wide ? `${view.width}px` : "";
+  canvas.style.height = `${view.height}px`;
+  if (wide) return () => {
+    const x = scrollX - view.margin;
+    canvas.style.transform = `translate3d(${x}px, 0, 0)`;
+    return { x: (x + view.width / 2) * scale, y: (view.height / 2) * scale, w: view.width * scale };
+  };
   return () => {
-    const y = window.scrollY - view.margin;
+    const y = scrollY - view.margin;
     canvas.style.transform = `translate3d(0, ${y}px, 0)`;
     return { x: (view.width * scale) / 2, y: (y + view.height / 2) * scale, w: view.width * scale };
   };
 }
 
-// The first screen is laid once: the name, then the scene and the page around it, waiting at
-// the gate until every picture has joined the wall, so none appears half laid; then it rests,
-// and its stones move only under the hand. It holds still while a turn of the stage from it
-// is under way.
-let covered = false;
-let watching = 0;
+// The wall's film. A column of rooms is laid once: the name, then the scene and the page
+// around it, waiting at the gate until every picture has joined, so none appears half laid,
+// and then it rests. The wide wall is laid the same way, waiting at the gate for the name,
+// the blocks, and the first scene, and at the end of the laying for every scene; then it
+// holds each scene for HOLD seconds, the first for FIRST, before it flows into the next, on
+// and on. A flow waits while the page has been scrolled in the last STILL seconds, so the
+// wall never moves two ways at once, and none starts while motion is reduced or the scenes
+// are paused.
+const HOLD = 6, FIRST = 2.5, STILL = 1.2;
+const COAT = "#1e2b33";
+let holding = 0, held = false, watching = 0, scrolled = -Infinity, paused = false;
 let frameTimes = [];
 
-function lay() {
-  if (!live || covered) return;
-  // Once every picture has joined, the laying goes on past the gate, even on its way there.
-  const to = live.joined ? live.rest : live.gate;
-  if (live.mosaic.getState().time >= to) return;
-  live.mosaic.play({ to });
+function hold(seconds) {
+  clearTimeout(holding);
+  held = true;
+  holding = setTimeout(() => {
+    held = false;
+    advance();
+  }, seconds * 1000);
+}
+
+function advance() {
+  if (!live || held || (paused && live.cycle)) return;
+  const m = live.mosaic;
+  let { time, playing } = m.getState();
+  if (playing) return;
+  const joined = (ids) => ids.every((id) => m.info.stones.some((s) => s.shot === id));
+  let to;
+  if (!live.cycle) to = live.joined ? live.rest : live.gate;
+  else {
+    const { gate, laid, rests, first, ids } = live.cycle;
+    if (time < gate - 1e-3) to = gate;
+    else if (time < laid - 1e-3) {
+      if (!joined(first)) return hold(0.25);
+      to = laid;
+    } else if (time < rests[0] - 1e-3) {
+      if (!joined(ids)) return hold(0.25);
+      to = rests[0];
+    } else if (reduceMotion.matches) return;
+    else {
+      const i = rests.findIndex((r) => Math.abs(r - time) < 1e-3);
+      // A flow paused part way goes on to its scene.
+      if (i < 0) to = rests.find((r) => r > time);
+      else {
+        if (performance.now() - scrolled < STILL * 1000) return hold(STILL);
+        // From the last scene, a copy of the first, on from the first again.
+        if (i === rests.length - 1) {
+          time = rests[0];
+          m.setTime(time);
+        }
+        to = rests[i === rests.length - 1 ? 1 : i + 1];
+      }
+    }
+  }
+  if (to === undefined || time >= to - 1e-3) return;
+  m.play({ to });
   watch();
 }
 
-// Each frame while the wall is laid: if frames come too slowly, the canvas draws fewer
-// pixels from then on.
+// Each frame while the wall plays: once it stops, it holds the scene it came to rest on, or
+// goes on; and while it is laid, if frames come too slowly, the canvas draws fewer pixels
+// from then on.
 function watch() {
   cancelAnimationFrame(watching);
   let last = 0;
   const step = (now) => {
     watching = 0;
-    if (!live?.mosaic.getState().playing) return;
+    if (!live) return;
+    if (!live.mosaic.getState().playing) return arrived();
     if (last && frameTimes.length < 90) frameTimes.push(now - last);
     last = now;
     if (frameTimes.length === 90 && budget > 0.9e6) {
@@ -100,12 +195,39 @@ function watch() {
   };
   watching = requestAnimationFrame(step);
 }
+function arrived() {
+  const rests = live.cycle?.rests ?? [], time = live.mosaic.getState().time;
+  const i = rests.findIndex((r) => Math.abs(r - time) < 1e-3);
+  if (i >= 0) hold(i === 0 && !live.cycled ? FIRST : HOLD);
+  else advance();
+  if (i > 0) live.cycled = true;
+}
+
+// The scenes' pause, shown while the wide wall flows from scene to scene: pausing stops
+// them where they are, and playing again goes straight on to the next.
+function updateControls() {
+  pauseButton.hidden = !live?.cycle || reduceMotion.matches;
+  pauseButton.dataset.state = paused ? "paused" : "playing";
+  const label = paused ? "Play the scenes" : "Pause the scenes";
+  pauseButton.setAttribute("aria-label", label);
+  pauseButton.title = label;
+}
+pauseButton.addEventListener("click", () => {
+  if (!live?.cycle) return;
+  paused = !paused;
+  clearTimeout(holding);
+  held = false;
+  if (paused) {
+    cancelAnimationFrame(watching);
+    live.mosaic.pause();
+  } else advance();
+  updateControls();
+});
 
 function lighten() {
   budget /= 2;
   const view = canvasView();
   live.view = view;
-  live.canvas.style.height = `${view.height}px`;
   live.mosaic.resize(view.px[0], view.px[1]);
   live.mosaic.setView({ frame: framing(live.canvas, live.scale, view) });
 }
@@ -113,13 +235,16 @@ function lighten() {
 async function build() {
   const token = ++generation;
   await document.fonts?.ready;
-  // The stage is set up anew for each layout, since a new width can set rooms as pages, and
-  // keeps the page it was on.
-  const at = stage ? Math.round(stage.view) : null;
-  stage?.dispose();
-  stage = staged() ? createStage({ reduceMotion, budget: () => budget, at, onChange: turned, onReady: staging, onCover: cover }) : null;
-  bar.follow(stage ? () => sections[Math.max(0, stage.active)] ?? 0 : null);
-  sections = stage ? sectionsOf(stage) : [];
+  // The page is set wide or as a column anew for each layout, and the wide wall keeps the
+  // screen it was on.
+  const screen = wide ? current : null;
+  wide = wants();
+  root.classList.toggle("wide", wide);
+  screenWidth = root.clientWidth;
+  hero.setAttribute("aria-label", wide ? heroLabel.wide : heroLabel.still);
+  bar.follow(wide ? () => sectionOf(Math.round(scrollX / root.clientWidth)) : null);
+  sections = wide ? sectionsOf() : [];
+  if (wide) arrive(screen);
   const layout = measure();
   const view = canvasView();
   // The first wall is laid live; a wall cut again for a new layout appears already laid,
@@ -130,26 +255,29 @@ async function build() {
     canvas.hidden = true;
     wall.append(canvas);
   }
-  canvas.style.height = `${view.height}px`;
   const log = [];
   // The name, the scenes behind it, and the page around them, all on one wall. Each picture
   // is named rather than passed, so workers cut them while the page stays live, and the name
   // is laid as soon as it is ready.
   const module = new URL("./wall.js", import.meta.url).href;
-  const { project, gate, rest } = wallFilm(layout, { module, laid: first && !reduceMotion.matches, band: view.px, page: !stage });
+  const laid = first && !reduceMotion.matches;
+  const film = wide ? wideFilm(layout, { module, laid, band: view.px, at: current }) : wallFilm(layout, { module, laid, band: view.px });
   let mosaic;
   try {
-    mosaic = await createMosaic(canvas, { project, width: view.px[0], height: view.px[1], samples: 1, interactive: true, worker: true, onProgress: (line) => log.push(line) });
+    // The wide wall's bare bed is a deep slate, so a scene flowing into the next never flashes
+    // pale between the two.
+    mosaic = await createMosaic(canvas, { project: film.project, width: view.px[0], height: view.px[1], samples: 1, interactive: true, worker: true, ...(wide && { coat: COAT }), onProgress: (line) => log.push(line) });
     if (!first) await mosaic.ready;
   } catch (error) {
     if (!first) canvas.remove();
     if (token !== generation || live) return;
     console.error("The wall could not be laid:", error);
-    // Without a wall the page scrolls as a page, over a still of the first screen.
-    stage?.dispose();
-    stage = null;
-    bar.follow(null);
+    // Without a wall the page scrolls as a column, over a still of the first screen.
     wall.dataset.state = "still";
+    wide = false;
+    root.classList.remove("wide");
+    hero.setAttribute("aria-label", heroLabel.still);
+    bar.follow(null);
     note.textContent = "This browser could not start WebGL2, so the wall is a still from the same engine.";
     return;
   }
@@ -160,20 +288,25 @@ async function build() {
   }
   const previous = live;
   // A wall cut again has every picture before it is shown; the first joins them as they come.
-  live = { mosaic, canvas, scale: layout.scale, view, width: layout.width, height: layout.height, rest, gate, joined: !first };
+  live = {
+    mosaic, canvas, scale: layout.scale, view, width: layout.width, height: layout.height, wide, joined: !first,
+    gate: film.gate, rest: film.rest, cycle: wide ? { gate: film.gate, laid: film.laid, rests: film.rests, first: film.first, ids: film.cycle } : null, cycled: false
+  };
   lastLog = log;
   mosaic.setView({ frame: framing(canvas, layout.scale, view) });
   listen();
-  // The stage's screens are cut once the first screen is laid, so they never hold it up.
-  mosaic.ready.then(() => { if (live?.mosaic === mosaic) stage?.build(); });
+  updateControls();
+  clearTimeout(holding);
+  held = false;
   if (previous) {
-    // The wall cut again shows the same moment of the same film, and plays on from there.
+    // The wall cut again shows the same scene at rest, or as far as the last one got.
     const { time } = previous.mosaic.getState();
     previous.mosaic.dispose();
     previous.canvas.remove();
     canvas.hidden = false;
-    mosaic.seek(reduceMotion.matches ? rest : time);
-    lay();
+    const rests = live.cycle?.rests;
+    mosaic.seek(rests ? (previous.wide ? rests.reduce((at, r) => (r <= time + 1e-3 ? r : at), rests[0]) : rests[0]) : film.rest);
+    advance();
     return;
   }
   started = performance.now() - mosaic.info.setupMs;
@@ -181,11 +314,11 @@ async function build() {
   mosaic.ready.then(() => {
     if (live?.mosaic !== mosaic) return;
     live.joined = true;
-    lay();
-    if (!stage) count([mosaic]);
+    advance();
+    count([mosaic]);
   });
-  mosaic.seek(reduceMotion.matches ? rest : 0);
-  lay();
+  mosaic.seek(reduceMotion.matches ? film.rest ?? film.laid : 0);
+  advance();
   wall.dataset.state = "live";
 }
 
@@ -197,7 +330,7 @@ let unhear = null;
 function listen() {
   unhear?.();
   const on = soundButton.getAttribute("aria-pressed") === "true";
-  const offs = on ? [live?.mosaic, stage?.mosaic, bar.mosaic].filter(Boolean).map((m) => m.onContact((events) => sound.play(events))) : [];
+  const offs = on ? [live?.mosaic, bar.mosaic].filter(Boolean).map((m) => m.onContact((events) => sound.play(events))) : [];
   unhear = () => offs.forEach((off) => off());
 }
 const bar = createBar($("bar"), { reduceMotion, onReady: listen });
@@ -209,43 +342,134 @@ function count(mosaics) {
   const stones = mosaics.reduce((n, m) => n + m.info.stoneCount, 0);
   note.textContent = `${stones.toLocaleString("en-US")} stones, cut around this page in your browser in ${((performance.now() - started) / 1000).toFixed(1)} seconds.`;
 }
-// The stage's wall is ready: it is heard with the rest, and counted with the first screen's.
-function staging(mosaic) {
-  listen();
-  if (live) count([live.mosaic, mosaic]);
-}
 
-// On the stage, which of the bar's sections each screen is in: the one whose room it is,
+// On the wide wall, which of the bar's sections each screen is in: the one whose room it is,
 // or else the one before it.
 let sections = [];
-function sectionsOf(s) {
-  const ids = ITEMS.map((it) => it.id), out = [0];
-  for (let k = 1; s.screen(k); k++) {
-    const i = ids.indexOf(s.screen(k).closest(".room")?.id);
-    out.push(i >= 0 ? i : out[k - 1]);
+function sectionsOf() {
+  const ids = ITEMS.map((it) => it.id), out = [];
+  for (const el of screens()) {
+    const i = ids.indexOf(el === $("top") ? "top" : el.closest(".room")?.id);
+    out.push(i >= 0 ? i : out.at(-1) ?? 0);
   }
   return out;
 }
-// The first screen as the stage holds it: slid away to the left, from 0 to 1, and whether a
-// turn from it has begun. From then on its scenes hold still, and the stones of its name are
-// the stage's to fly, so its own come off its wall, leaving their bed bare.
-function cover(slide, on) {
-  wall.style.transform = slide > 0 ? `translate3d(${(-slide * document.documentElement.clientWidth).toFixed(1)}px, 0, 0)` : "";
-  if (on !== covered) {
-    covered = on;
-    if (covered) live?.mosaic.pause();
-    else lay();
+const sectionOf = (k) => sections[clamp(k, 0, sections.length - 1)] ?? 0;
+
+// The screen an element is on, or the first page of a room named by id.
+function screenOf(id) {
+  if (!id || id === "top") return 0;
+  const el = document.getElementById(id);
+  if (!el) return -1;
+  const all = screens();
+  const k = all.findIndex((s) => s === el || s.contains(el));
+  if (k >= 0) return k;
+  return all.findIndex((s) => el.contains(s));
+}
+// Goes to screen k of the wide wall, gliding there, or at once.
+function goTo(k, instant = false) {
+  const last = screens().length - 1;
+  glideTo(clamp(k, 0, last) * root.clientWidth, instant || reduceMotion.matches);
+}
+// Opens on the screen the address names, or the one the page was on before it was set again.
+function arrive(screen) {
+  current = Math.max(0, screen ?? (location.hash ? screenOf(decodeURIComponent(location.hash.slice(1))) : 0));
+  scrollTo({ left: current * root.clientWidth, top: 0, behavior: "instant" });
+}
+
+// The wheel scrolls the wide wall sideways, as a wheel scrolls a page down: each turn of it,
+// or stroke of a trackpad up and down, moves the page along by as much, gliding there over
+// about GLIDE seconds. A trackpad's stroke sideways scrolls it as it scrolls anything. The
+// glide keeps its own place, since the browser rounds where the page is scrolled to, and
+// starts again from where the page is if something else has scrolled it.
+const GLIDE = 0.08;
+let target = null, gliding = 0, glidedAt = 0, glideX = 0;
+function glideTo(x, instant) {
+  target = clamp(x, 0, root.scrollWidth - root.clientWidth);
+  if (instant) {
+    cancelAnimationFrame(gliding);
+    gliding = 0;
+    scrollTo({ left: target, behavior: "instant" });
+    target = null;
+  } else if (!gliding) {
+    glidedAt = 0;
+    glideX = scrollX;
+    gliding = requestAnimationFrame(glide);
   }
-  // After any pause, so the redraw it asks for is not called off; and every time, so a wall
-  // cut again for a new layout is held the same way.
-  live?.mosaic.setHidden("name", covered);
 }
-// A screen turned to the front: the bar follows it, and the gallery plays only while it is
-// in front.
-function turned(k, el) {
-  bar.update();
-  gallery.setOnScreen(Boolean(el?.closest("#gallery")));
+function glide(now) {
+  gliding = 0;
+  if (target === null) return;
+  const dt = glidedAt ? Math.min(0.05, (now - glidedAt) / 1000) : 1 / 60;
+  glidedAt = now;
+  if (Math.abs(scrollX - glideX) > 1) glideX = scrollX;
+  glideX += (target - glideX) * (1 - Math.exp(-dt / GLIDE));
+  if (Math.abs(target - glideX) < 0.5) {
+    scrollTo({ left: target, behavior: "instant" });
+    target = null;
+    return;
+  }
+  scrollTo({ left: glideX, behavior: "instant" });
+  gliding = requestAnimationFrame(glide);
 }
+// Whether an element under the wheel scrolls up and down itself, the way it is turned.
+function scrollsItself(el, dy) {
+  for (let e = el; e && e !== document.body && e.nodeType === 1; e = e.parentElement) {
+    if (e.scrollHeight > e.clientHeight + 1 && /auto|scroll/.test(getComputedStyle(e).overflowY)) {
+      if (dy > 0 ? e.scrollTop + e.clientHeight < e.scrollHeight - 1 : e.scrollTop > 0) return true;
+    }
+  }
+  return false;
+}
+addEventListener("wheel", (event) => {
+  if (!wide || event.ctrlKey) return;
+  if (Math.abs(event.deltaX) >= Math.abs(event.deltaY)) {
+    target = null;
+    return;
+  }
+  if (scrollsItself(event.target, event.deltaY)) return;
+  event.preventDefault();
+  const px = event.deltaMode === 1 ? 40 : event.deltaMode === 2 ? root.clientWidth : 1;
+  glideTo((target ?? scrollX) + event.deltaY * px, false);
+}, { passive: false });
+
+// The keys that scroll a page down move the wide wall along: Page Down and the space bar by a
+// screen, Home and End to either end, and the arrows up and down as the arrows left and right
+// do.
+addEventListener("keydown", (event) => {
+  if (!wide || event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey) return;
+  const t = event.target;
+  if (t.closest?.("input, textarea, select, [contenteditable]")) return;
+  const here = Math.round(scrollX / root.clientWidth);
+  if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+    event.preventDefault();
+    glideTo((target ?? scrollX) + (event.key === "ArrowDown" ? 80 : -80), false);
+    return;
+  }
+  const k = { PageDown: here + 1, PageUp: here - 1, Home: 0, End: Infinity }[event.key]
+    ?? (event.key === " " && !t.closest?.("button, a, summary, video") ? here + (event.shiftKey ? -1 : 1) : undefined);
+  if (k === undefined) return;
+  event.preventDefault();
+  goTo(k === Infinity ? screens().length - 1 : k);
+});
+
+// A link to a part of the page goes to its screen, and so do the browser's back and forward.
+document.addEventListener("click", (event) => {
+  if (!wide) return;
+  const a = event.target.closest?.('a[href^="#"]');
+  if (!a || event.defaultPrevented || event.button || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+  const k = screenOf(decodeURIComponent(a.hash.slice(1)));
+  if (k < 0) return;
+  event.preventDefault();
+  history.pushState(null, "", a.hash);
+  goTo(k);
+});
+addEventListener("popstate", () => {
+  if (!wide) return;
+  const k = screenOf(decodeURIComponent(location.hash.slice(1)));
+  if (k >= 0) goTo(k);
+});
+
 soundButton.addEventListener("click", async () => {
   const on = soundButton.getAttribute("aria-pressed") !== "true";
   soundButton.setAttribute("aria-pressed", String(on));
@@ -255,43 +479,43 @@ soundButton.addEventListener("click", async () => {
   listen();
 });
 
-addEventListener("scroll", () => { if (!stage) live?.mosaic.requestFrame(); }, { passive: true });
+addEventListener("scroll", () => {
+  scrolled = performance.now();
+  if (wide && root.clientWidth === screenWidth) current = Math.round(scrollX / screenWidth);
+  live?.mosaic.requestFrame();
+}, { passive: true });
 
-// The pointer lifts the stones wherever it is on the page: on the stage, those of the first
-// screen while the pointer is over it, and those of the screen in front below it.
-let lifting = null;
+// The pointer lifts the stones wherever it is on the page.
+let lifting = false;
 function lift(event) {
   if (!live || reduceMotion.matches) return;
-  const onStage = Boolean(stage?.mosaic) && stage.view >= 0.5;
-  const mosaic = onStage ? stage.mosaic : live.mosaic, canvas = onStage ? stage.canvas : live.canvas;
-  if (lifting && lifting !== mosaic) lifting.setPointer({ active: false });
-  lifting = mosaic;
-  const r = canvas.getBoundingClientRect();
-  mosaic.setPointer({ x: (event.clientX - r.left) / r.width, y: (event.clientY - r.top) / r.height, active: true });
+  lifting = true;
+  const r = live.canvas.getBoundingClientRect();
+  live.mosaic.setPointer({ x: (event.clientX - r.left) / r.width, y: (event.clientY - r.top) / r.height, active: true });
 }
 function settle() {
-  lifting?.setPointer({ active: false });
-  lifting = null;
+  if (lifting) live?.mosaic.setPointer({ active: false });
+  lifting = false;
 }
 addEventListener("pointermove", lift, { passive: true });
 addEventListener("pointerdown", lift, { passive: true });
-document.documentElement.addEventListener("pointerleave", settle);
+root.addEventListener("pointerleave", settle);
 addEventListener("pointercancel", settle);
 addEventListener("pointerup", (event) => { if (event.pointerType !== "mouse") settle(); });
 addEventListener("blur", settle);
 
-// A new width reflows the page, so the wall is cut again around the new layout. A taller
-// viewport, as when a phone's toolbar hides or a window is made taller, only needs a taller
-// canvas; it resizes nothing on the page, so it is heard from the window itself.
+// A new width reflows the page, so the wall is cut again around the new layout, and so does a
+// new height on the wide wall, whose screens are a screen high. On a column of rooms a
+// taller viewport, as when a phone's toolbar hides or a window is made taller, only needs a
+// taller canvas; it resizes nothing on the page, so it is heard from the window itself.
 function relayout() {
   if (!live) return;
-  const width = document.documentElement.clientWidth;
-  const height = document.documentElement.scrollHeight;
-  if (width !== live.width || Math.abs(height - live.height) > 2 || Boolean(stage) !== staged()) building = building.then(build);
-  else if (window.innerHeight > tallest) {
+  const width = root.clientWidth;
+  const height = wide ? Math.round($("top").getBoundingClientRect().height) : root.scrollHeight;
+  if (width !== live.width || Math.abs(height - live.height) > 2 || wide !== wants()) building = building.then(build);
+  else if (!wide && innerHeight > tallest) {
     const view = canvasView();
     live.view = view;
-    live.canvas.style.height = `${view.height}px`;
     live.mosaic.resize(view.px[0], view.px[1]);
     live.mosaic.setView({ frame: framing(live.canvas, live.scale, view) });
   }
@@ -302,9 +526,16 @@ function relayoutSoon() {
 }
 new ResizeObserver(relayoutSoon).observe(document.body);
 addEventListener("resize", relayoutSoon);
+// Motion reduced or welcomed again sets the page as a column, or wide.
+reduceMotion.addEventListener("change", () => {
+  updateControls();
+  relayoutSoon();
+});
 
 window.addEventListener("pagehide", () => {
   cancelAnimationFrame(watching);
+  clearTimeout(holding);
+  held = false;
   live?.mosaic.dispose();
   live = null;
 });
@@ -312,10 +543,9 @@ window.addEventListener("pageshow", (event) => {
   if (event.persisted && !live) building = building.then(build);
 });
 
-// The gallery plays its film while it is on screen; on the stage, while its screen is in
-// front.
+// The gallery plays its film while it is on screen.
 const gallery = createGallery($("gallery"), { reduceMotion });
-new IntersectionObserver(([entry]) => { if (!stage) gallery.setOnScreen(entry.isIntersecting); }, { threshold: 0.35 }).observe(document.querySelector(".feature"));
+new IntersectionObserver(([entry]) => gallery.setOnScreen(entry.isIntersecting), { threshold: 0.35 }).observe(document.querySelector(".feature"));
 
 for (const button of document.querySelectorAll(".copy")) {
   button.addEventListener("click", async () => {
@@ -332,5 +562,13 @@ for (const button of document.querySelectorAll(".copy")) {
 }
 
 // A small observable surface for browser verification.
-window.mosaicWall = { get mosaic() { return live?.mosaic; }, get bar() { return bar.mosaic; }, get stage() { return stage?.mosaic; }, showStage: (at) => stage?.show(at), showJump: (a, b, t) => stage?.showJump(a, b, t), get stageState() { return stage && { place: stage.place, view: stage.view, active: stage.active }; }, get log() { return lastLog; }, get building() { return building; } };
+window.mosaicWall = {
+  get mosaic() { return live?.mosaic; },
+  get bar() { return bar.mosaic; },
+  get wide() { return wide; },
+  get screens() { return screens().length; },
+  goTo: (k, instant) => goTo(k, instant),
+  get log() { return lastLog; },
+  get building() { return building; }
+};
 building = build().then(relayout);

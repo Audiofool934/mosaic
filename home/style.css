@@ -93,17 +93,20 @@ h1[data-wall="band"], h2[data-wall="band"] { width: fit-content; }
 .bar[data-state="still"] a[aria-current] { color: var(--gilt); }
 .bar[data-state="still"] .unseen { position: static; width: auto; height: auto; overflow: visible; clip-path: none; }
 
-/* The page's own control: sound, which is off until asked for, so the stones are heard only
-   after it is pressed. */
+/* The page's own controls: the scenes' pause, and sound, which is off until asked for, so
+   the stones are heard only after it is pressed. */
 .controls { position: fixed; right: clamp(14px, 2vw, 28px); bottom: clamp(14px, 2vw, 28px); z-index: 2; display: flex; gap: 10px; }
-.sound {
+.sound, .control {
   display: flex; align-items: center; justify-content: center; gap: 8px; height: 40px; border: 1px solid rgb(239 235 225 / 0.28); border-radius: 20px;
   background: rgb(9 22 30 / 0.55); color: var(--light-muted); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
   font: 500 13px / 1 var(--sans);
 }
 .sound { padding: 0 14px 0 11px; }
-.sound:hover, .sound[aria-pressed="true"] { color: var(--light); border-color: rgb(239 235 225 / 0.55); }
-.sound svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.control { width: 40px; padding: 0; }
+.sound:hover, .sound[aria-pressed="true"], .control:hover { color: var(--light); border-color: rgb(239 235 225 / 0.55); }
+.sound svg, .control svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.control .play { fill: currentColor; stroke: none; }
+.control[data-state="playing"] .play, .control[data-state="paused"] .pause { display: none; }
 .sound .speaker { fill: currentColor; stroke: none; }
 .sound .waves, .sound[aria-pressed="false"] .waves { display: none; }
 .sound[aria-pressed="true"] .waves { display: inline; }
@@ -122,27 +125,18 @@ h1[data-wall="band"], h2[data-wall="band"] { width: fit-content; }
 .text-button:hover { color: var(--gilt); }
 .tablet .text-button:hover { color: var(--gold); }
 
-/* The stage, where the page has room for it: the page does not scroll. Its screens stand in
-   place one over another, each the full screen, and home/stage.js turns them sideways with
-   the wheel, the keys, and touch; the first screen slides away to the left under them. Long
-   lines of code and the gallery's reel still scroll sideways under a finger. Behind it all is
-   the sea's colour, for the moments before the stage's stones are cut. */
-.stage-wall { display: none; }
-html.stage { overflow: hidden; overscroll-behavior: none; scroll-snap-type: none; touch-action: pinch-zoom; }
-html.stage, html.stage body { background: #12303f; }
-html.stage .reel, html.stage .code pre { touch-action: pan-x pinch-zoom; }
-html.stage .room, html.stage .page { scroll-snap-align: none; }
-html.stage .screen {
-  position: fixed; inset: 0; z-index: 2; width: min(100% - 2 * var(--gutter), var(--measure)); margin-inline: auto;
-  opacity: 0; pointer-events: none; will-change: opacity, transform;
-}
-html.stage .screen[data-active] { pointer-events: auto; }
-/* The stage's canvas lies over the first screen's, see-through where it has no stones. */
-html.stage .stage-wall { display: block; position: fixed; inset: 0; z-index: 1; }
-html.stage .stage-wall canvas { display: block; width: 100%; height: 100%; }
-html.stage .wall { bottom: auto; height: 100svh; z-index: 0; will-change: transform; }
-html.stage .wall canvas { will-change: auto; }
-html.stage .controls { z-index: 4; }
+/* The wide wall, where the page has room for it: its screens stand side by side, each a
+   screen wide and high, along one wall, and the page scrolls sideways along them, by the
+   wheel, a trackpad, the keys, or a finger. Behind it all is the sea's colour, for the
+   moments before the stones are cut. */
+html.wide { overflow-x: auto; overflow-y: hidden; overscroll-behavior: none; scroll-snap-type: none; }
+html.wide, html.wide body { background: #12303f; }
+html.wide body { display: flex; width: max-content; height: 100svh; overflow: visible; }
+html.wide main { display: contents; }
+html.wide .hero, html.wide .room { position: relative; flex: none; width: 100vw; height: 100svh; min-height: 0; margin: 0; scroll-snap-align: none; }
+html.wide .room { padding-inline: max(var(--gutter), (100vw - var(--measure)) / 2); }
+html.wide .wall { bottom: auto; height: 100svh; }
+html.wide .wall canvas { height: 100%; }
 
 /* Rooms: under the first screen, each part of the page is a room a screen high, which the
    page settles on, with its words clear of the bar above and the controls below. A room's
@@ -252,6 +246,9 @@ h3 { margin: 0; font: 600 20px / 1.25 var(--serif); letter-spacing: -0.005em; }
   .room { grid-template-columns: minmax(0, 1fr); column-gap: 0; row-gap: 20px; padding-bottom: 84px; }
   .room > *, .page > *, .strip, .stages, .route, .feature .emblem, .feature figcaption { grid-column: 1 / -1; }
   .room:has(> .page) { display: block; min-height: 0; padding-block: 0; scroll-snap-align: none; }
+  /* On the wide wall a room set as pages stands as its pages, side by side. */
+  html.wide .room:has(> .page) { display: contents; }
+  html.wide .page { position: relative; flex: none; width: 100vw; height: 100svh; min-height: 0; padding-inline: var(--gutter); scroll-snap-align: none; }
   .page {
     display: grid; grid-template-columns: minmax(0, 1fr); row-gap: 20px; align-content: center; min-height: 100svh;
     padding-block: calc(var(--bar-top) + var(--bar-h, 62px) + 18px) 84px; scroll-snap-align: start; scroll-snap-stop: always;

@@ -46,7 +46,7 @@ Source inspection and numerical tests do not establish cross-browser visual equi
 
 ## Gallery works
 
-The project page renders its own pictures and short films into `home/media/` from `examples/` with `tools/media.mjs`.
+The project page renders its own pictures and short film into `home/media/` from `examples/` with `tools/media.mjs`.
 The other works in its gallery are kept in `home/works/` as they were made, and are not rendered again by this engine.
 
 - `copper-leaf.webp` and `gold-crescent.webp` were made by Codex and by Claude Code, each given a copy of the skill.

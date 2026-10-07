@@ -1,11 +1,12 @@
 // The stage: where there is room for it, the page's screens become pages side by side along
-// one long wall, which the wheel, a trackpad, the keys, and touch turn sideways. The first
-// screen is page 0. A short push lifts every stone of the page in front off the wall; a
-// fuller one turns the page, the view travelling right along the wall while the stones fly
-// on into the next page's places and settle; and the turn follows the hand both ways, so it
-// can be held, rewound, or let go, when it settles back or finishes, whichever way the hand
-// was going. Under the first screen lies a copy of its first scene, whose stones fly out from
-// under it as it slides away.
+// one long wall in one sea, which the wheel, a trackpad, the keys, and touch turn sideways.
+// The first screen is page 0. A short push lifts the stones of the page's own blocks off the
+// wall; a fuller one turns the page, the view travelling right along the sea while those
+// stones fly on into the next page's places and settle; and the turn follows the hand both
+// ways, so it can be held, rewound, or let go, when it settles back or finishes, whichever
+// way the hand was going. From the first screen, its name flies: the stage's canvas lies over
+// it, see-through but for a copy of the name, which takes the name's place as a turn begins,
+// leaving the letters' bed bare in the first screen's scene as that slides away to the left.
 import { createMosaic } from "../engine/runtime.js";
 import { clamp, smoothstep } from "../engine/util.js";
 import { stageFilm, wallScale } from "./wall.js";
@@ -27,8 +28,8 @@ const FOLLOW = 0.16, EASE = 0.32, FINISH = 1.8, ASKED = 2.4, QUICK = 14;
 
 // onChange(k, el) hears which page is in front whenever it changes, 0 being the first screen,
 // and its element;
-// onReady(mosaic) when the stage's wall is ready; and onCover(slide, lift) how far the first
-// screen has slid away to the left, and how far its stones have lifted, each from 0 to 1.
+// onReady(mosaic) when the stage's wall is ready; and onCover(slide, on) how far the first
+// screen has slid away to the left, from 0 to 1, and whether a turn from it has begun.
 // budget() says how many pixels the stage's canvas may draw. A stage set up anew for a new
 // layout starts on the page `at` it was on.
 export function createStage({ reduceMotion, budget, at = null, onChange = () => {}, onReady = () => {}, onCover = () => {} }) {
@@ -76,8 +77,7 @@ export function createStage({ reduceMotion, budget, at = null, onChange = () => 
   }
 
   // Shows the stage as it stands at a place: each page's words travel with their page, and
-  // show as its stones are on it; the first screen slides away to the left, its stones
-  // lifting first.
+  // show as its stones are on it, and the first screen slides away to the left.
   function paint(at) {
     place = at;
     const view = viewAt(at), wide = root.clientWidth;
@@ -86,7 +86,10 @@ export function createStage({ reduceMotion, budget, at = null, onChange = () => 
       el.style.opacity = u > 0.002 ? u.toFixed(3) : "0";
       el.style.transform = u > 0.002 && Math.abs(d) > 1e-4 ? `translate3d(${(d * wide).toFixed(1)}px, 0, 0)` : "";
     });
-    onCover(clamp(view, 0, 1), at < 1 && film ? clamp(at / film.rise, 0, 1) : 0);
+    // At rest on the first screen the stage keeps out of sight, so the first screen answers
+    // the pointer itself; from the first push it takes the first screen's name's place.
+    host.style.visibility = at > 0 ? "visible" : "hidden";
+    onCover(clamp(view, 0, 1), at > 0);
     const k = Math.round(view);
     if (k !== active) {
       active = k;
@@ -320,9 +323,8 @@ export function createStage({ reduceMotion, budget, at = null, onChange = () => 
     const { project, step, rise, settle } = stageFilm({ width, height: h, hero: h, scale: m }, layouts, { module, band: px });
     let mosaic;
     try {
-      // The bed under the pages is a deep shade of their water, so a turn shows the dark
-      // where the stones have lifted, not bare plaster.
-      mosaic = await createMosaic(canvas, { project, width: px[0], height: px[1], samples: 1, interactive: true, worker: true, coat: "#0d2029" });
+      // See-through, so the first screen shows wherever the stage has no stones.
+      mosaic = await createMosaic(canvas, { project, width: px[0], height: px[1], samples: 1, interactive: true, worker: true, transparent: true });
       await mosaic.ready;
     } catch (error) {
       console.error("The stage could not be laid:", error);
@@ -335,6 +337,10 @@ export function createStage({ reduceMotion, budget, at = null, onChange = () => 
     film?.mosaic.dispose();
     host.replaceChildren(canvas);
     film = { mosaic, canvas, step, rise, settle };
+    // The camera looks at a whole screen of the wall where the stage stands at each moment of
+    // the film, as the words and the first screen do, so all of them move as one.
+    const W = width * m, H = h * m;
+    mosaic.setView({ frame: (t) => ({ x: (viewAt(t / step) + 0.5) * W, y: H / 2, w: W }) });
     clock = place * step;
     speed = 0;
     mosaic.seek(clock);
@@ -392,7 +398,7 @@ export function createStage({ reduceMotion, budget, at = null, onChange = () => 
         el.style.opacity = "";
         el.style.transform = "";
       }
-      onCover(0, 0);
+      onCover(0, false);
       root.classList.remove("stage");
     }
   };

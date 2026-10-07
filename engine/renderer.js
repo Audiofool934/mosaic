@@ -17,7 +17,7 @@ import { clamp, halton, invert, lookAt, mat4Mul, ortho, perspective, v3norm, xfo
 //   J: ignition time, extinction time, glint amplitude, flags * 10 + exit duration
 export const TEXELS = 10;
 // A picture that does not rise, and flights of the usual height from the wall.
-const NO_RISE = [0, 0, 0, 0], NO_FLY = [1, 0], NO_HOVER = [0, 0];
+const NO_RISE = [0, 0, 0, 0], NO_FLY = [1, 0];
 export const PER_ROW = 256;
 export const FLAG_TYPE = 1;
 export const POINTS = 4;
@@ -163,22 +163,20 @@ vec3 shade(vec3 P, vec3 N, vec3 V, vec3 albedo, float metal, float rough, vec3 F
 // the times rise.x to rise.y, each starting a touch earlier or later by its seed but all
 // risen by the end, and hovers there until it flies. A settle is the same the other way: the
 // stones of a picture that flew in land hovering, and come down onto the wall together over
-// its times. A hover is a rise the page holds live, `hover.x` metres times `hover.y`, for
-// frames that answer the pointer only.
+// its times.
 const RISE = `
-uniform vec2 uHover;
 float rising(vec4 rise, float t, float seed) {
   float d = fract(seed * 7.31) * 0.4 * (rise.y - rise.x);
   return rise.z > 0.0 ? smoothstep(rise.x + d, rise.y - 0.4 * (rise.y - rise.x) + d, t) : 0.0;
 }
 // How far a stone hovers off the wall, in metres.
 float hovering(vec4 rise, vec4 settle, float t, float seed) {
-  float h = max(rise.z * rising(rise, t, seed), uHover.x * uHover.y);
+  float h = rise.z * rising(rise, t, seed);
   return settle.z > 0.0 ? max(h, settle.z * (1.0 - rising(settle, t, seed))) : h;
 }
 // The same, as a share of the highest it goes.
 float risen(vec4 rise, vec4 settle, float t, float seed) {
-  float top = max(max(rise.z, settle.z), uHover.x);
+  float top = max(rise.z, settle.z);
   return top > 0.0 ? hovering(rise, settle, t, seed) / top : 0.0;
 }
 `;
@@ -1217,8 +1215,6 @@ export function createRenderer(gl, opts) {
     const SH = opts.shadowSize || 4096;
     const keySh = depthTarget(SH);
     let frontSh = null;
-    // The hover the page holds over the wall in this frame, if any.
-    let hover = NO_HOVER;
 
     function colorTarget(w, h, withDepth, attachments) {
       const fb = own("Framebuffer", gl.createFramebuffer());
@@ -1348,7 +1344,6 @@ export function createRenderer(gl, opts) {
       gl.uniform1f(prog.u.uFlicker, layer.flicker || 0);
       gl.uniform4fv(prog.u.uRise, layer.rise || NO_RISE);
       gl.uniform4fv(prog.u.uSettle, layer.settle || NO_RISE);
-      gl.uniform2fv(prog.u.uHover, hover);
       gl.uniform2fv(prog.u.uFly, layer.fly || NO_FLY);
       gl.bindVertexArray(geo.vao);
       const R = layer.gpu.rows;
@@ -1477,7 +1472,6 @@ export function createRenderer(gl, opts) {
       gl.uniform4fv(u.uTrail, pointer?.trail || noTrail);
       gl.uniform3fv(u.uCoat, opts.coat);
       gl.uniform3fv(u.uSinopia, opts.sinopia);
-      gl.uniform2fv(u.uHover, hover);
       gl.uniform1i(u.uClear, opts.transparent ? 1 : 0);
       gl.bindVertexArray(bedVao);
       // The pictures in pairs, the newest two last, and then each picture set in front on its
@@ -1515,7 +1509,6 @@ export function createRenderer(gl, opts) {
     }
 
     function render(t, subframes) {
-      hover = opts.hoverAt?.() || NO_HOVER;
       const n = Math.max(1, subframes | 0);
       const layers = opts.timeline.layersAt(t);
       const look = opts.timeline.lookAt(t);

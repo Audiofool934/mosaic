@@ -130,15 +130,9 @@ export async function createMosaic(canvas, options = {}) {
   const lampLook = options.lamp ? { height: 60, power: 0.01, color: '#fff1dc', cone: 76, ...options.lamp } : null;
   const lampRgb = lampLook ? hexRgb(lampLook.color).map(toLinear) : null;
   let lampGoal = null, lampPos = null, lampOn = 0;
-  // A hover the page can hold over the whole wall, if asked for: every seated stone lifted off
-  // the wall `hover.height` millimetres times an amount from 0 to 1, each a touch askew, as
-  // when a picture rises before it flies. It too is for live frames only.
-  const hoverHeight = options.hover ? clamp(finite(options.hover.height, 60), 0, 500) / 1000 : 0;
-  let hoverAmount = 0;
   // The scenes whose stones the page has taken off the wall, as when the same stones are
   // being drawn somewhere else. Their bed is left bare.
   const hidden = new Set();
-  const hoverNow = () => (hoverHeight && hoverAmount > 0 && frameInput === live ? [hoverHeight, hoverAmount] : null);
   // A see-through canvas shows what lies under it wherever its wall has no stones.
   const gl = canvas.getContext('webgl2', { alpha: options.transparent === true, premultipliedAlpha: true, antialias: false, depth: false, preserveDrawingBuffer: true, powerPreference: 'high-performance' });
   if (!gl) throw new Error('This artwork needs WebGL2. Try a browser with hardware acceleration enabled.');
@@ -218,7 +212,7 @@ export async function createMosaic(canvas, options = {}) {
     renderer?.dispose();
     canvas.width = width; canvas.height = height;
     base = makeTimeline(film, width, height);
-    renderer = createRenderer(gl, { W: width, H: height, FOVY: fovy, timeline, pointerAt: pointerTrail, lampAt: lampNow, hoverAt: hoverNow,
+    renderer = createRenderer(gl, { W: width, H: height, FOVY: fovy, timeline, pointerAt: pointerTrail, lampAt: lampNow,
       shadowSize: options.shadowSize || 2048, shutter: .5 / film.fps, aperture: .03,
       coat: hexRgb(options.coat || '#bdb3a2').map(toLinear), sinopia: hexRgb('#7a2a18').map(toLinear), transparent: options.transparent === true });
     for (const l of film.layers) renderer.addLayer(l);
@@ -400,16 +394,6 @@ export async function createMosaic(canvas, options = {}) {
       if (on === hidden.has(id)) return;
       if (on) hidden.add(id); else hidden.delete(id);
       for (const L of film.layers) if (L.scene.id === id) L.hidden = on;
-      schedule();
-    },
-    // Lifts every stone off the wall by an amount from 0 to 1 of the hover's height, if the
-    // artwork has a hover, and draws the wall so.
-    setHover(u) {
-      ensure();
-      if (!hoverHeight) return;
-      const next = clamp(finite(u, 0), 0, 1);
-      if (next === hoverAmount) return;
-      hoverAmount = next;
       schedule();
     },
     // Holds the lamp, if the artwork has one, over a point on the canvas, x and y from 0 to 1,

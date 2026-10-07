@@ -324,33 +324,6 @@ try {
     }
     checks.push('a flow that lifts its stones first settles them into the same places as a plain one');
 
-    // A hover the page holds lifts every stone in live frames, lets them all down again, and
-    // never reaches an export.
-    {
-      const hoverCanvas = document.createElement('canvas');
-      const hovered = await createMosaic(hoverCanvas, { project: '/examples/nocturne.json', width: 320, height: 180, samples: 1, hover: { height: 60 } });
-      const hoverGl = hoverCanvas.getContext('webgl2');
-      const pixels = () => { const p = new Uint8Array(320 * 180 * 4); hoverGl.readPixels(0, 0, 320, 180, hoverGl.RGBA, hoverGl.UNSIGNED_BYTE, p); return p; };
-      const frames = () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-      hovered.seek(2);
-      const still = await sha256(pixels());
-      hovered.setHover(1);
-      await frames();
-      require(await sha256(pixels()) !== still, 'Holding the hover did not lift the stones.');
-      const exported = await createImageBitmap(await hovered.exportPNG({ time: 2 }));
-      const scratch = new OffscreenCanvas(320, 180).getContext('2d');
-      scratch.drawImage(exported, 0, 0);
-      hovered.setHover(0);
-      await frames();
-      require(await sha256(pixels()) === still, 'The stones did not come all the way down when the hover was let go.');
-      const unlit = new OffscreenCanvas(320, 180).getContext('2d');
-      unlit.drawImage(hoverCanvas, 0, 0);
-      const a = scratch.getImageData(0, 0, 320, 180).data, b = unlit.getImageData(0, 0, 320, 180).data;
-      require(a.every((v, i) => v === b[i]), 'An export showed the hover.');
-      hovered.dispose();
-    }
-    checks.push('a hover the page holds lifts the stones live, lets them down, and never reaches an export');
-
     // A see-through wall: framed half on its picture and half past its edge, it is opaque over
     // the stones and clear beyond them. A scene taken off the wall leaves its bed, still opaque
     // but bare, and put back it draws the same to the pixel.

@@ -87,7 +87,7 @@ let cycling = false;
 let holding = 0;
 let held = false;
 let heroInView = true;
-// Whether the stage holds the first screen lifted or slid away, when its scenes hold still.
+// Whether a turn of the stage from the first screen has begun, when its scenes hold still.
 let covered = false;
 let watching = 0;
 let checked = 0;
@@ -185,9 +185,7 @@ async function build() {
   const { project, loop, gate, rests } = wallFilm(layout, { module, laid: first && !reduceMotion.matches, band: view.px, page: !stage });
   let mosaic;
   try {
-    // On the stage the first screen's stones can be lifted together, as a page's are when
-    // it turns.
-    mosaic = await createMosaic(canvas, { project, loop, width: view.px[0], height: view.px[1], samples: 1, interactive: true, worker: true, hover: stage ? { height: 60 } : undefined, onProgress: (line) => log.push(line) });
+    mosaic = await createMosaic(canvas, { project, loop, width: view.px[0], height: view.px[1], samples: 1, interactive: true, worker: true, onProgress: (line) => log.push(line) });
     if (!first) await mosaic.ready;
   } catch (error) {
     if (!first) canvas.remove();
@@ -282,21 +280,22 @@ function sectionsOf(s) {
   }
   return out;
 }
-// A screen turned to the front: the bar follows it, and the gallery plays only while it is
-// in front.
-// The first screen as the stage holds it: slid away to the left, from 0 to 1, and its stones
-// lifted, from 0 to 1. While it is lifted or slid away its scenes hold still.
-function cover(slide, lift) {
+// The first screen as the stage holds it: slid away to the left, from 0 to 1, and whether a
+// turn from it has begun. From then on its scenes hold still, and the stones of its name are
+// the stage's to fly, so its own come off its wall, leaving their bed bare.
+function cover(slide, on) {
   wall.style.transform = slide > 0 ? `translate3d(${(-slide * document.documentElement.clientWidth).toFixed(1)}px, 0, 0)` : "";
-  const now = slide > 0 || lift > 0;
-  if (now !== covered) {
-    covered = now;
+  if (on !== covered) {
+    covered = on;
     if (covered) live?.mosaic.pause();
     else advance();
   }
-  // After any pause, so the redraw it asks for is not called off.
-  live?.mosaic.setHover(lift);
+  // After any pause, so the redraw it asks for is not called off; and every time, so a wall
+  // cut again for a new layout is held the same way.
+  live?.mosaic.setHidden("name", covered);
 }
+// A screen turned to the front: the bar follows it, and the gallery plays only while it is
+// in front.
 function turned(k, el) {
   bar.update();
   gallery.setOnScreen(Boolean(el?.closest("#gallery")));

@@ -127,22 +127,24 @@ h1[data-wall="band"], h2[data-wall="band"] { width: fit-content; }
 
 /* The stage, where the page has room for it: the page does not scroll. Its screens stand in
    place one over another, each the full screen, and home/stage.js turns them sideways with
-   the wheel, the keys, and touch; the first screen slides away to the left over them. Long
-   lines of code and the gallery's reel still scroll sideways under a finger. */
+   the wheel, the keys, and touch; the first screen slides away to the left under them. Long
+   lines of code and the gallery's reel still scroll sideways under a finger. Behind it all is
+   the sea's colour, for the moments before the stage's stones are cut. */
 .stage-wall { display: none; }
 html.stage { overflow: hidden; overscroll-behavior: none; scroll-snap-type: none; touch-action: pinch-zoom; }
+html.stage, html.stage body { background: #12303f; }
 html.stage .reel, html.stage .code pre { touch-action: pan-x pinch-zoom; }
 html.stage .room, html.stage .page { scroll-snap-align: none; }
 html.stage .screen {
-  position: fixed; inset: 0; z-index: 1; width: min(100% - 2 * var(--gutter), var(--measure)); margin-inline: auto;
+  position: fixed; inset: 0; z-index: 2; width: min(100% - 2 * var(--gutter), var(--measure)); margin-inline: auto;
   opacity: 0; pointer-events: none; will-change: opacity, transform;
 }
 html.stage .screen[data-active] { pointer-events: auto; }
-html.stage .stage-wall { display: block; position: fixed; inset: 0; z-index: 0; background: #12303f; }
+/* The stage's canvas lies over the first screen's, see-through where it has no stones. */
+html.stage .stage-wall { display: block; position: fixed; inset: 0; z-index: 1; }
 html.stage .stage-wall canvas { display: block; width: 100%; height: 100%; }
-html.stage .wall { bottom: auto; height: 100svh; z-index: 2; will-change: transform; }
+html.stage .wall { bottom: auto; height: 100svh; z-index: 0; will-change: transform; }
 html.stage .wall canvas { will-change: auto; }
-html.stage .hero { z-index: 2; }
 html.stage .controls { z-index: 4; }
 
 /* Rooms: under the first screen, each part of the page is a room a screen high, which the

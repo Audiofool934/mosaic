@@ -1,8 +1,8 @@
 // The project page as one wall. The name is set in stone on the first screen, over scenes
 // that flow into one another behind it, and the page picture runs its water on down the
 // page around every tablet, emblem, band, and medallion the page marks out, so the courses
-// follow the page the way they follow a drawing. On the stage, each screen under the first
-// has a picture of its own instead, and the screens flow into one another as the page turns.
+// follow the page the way they follow a drawing. On the stage, the pages stand side by side
+// in one sea instead, and their own blocks fly from one page to the next as the page turns.
 import { nameAlone, nameAt } from "../examples/inscription.js";
 import { SCENE_NAMES, scene, stageOn } from "../examples/landscapes.js";
 import { config as house } from "../examples/nocturne.js";
@@ -112,49 +112,87 @@ export function scenePicture({ scene: name, first, tail = true, ...layout }) {
 }
 
 // The stage: the page's pages side by side along one long wall, on one clock. Page 0 is the
-// cover, a copy of the first screen's first scene, which lies under the first screen; each
-// page after it is one of the page's screens. Page k rests at k steps, and each turn to the
-// next is in three parts. Over the first `rise` of a step every stone of the page before
-// lifts off the wall together, `lift` millimetres, a touch askew; then the view travels one
-// page to the right along the wall while the stones fly on, close to the wall and almost all
-// at once, into the next page's places, landing hovering as the view arrives; and over the
-// last `settle` of the step they come down onto the wall together. A turn backward is the
-// same played in reverse, so either way it starts and ends with a lift.
+// first screen; each page after it is one of the page's screens. One sea runs along all the
+// pages after the first and stays on the wall while the view travels along it, and only each
+// page's own blocks, its frames, bands, and medallions, and on the first screen the name,
+// lift, fly on into the next page's, and settle. Page k rests at k steps, and each turn to
+// the next is in three parts: over the first `rise` of a step every stone of the page's own
+// blocks lifts off the wall together, `lift` millimetres, a touch askew; then the view
+// travels one page to the right along the wall while the stones fly on, close to the wall and
+// almost all at once, into the next page's places, landing hovering as the view arrives; and
+// over the last `settle` of the step they come down onto the wall together. A turn backward
+// is the same played in reverse, so either way it starts and ends with a lift.
 const TURN = { step: 3, rise: 0.3, settle: 0.3, lift: 60, arc: 0.3 };
 export function stageFilm(cover, screens, { module, band }) {
   const m = cover.scale, W = cover.width * m, H = cover.height * m;
-  const pages = [
-    { export: "scenePicture", args: { ...cover, scene: SCENE_NAMES[0], tail: false } },
-    ...screens.map((layout, i) => ({ export: "screenPicture", args: { ...layout, seed: 4242 + 97 * i } }))
-  ];
   const { step, rise, settle, lift, arc } = TURN;
-  const n = pages.length - 1, end = n * step + 0.2;
+  const n = screens.length, end = n * step + 0.2;
   // The time a share f of the way through the turn to page j.
   const at = (j, f) => (j - 1 + f) * step;
-  const scenes = pages.map((page, j) => ({
-    id: j ? `page-${j}` : "cover",
-    picture: { module, ...page },
-    start: j ? at(j, 0) : 0,
-    end: j < n ? (j + 1) * step : end,
-    at: [j * W, 0],
-    in: !j
-      ? { type: "settled" }
-      : {
+  const scenes = [
+    { id: "sea", picture: { module, export: "seaPicture", args: { pages: n, width: cover.width, height: cover.height, scale: m } }, start: 0, end, at: [W, 0], in: { type: "settled" } },
+    { id: "name", picture: { module, export: "namePicture", args: cover }, start: 0, end: step, at: [0, 0], front: true, in: { type: "settled" } },
+    ...screens.map((layout, i) => {
+      const j = i + 1;
+      return {
+        id: `page-${j}`,
+        picture: { module, export: "blocksPicture", args: { ...layout, seed: 4242 + 97 * i } },
+        start: at(j, 0),
+        end: j < n ? (j + 1) * step : end,
+        at: [j * W, 0],
+        front: true,
+        in: {
           type: "flow", arc, focus: [W / 2, H / 2],
           rise: [at(j, 0.01), at(j, rise - 0.01), lift],
           launch: [at(j, rise), at(j, rise + 0.04)],
           land: [at(j, 1 - settle - 0.08), at(j, 1 - settle)],
           settle: [at(j, 1 - settle + 0.01), at(j, 0.99)]
         }
-  }));
+      };
+    })
+  ];
   const project = { version: 1, title: "mosAIc", seed: 42, fps: [60, 1], frames: Math.ceil(end * 60) + 1, band, look: [[0, 1], [end, 1]], scenes };
   return { project, step, rise, settle };
 }
 
-// One screen of the stage: its water, and the frames, bands, and medallions of its own
-// blocks, laid out within it.
-export function screenPicture(layout) {
-  return wallPicture({ ...layout, screen: true });
+// A page's own blocks alone, to be set on the stage over the sea.
+export function blocksPicture(layout) {
+  return wallPicture({ ...layout, blocksOnly: true });
+}
+
+// The sea the stage's pages stand in: one wall of deep water and currents along `pages`
+// screens side by side, which the view travels along, its stones still as the pages turn.
+export function seaPicture({ pages, width, height, scale, seed = 4242 }) {
+  const k = scale / DESKTOP, Wp = width * scale, W = Wp * pages, H = height * scale;
+  const res = Math.min(0.75, 8192 / H, 8192 / W, Math.sqrt(8e6 / (W * H)));
+  const R = rng(seed);
+  // Each screen's own currents, so no two are alike.
+  const currents = [];
+  for (let p = 0; p < pages; p++) {
+    for (let y = (120 + 200 * R()) * k; y < H - 80 * k; y += (300 + 380 * R()) * k) currents.push({ p, c: current(y, Wp, R, k) });
+  }
+  return {
+    config: {
+      panel: { w: W, h: H }, res, background: "deep",
+      camera: { keys: [[0, Wp / 2, H / 2, Wp]], tilt: 0, yaw: 0, aperture: 0.004, drift: 0 },
+      light: house.light, sinopia: false
+    },
+    regions: () => [
+      { name: "deep", size: 15 * k, mode: "contour", mat: "glass", tray: ["#0e2633", "#12303f", "#173a4a", "#1d4456", "#235066"] },
+      { name: "drift", size: 13 * k, mode: "contour", mat: "glass", tray: ["#1d3f4d", "#28515e", "#356471", "#467683"] },
+      { name: "spray", size: 7 * k, mode: "contour", mat: "glass", tray: ["#3f6c7a", "#5d8792", "#88a9a8"] }
+    ],
+    draw(g, mode, D) {
+      D.fill(box(-10, -10, W + 20, H + 20), "deep", D.linear(0, 0, 0, H, [[0, "#173b4b"], [1, "#12303f"]]));
+      for (const { p, c } of currents) {
+        g.save();
+        g.translate(p * Wp, 0);
+        D.fill(c.path, "drift", "#356471");
+        if (c.crest) D.line(poly(c.crest.filter((_, i) => i % 2 === 0), false), 4.5 * k, "spray", "#5d8792");
+        g.restore();
+      }
+    }
+  };
 }
 
 // How far a current tapers where it ends partway across, in millimetres of a desktop wall.
@@ -203,9 +241,9 @@ export function wallPicture(layout) {
   const k = m / DESKTOP;
   const W = layout.width * m;
   const H = layout.height * m;
-  // A screen of the stage is water from its top; the page's picture starts under the first
-  // screen.
-  const seam = layout.screen ? 0 : layout.hero * m;
+  // A page of the stage is its blocks alone, set over the stage's sea; the page's picture
+  // starts its water under the first screen.
+  const seam = layout.blocksOnly ? 0 : layout.hero * m;
   const blocks = layout.blocks.map((b) => ({ ...b, x: b.x * m, y: b.y * m, w: b.w * m, h: b.h * m }));
   const frame = 10 * k, margin = 14 * k;
   // What each block lays on the wall: a band and its margin, a tablet or an emblem and its
@@ -226,7 +264,7 @@ export function wallPicture(layout) {
 
   const R = rng(layout.seed ?? 4242);
   const currents = [];
-  for (let y = seam + 300 * k; y < H - 160 * k; y += (460 + 520 * R()) * k) currents.push(current(y, W, R, k));
+  if (!layout.blocksOnly) for (let y = seam + 300 * k; y < H - 160 * k; y += (460 + 520 * R()) * k) currents.push(current(y, W, R, k));
 
   // Whether the blocks leave the wall at x open anywhere from y0 to y1, by more than a
   // millimetre.
@@ -304,6 +342,11 @@ export function wallPicture(layout) {
   ];
 
   function draw(g, mode, D) {
+    // A page's own blocks alone, set over the sea, have no water of their own.
+    if (layout.blocksOnly) {
+      D.fill(box(-10, -10, W + 20, H + 20), "none", "#bdb3a2");
+      return drawBlocks(D);
+    }
     // The water deepens on down the page from the shoreline.
     const water = D.linear(0, seam, 0, seam + 900 * k, [[0, "#173b4b"], [1, "#12303f"]]);
     D.fill(box(-10, seam, W + 20, H - seam + 10), "deep", water);
@@ -312,6 +355,13 @@ export function wallPicture(layout) {
       if (c.crest) D.line(poly(c.crest.filter((_, i) => i % 2 === 0), false), 4.5 * k, "spray", "#5d8792");
       if (c.sunk) D.fill(c.sunk, "deep", water);
     }
+    drawBlocks(D);
+    // The scenes fill everything above the shoreline with their own stones.
+    D.fill(poly([[-20, -10], [W + 20, -10], ...shoreline(seam, -20, W + 20).reverse()]), "none", "#bdb3a2");
+  }
+
+  // Every block the page marks out, as it lies on the wall.
+  function drawBlocks(D) {
     for (const b of blocks) {
       const o = b.outline;
       if (b.kind === "band") {
@@ -329,18 +379,16 @@ export function wallPicture(layout) {
         D.fill(box(b.x, b.y, b.w, b.h), "none", "#bdb3a2");
       }
     }
-    // The scenes fill everything above the shoreline with their own stones.
-    if (!layout.screen) D.fill(poly([[-20, -10], [W + 20, -10], ...shoreline(seam, -20, W + 20).reverse()]), "none", "#bdb3a2");
   }
 
   return {
     config: {
       panel: { w: W, h: H },
       res,
-      background: "deep",
+      background: layout.blocksOnly ? "frame" : "deep",
       // The page only ever shows a stretch of the wall, so its stones are drawn by rows.
       rows: true,
-      camera: { keys: [[0, W / 2, layout.screen ? H / 2 : Math.min(H, seam) / 2, W]], tilt: 0, yaw: 0, aperture: 0.004, drift: 0 },
+      camera: { keys: [[0, W / 2, layout.blocksOnly ? H / 2 : Math.min(H, seam) / 2, W]], tilt: 0, yaw: 0, aperture: 0.004, drift: 0 },
       light: house.light,
       // Laid straight onto the bare plaster, like the name and the scenes.
       sinopia: false,

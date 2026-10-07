@@ -103,6 +103,12 @@ The lamp glides and fades on its own, lights stones and mortar alike, and shines
 A flow can lift its stones on its own clock: with `rise: [from, to, mm]` the outgoing picture's stones lift off together before they fly, each a touch askew, with `arc` below 1 they fly closer to the wall, and with `settle: [from, to]` they land hovering and come down onto the wall together, so a flow played backward starts with a lift as well.
 `createMosaic(canvas, { transparent: true })` draws a see-through wall, clear wherever no picture has a stone's place, for a canvas laid over the rest of a page; it has no depth of field and no colour fringes.
 `setHidden(id)` takes the stones of a scene off the wall in every frame drawn, as when the same stones are being drawn on another canvas, and leaves their bed bare, the grout alone with the print of each stone pressed in it; `setHidden(id, false)` puts them back.
+`setGust(id, { at, wind, away })` sets a gust over a scene in every frame drawn: its front crosses the view from upwind, `wind` being 1 to the right or -1 to the left, and as `at` goes from 0 to 1 it blows each seated stone off downwind as it reaches it, rising and tumbling, until every one has gone out of the view.
+With `away: false` it brings the stones in on the wind instead, laying the far end first so the first ones cross the whole view, and sets them down; `setGust(id, null)` takes it away.
+A stone in a gust is not heard, and leaves its mortar to whatever lies under it.
+A scene placed with `at` can set `repeat: n`, and is drawn n times along the wall, edge to edge to its right, with the same stones in every copy, cut once; only a picture neither set in front nor flowing in can repeat, and none can flow in from one that does.
+A picture that repeats seamlessly is drawn so that its right edge runs on into its left.
+A view that jumps half its width or more from one frame to the next has been cut, not slid, so the pointer's trail starts again from it.
 `fov` narrows the lens, so the camera stands back and looks straight at every part of a long, low panel, and `fringes: false` drops the lens's colour fringes.
 `coat` sets the colour of the bare bed, which shows wherever no stone has been set yet, or where stones have lifted off in a flow.
 

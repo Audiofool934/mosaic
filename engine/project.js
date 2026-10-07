@@ -24,6 +24,11 @@ export function validateProject(input) {
     if (s.in?.settle !== undefined && !(Array.isArray(s.in.settle) && s.in.settle.length === 2 && s.in.settle.every(Number.isFinite) && s.in.settle[0] < s.in.settle[1])) throw new Error(`${s.id}: settle must be [from, to].`);
     if (s.at !== undefined && (!Array.isArray(s.at) || s.at.length !== 2 || !s.at.every(Number.isFinite))) throw new Error(`${s.id}: at must be [x, y] in millimetres.`);
     if (s.front !== undefined && typeof s.front !== 'boolean') throw new Error(`${s.id}: front must be true or false.`);
+    if (s.repeat !== undefined) {
+      if (!(Number.isInteger(s.repeat) && s.repeat >= 1 && s.repeat <= 64)) throw new Error(`${s.id}: repeat must be a whole number of copies from 1 to 64.`);
+      if (s.at === undefined || s.front === true || s.in?.type === 'flow') throw new Error(`${s.id}: only a picture placed with at, not set in front and not flowing in, can repeat.`);
+    }
+    if (s.in?.type === 'flow' && p.scenes[p.scenes.indexOf(s) - 1]?.repeat > 1) throw new Error(`${s.id}: a picture cannot flow in from one that repeats.`);
   }
   if (p.scenes[0].start !== 0) throw new Error('The first scene must start at zero.');
   return p;

@@ -358,6 +358,71 @@ try {
     }
     checks.push('a see-through wall is clear past its stones, and a scene taken off it leaves its bed and comes back the same');
 
+    // A picture repeated along the wall: the first copy the same to the pixel as the picture
+    // placed once, and every later one the same but for the rounding of its mortar's grain,
+    // which is reckoned metres further along the wall.
+    {
+      const wallOf = (repeat) => ({ version: 1, seed: 42, fps: [60, 1], frames: 60, band: [320, 180], scenes: [{ id: 'sea', picture: '/examples/nocturne.js', start: 0, end: 1, at: [0, 0], ...(repeat && { repeat }), in: { type: 'settled' } }] });
+      const pixelsOf = async (project, x) => {
+        const c = document.createElement('canvas');
+        const m = await createMosaic(c, { project, width: 320, height: 180, samples: 1 });
+        m.setView({ frame: { x, y: 450, w: 1600 } });
+        m.seek(0.5);
+        const g = c.getContext('webgl2'), p = new Uint8Array(320 * 180 * 4);
+        g.readPixels(0, 0, 320, 180, g.RGBA, g.UNSIGNED_BYTE, p);
+        m.dispose();
+        return p;
+      };
+      const once = await pixelsOf(wallOf(0), 800), first = await pixelsOf(wallOf(3), 800);
+      require(await sha256(first) === await sha256(once), 'The first copy of a repeated picture did not draw as the picture placed once.');
+      for (const x of [2400, 4000]) {
+        const later = await pixelsOf(wallOf(3), x);
+        let off = 0, apart = 0;
+        for (let i = 0; i < later.length; i += 4) {
+          const d = Math.max(Math.abs(later[i] - first[i]), Math.abs(later[i + 1] - first[i + 1]), Math.abs(later[i + 2] - first[i + 2]));
+          if (d > 0) off++;
+          if (d > 2) apart++;
+        }
+        require(off < 0.03 * 320 * 180 && apart < 0.002 * 320 * 180, `A later copy of a repeated picture drew ${off} pixels differently, ${apart} of them by more than rounding.`);
+      }
+    }
+    checks.push('a picture repeated along the wall draws the same in every copy');
+
+    // A gust over a picture set in front: still, it leaves the wall as it was; done, it has
+    // blown every stone away, leaving the wall as if the picture were not there; and a gust
+    // bringing them back in leaves the wall as it was once done.
+    {
+      const scene = { module: '/examples/landscapes.js', export: 'scene', args: { name: 'night', w: 800, h: 450 } };
+      const nameIn = { id: 'name', picture: { module: '/examples/inscription.js', export: 'nameAlone', args: { w: 800, h: 450 } }, start: 0, end: 1, at: [0, 0], front: true, in: { type: 'settled' } };
+      const wallOf = (withName) => ({ version: 1, seed: 42, fps: [60, 1], frames: 60, band: [320, 180], scenes: [{ id: 'night', picture: scene, start: 0, end: 1, at: [0, 0], in: { type: 'settled' } }, ...(withName ? [nameIn] : [])] });
+      const open = async (project) => {
+        const c = document.createElement('canvas');
+        const m = await createMosaic(c, { project, width: 320, height: 180, samples: 1, worker: true });
+        await m.ready;
+        m.setView({ frame: { x: 400, y: 225, w: 800 } });
+        const g = c.getContext('webgl2');
+        return { m, hash: async () => { m.seek(0.5); const p = new Uint8Array(320 * 180 * 4); g.readPixels(0, 0, 320, 180, g.RGBA, g.UNSIGNED_BYTE, p); return sha256(p); } };
+      };
+      const bare = await open(wallOf(false)), named = await open(wallOf(true));
+      const without = await bare.hash(), still = await named.hash();
+      named.m.setGust('name', { at: 0, wind: -1 });
+      require(await named.hash() === still, 'A gust that had not begun moved the stones.');
+      named.m.setGust('name', { at: 0.5, wind: -1 });
+      const blowing = await named.hash();
+      require(blowing !== still && blowing !== without, 'A gust halfway through did not move the stones.');
+      named.m.setGust('name', { at: 1, wind: -1 });
+      require(await named.hash() === without, 'A gust that was over left something of the picture it blew away.');
+      named.m.setGust('name', { at: 0, wind: 1, away: false });
+      require(await named.hash() === without, 'A gust bringing stones in showed them before it began.');
+      named.m.setGust('name', { at: 1, wind: 1, away: false });
+      require(await named.hash() === still, 'A gust bringing stones in did not set them down as they were.');
+      named.m.setGust('name', null);
+      require(await named.hash() === still, 'Taking a gust away did not leave the wall as it was.');
+      bare.m.dispose();
+      named.m.dispose();
+    }
+    checks.push('a gust blows a picture away entirely and brings it back as it was');
+
     // The name set in front of a scene that flows into another: the stones flying past go
     // behind its letters, so every pixel bright with marble or gold at rest stays bright.
     const frontCanvas = document.createElement('canvas');

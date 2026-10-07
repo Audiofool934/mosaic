@@ -50,6 +50,15 @@ function stonesOf(L) {
   return L.heard;
 }
 
+// How far along the wall the copy of a repeated picture at x lies from the first, in metres;
+// its stones are the first copy's, moved along.
+function copyOf(L, x) {
+  const n = L.scene?.repeat || 1;
+  if (n <= 1) return 0;
+  const w = L.W / 1000, k = Math.floor((x - L.world[0]) / w);
+  return k >= 1 && k < n ? k * w : 0;
+}
+
 // The seated stone whose edge is nearest to x, y, within reach, and how far its edge is.
 function under(L, x, y, reach, time) {
   const H = stonesOf(L), d = L.data, pad = reach + LARGEST / 2;
@@ -99,14 +108,15 @@ export function createContacts() {
       const y = touch.from[1] + (touch.at[1] - touch.from[1]) * u + r * Math.sin(a);
       let found = null, gap = touch.reach;
       for (const L of layers) {
-        const [i, edge] = under(L, x, y, gap, time);
-        if (i >= 0) { found = [L, i]; gap = edge; }
+        const shift = copyOf(L, x);
+        const [i, edge] = under(L, x - shift, y, gap, time);
+        if (i >= 0) { found = [L, i, shift]; gap = edge; }
       }
       if (!found) continue;
-      const [L, i] = found, d = L.data, o = i * STRIDE;
+      const [L, i, shift] = found, d = L.data, o = i * STRIDE;
       events.push({
         kind: 'touch', material: NAMES[Math.round(d[o + 15])] || 'glass', size: stonesOf(L).size[i], strength, delay: u * touch.dt,
-        x: (d[o] - (view.x - view.w / 2)) / view.w, y: (view.y + view.h / 2 - d[o + 1]) / view.h
+        x: (d[o] + shift - (view.x - view.w / 2)) / view.w, y: (view.y + view.h / 2 - d[o + 1]) / view.h
       });
     }
     return events.sort((p, q) => p.delay - q.delay);

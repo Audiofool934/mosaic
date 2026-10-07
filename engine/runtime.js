@@ -131,8 +131,8 @@ export async function createMosaic(canvas, options = {}) {
   const lampRgb = lampLook ? hexRgb(lampLook.color).map(toLinear) : null;
   let lampGoal = null, lampPos = null, lampOn = 0;
   // The scenes whose stones the page has taken off the wall, as when the same stones are
-  // being drawn somewhere else. Their bed is left bare.
-  const hidden = new Set();
+  // being drawn somewhere else, whose bed is left bare; and the gusts it has set over scenes.
+  const hidden = new Set(), gusts = new Map();
   // A see-through canvas shows what lies under it wherever its wall has no stones.
   const gl = canvas.getContext('webgl2', { alpha: options.transparent === true, premultipliedAlpha: true, antialias: false, depth: false, preserveDrawingBuffer: true, powerPreference: 'high-performance' });
   if (!gl) throw new Error('This artwork needs WebGL2. Try a browser with hardware acceleration enabled.');
@@ -225,6 +225,7 @@ export async function createMosaic(canvas, options = {}) {
       const scene = film.scenes[L.scene.index];
       L.scene = scene;
       L.hidden = hidden.has(scene.id);
+      L.gust = gusts.get(scene.id) ?? null;
       scene.layer = L;
       film.layers.push(L);
       if (!lost) renderer.addLayer(L);
@@ -263,7 +264,10 @@ export async function createMosaic(canvas, options = {}) {
   // back, and when the wall moved under an active pointer.
   function look() {
     const c = timeline.cameraAt(time), last = looked.at(-1);
-    if (last && (c.target[0] !== last.x || c.target[1] !== last.y || c.w !== last.w) && live(frameClock).strength > 0) slidAt = frameClock;
+    // A view that jumps half its width or more has been cut to another part of the wall, not
+    // slid there, so the pointer's path starts again from it.
+    if (last && Math.hypot(c.target[0] - last.x, c.target[1] - last.y) >= c.w / 2000) looked = [];
+    else if (last && (c.target[0] !== last.x || c.target[1] !== last.y || c.w !== last.w) && live(frameClock).strength > 0) slidAt = frameClock;
     looked.push({ at: frameClock, x: c.target[0], y: c.target[1], w: c.w });
     let old = 0;
     while (old < looked.length - 1 && looked[old + 1].at < frameClock - settleTime) old++;
@@ -293,7 +297,7 @@ export async function createMosaic(canvas, options = {}) {
       heardOn = at;
     } else heardOn = null;
     heardAt = c;
-    const events = hear({ layers: base.layersAt(time).filter((L) => !L.hidden), touch, time, clock: c,
+    const events = hear({ layers: base.layersAt(time).filter((L) => !L.hidden && !L.gust), touch, time, clock: c,
       view: { x: cam.target[0], y: cam.target[1], w, h: w / (width / height) } });
     if (events.length) for (const listener of listeners) listener(events);
   }
@@ -394,6 +398,17 @@ export async function createMosaic(canvas, options = {}) {
       if (on === hidden.has(id)) return;
       if (on) hidden.add(id); else hidden.delete(id);
       for (const L of film.layers) if (L.scene.id === id) L.hidden = on;
+      schedule();
+    },
+    // Sets a gust over the scene with this id, in every frame drawn: its front crosses the view
+    // from upwind, and blows each seated stone off downwind as it passes, or, with away false,
+    // brings each one in on the wind and sets it down. at is how far the gust has gone, from 0
+    // to 1, and wind the way it blows, 1 to the right or -1 to the left. null takes it away.
+    setGust(id, gust = null) {
+      ensure();
+      const g = gust ? [clamp(finite(gust.at, 0), 0, 1), gust.wind < 0 ? -1 : 1, gust.away === false ? -1 : 1, 0] : null;
+      if (g) gusts.set(id, g); else gusts.delete(id);
+      for (const L of film.layers) if (L.scene.id === id) L.gust = g;
       schedule();
     },
     // Holds the lamp, if the artwork has one, over a point on the canvas, x and y from 0 to 1,

@@ -341,6 +341,12 @@ function listen() {
 const bar = createBar($("bar"), { reduceMotion, onReady: listen });
 const slabs = createSlabs(document);
 const atelier = createAtelier(document.querySelector(".atelier"), { reduceMotion, coat: COAT, onLaid: listen });
+// The gallery's film opens in the studio, to play and scrub there; the link itself goes to it.
+document.addEventListener("click", (event) => {
+  if (!event.target.closest?.("a[data-studio-film]")) return;
+  document.querySelector("dialog[open]")?.close();
+  atelier.film();
+});
 watchRooms(".hero, .room, .page", { reduceMotion });
 
 // How many stones the page was cut into, and how long it took from the first.

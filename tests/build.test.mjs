@@ -68,10 +68,12 @@ test('web and skill distributions retain canonical bytes, notices, and source ma
   for (const name of ['package.json', 'package-lock.json', 'tools/build.mjs']) {
     assert.deepEqual(await readFile(path.join(runtime, name)), await readFile(path.join(ROOT, name)));
   }
-  // The website opens on the project page, which links to the studio; the skill never carries the page.
+  // The website opens on the project page, which holds the studio itself, and still carries the
+  // standalone studio; the skill never carries the page.
   const home = await readFile(path.join(built.site, 'index.html'));
   assert.deepEqual(home, await readFile(path.join(ROOT, 'index.html')));
-  assert.match(home.toString(), /href="site\/"/);
+  assert.match(home.toString(), /id="atelier-canvas"/);
+  assert.equal((await filesIn(built.site)).includes('site/index.html'), true);
   assert.equal((await filesIn(built.site)).some(name => name.startsWith('home/media/')), true);
   const skillFiles = await filesIn(built.skill);
   assert.equal(skillFiles.includes('assets/runtime/index.html'), false);

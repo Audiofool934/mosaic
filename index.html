@@ -43,7 +43,7 @@
         <p>mosAIc is an open mosaic engine and the agent skill that lays it. Your coding agent draws a picture, a film, or a whole page, and the engine cuts it into thousands of stones of glass, marble, and gold, sets them in mortar, and lights each one. This page is one of its walls, cut in your browser around the words you are reading.</p>
         <p class="actions">
           <a class="stone-button" href="#studio" data-well><span class="type" data-type="GIVE YOUR AGENT THE SKILL" data-type-narrow="GIVE YOUR AGENT|THE SKILL" data-tone="gold">Give your agent the skill</span></a>
-          <a class="stone-button" href="site/" data-well><span class="type" data-type="TRY THE STUDIO">Try the studio</span></a>
+          <a class="stone-button" href="#studio" data-well><span class="type" data-type="TRY THE STUDIO">Try the studio</span></a>
         </p>
         <p class="source"><a href="https://github.com/Audiofool934/mosaic">The source is on GitHub</a>, under the MIT License.</p>
       </div>
@@ -154,7 +154,7 @@
             <h3 class="type" data-type="FROM MOON TO MORNING" data-type-narrow="FROM MOON|TO MORNING">From moon to morning</h3>
             <p>Film, 10 s · 17,387 stones · a mosAIc example</p>
           </div>
-          <template><p>A ten-second film in two scenes. The night's stones lift off the wall and resettle as a coastal dawn. <a href="site/?project=../examples/film.json">Scrub it in the studio</a>.</p></template>
+          <template><p>A ten-second film in two scenes. The night's stones lift off the wall and resettle as a coastal dawn. <a href="#studio" data-studio-film>Scrub it in the studio</a>.</p></template>
         </figure>
       </div>
       <div class="page salon">
@@ -190,35 +190,53 @@
       </dialog>
     </section>
 
-    <!-- The studio, two ways in: an image laid in stone right here, and the skill for a coding
-         agent, with the command line beside it. -->
+    <!-- The studio, two ways in: the whole studio right here, an image or the studio's own
+         artwork or film laid in stone in a frame in the wall, with every tool under it; and the
+         skill for a coding agent, with the command line beside it. -->
     <section class="room studio" id="studio" aria-labelledby="studio-title">
       <span id="use"></span>
-      <div class="page">
-        <div class="slab head" data-slab>
-          <h2 id="studio-title" class="type" data-type="STUDIO">Studio</h2>
-          <p>Lay an image in stone right here, or give mosAIc to your coding agent. Both use one renderer, so a picture looks the same wherever it is made.</p>
-        </div>
-      </div>
+      <h2 id="studio-title" class="unseen">Studio</h2>
       <div class="page">
         <figure class="atelier">
           <div class="frame" data-wall="emblem">
-            <canvas id="atelier-canvas" aria-label="Your image, cut into stone in this browser."></canvas>
+            <canvas id="atelier-canvas" tabindex="0" aria-label="The studio's mosaic, cut into stone in this browser. Move the pointer over it to lift the stones."></canvas>
             <p class="atelier-note" id="atelier-note" role="status">Drop an image here, or pick one below.</p>
           </div>
           <figcaption class="slab tools" data-slab>
-            <div class="materials-pick" role="radiogroup" aria-label="Material">
-              <button class="stone-button" type="button" role="radio" aria-checked="true" data-material="glass" data-well><span class="type" data-type="GLASS">Glass</span></button>
-              <button class="stone-button" type="button" role="radio" aria-checked="false" data-material="stone" data-well><span class="type" data-type="STONE">Stone</span></button>
-              <button class="stone-button" type="button" role="radio" aria-checked="false" data-material="gold" data-well><span class="type" data-type="GOLD" data-tone="gold">Gold</span></button>
-            </div>
-            <div class="picks">
+            <div class="tool-row picks" role="group" aria-label="What to lay in stone">
+              <button class="pick" type="button" data-project="examples/nocturne.json" aria-pressed="false"><img src="site/preview.jpg" width="1600" height="900" loading="lazy" alt="Moon over still water, the studio's own mosaic"></button>
               <button class="pick" type="button" data-image="home/media/sample-heron.webp" aria-pressed="true"><img src="home/media/sample-heron.webp" width="320" height="180" alt="The heron under the moon, a flat painting"></button>
               <button class="pick" type="button" data-image="home/media/sample-dawn.webp" aria-pressed="false"><img src="home/media/sample-dawn.webp" width="320" height="180" alt="A coast at dawn, a flat painting"></button>
               <button class="pick" type="button" data-image="home/media/sample-peaks.webp" aria-pressed="false"><img src="home/media/sample-peaks.webp" width="320" height="180" alt="Peaks at first light, a flat painting"></button>
+              <button class="pick" type="button" data-project="examples/film.json" data-film aria-pressed="false"><img src="home/media/moon-to-morning.webp" width="320" height="180" loading="lazy" alt="From moon to morning, a film to play and scrub"></button>
               <label class="stone-button file" data-well><input type="file" id="atelier-file" accept="image/png,image/jpeg,image/webp,image/avif,image/gif"><span class="type" data-type="YOUR OWN">Your own image</span></label>
             </div>
-            <p class="aside">Drop an image on the picture, or choose one; it stays in your browser. <a href="site/">Open the full studio</a> to change the light, the scale, and more.</p>
+            <div class="tool-row">
+              <div class="choice" role="radiogroup" aria-label="Material">
+                <button class="stone-button" type="button" role="radio" aria-checked="true" data-material="glass" data-well><span class="type" data-type="GLASS">Glass</span></button>
+                <button class="stone-button" type="button" role="radio" aria-checked="false" data-material="stone" data-well><span class="type" data-type="STONE">Stone</span></button>
+                <button class="stone-button" type="button" role="radio" aria-checked="false" data-material="gold" data-well><span class="type" data-type="GOLD" data-tone="gold">Gold</span></button>
+              </div>
+              <div class="choice" role="radiogroup" aria-label="Stone size">
+                <button class="stone-button" type="button" role="radio" aria-checked="false" data-size="15" data-well><span class="type" data-type="FINE">Fine</span></button>
+                <button class="stone-button" type="button" role="radio" aria-checked="true" data-size="22" data-well><span class="type" data-type="BALANCED">Balanced</span></button>
+                <button class="stone-button" type="button" role="radio" aria-checked="false" data-size="32" data-well><span class="type" data-type="BOLD">Bold</span></button>
+              </div>
+            </div>
+            <div class="tool-row">
+              <label class="slide"><span class="type" data-type="LIGHT">Light</span><input type="range" id="atelier-light" min="-1" max="1" step="0.05" value="0"></label>
+              <label class="slide"><span class="type" data-type="CLOSER">Look closer</span><input type="range" id="atelier-zoom" min="1" max="3" step="0.05" value="1"></label>
+              <button class="stone-button" type="button" id="atelier-move" aria-pressed="true" data-well><span class="type" data-type="MOVE">Let it move</span></button>
+              <button class="stone-button" type="button" id="atelier-save" data-well><span class="type" data-type="SAVE PNG">Save PNG</span></button>
+            </div>
+            <div class="tool-row status">
+              <p class="atelier-title" id="atelier-title" aria-live="polite">Your images stay in your browser.</p>
+              <div class="transport" id="atelier-film" hidden>
+                <button class="play" type="button" id="atelier-play" aria-label="Play the film">&#9654;</button>
+                <input type="range" id="atelier-time" min="0" max="10" step="0.016667" value="0" aria-label="Film position in seconds">
+                <output id="atelier-clock" for="atelier-time">0:00 / 0:10</output>
+              </div>
+            </div>
           </figcaption>
         </figure>
       </div>

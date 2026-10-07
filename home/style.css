@@ -280,27 +280,45 @@ html.wide .gallery { padding-inline: max(var(--gutter), (100vw - var(--gw)) / 2)
 }
 .viewer-close:hover { border-color: var(--gilt); color: var(--gilt); }
 
-/* Studio: an image laid in stone right here, in a frame in the wall, with what to lay it in
-   under it; and beside them, the skill for a coding agent, with the command line. */
-.studio .head { grid-column: 1 / span 6; grid-row: 1; }
-.studio .head .type { --cell: 5px; }
-.atelier { grid-column: 1 / span 6; grid-row: 2; display: grid; gap: 14px; margin: 0; }
-.atelier .frame { position: relative; width: min(100%, (var(--room-h) - 320px) * 16 / 9); aspect-ratio: 16 / 9; }
+/* Studio: the whole studio right here, its frame in the wall with every tool on a slab under
+   it, as wide as the frame; and beside them, the skill for a coding agent, with the command
+   line. The slab keeps one layout whatever is laid, so the wall cut round it never moves: tools
+   an image needs and a project does not are dimmed, and the film's transport shows only in the
+   status line, which keeps its height. */
+.atelier { grid-column: 1 / span 7; grid-row: 1; display: grid; gap: 14px; width: min(100%, (var(--room-h) - 230px) * 16 / 9); margin: 0; }
+.atelier .frame { position: relative; width: 100%; aspect-ratio: 16 / 9; }
 .atelier .frame canvas { position: absolute; inset: 0; }
+.atelier .frame canvas:focus-visible { outline: 1px solid rgb(217 182 116 / 0.8); outline-offset: 4px; }
 .atelier .frame.over { box-shadow: 0 0 0 3px var(--gilt); }
 .atelier-note {
   position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%); margin: 0; padding: 6px 12px; border-radius: 14px;
   background: rgb(6 9 12 / 0.72); font: 400 13px / 1.4 var(--sans); color: var(--marble); white-space: nowrap; pointer-events: none;
 }
-.tools { display: flex; flex-wrap: wrap; gap: 12px 14px; align-items: center; justify-content: space-between; padding: 14px 16px; }
-.materials-pick, .picks, .ways { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-.pick { width: 60px; aspect-ratio: 16 / 9; padding: 0; border: 0; border-radius: 4px; overflow: hidden; background: #0e1d24; opacity: 0.55; }
+.tools { display: grid; gap: 10px; padding: 14px 16px; }
+.tool-row { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; justify-content: space-between; }
+.choice, .ways { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.pick { width: 60px; aspect-ratio: 16 / 9; padding: 0; border: 0; border-radius: 4px; overflow: hidden; background: #0e1d24; opacity: 0.55; cursor: pointer; }
 .pick img { display: block; width: 100%; height: 100%; object-fit: cover; }
 .pick[aria-pressed="true"], .pick:hover { opacity: 1; box-shadow: 0 0 0 1.5px var(--gilt); }
+.slide { display: flex; align-items: center; gap: 10px; }
+.slide .type { --cell: 2.2px; }
+.slide input, .transport input { width: 104px; margin: 0; accent-color: var(--gilt); }
+.status { height: 26px; }
+.atelier-title { margin: 0; font: 400 13px / 1.4 var(--sans); color: var(--marble-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.transport { display: flex; align-items: center; gap: 10px; }
+.transport[hidden] { display: none; }
+.transport input { width: 180px; }
+.transport output { font: 400 12.5px / 1 var(--mono); color: var(--marble-muted); }
+.play { width: 26px; height: 26px; padding: 0; border: 1px solid rgb(217 182 116 / 0.55); border-radius: 50%; background: none; color: var(--gilt); font: 11px / 1 var(--sans); cursor: pointer; }
+/* A tool that does not apply to what is laid is dimmed under a veil of dark glass. */
+.stone-button { position: relative; }
+.stone-button:disabled { cursor: default; }
+.stone-button:disabled::after { content: ""; position: absolute; inset: 0; border-radius: inherit; background: rgb(6 9 12 / 0.6); }
+.stone-button[aria-pressed="true"] { box-shadow: inset 0 0 0 1.6px var(--rim), 0 4px 0 -2px var(--gilt); }
+.slab[data-state="laid"] .stone-button[aria-pressed="true"] { box-shadow: 0 4px 0 -2px var(--gilt); }
 .file input { position: absolute; width: 1px; height: 1px; opacity: 0; }
 .file:focus-within { outline: 1px solid rgb(217 182 116 / 0.8); outline-offset: 3px; }
-.tools .aside { flex: 1 0 100%; font: 400 13px / 1.5 var(--sans); color: var(--marble-muted); }
-.agent { grid-column: 7 / -1; grid-row: 1 / span 2; display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-content: start; padding: 26px 28px; }
+.agent { grid-column: 8 / -1; grid-row: 1; display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-content: start; padding: 26px 28px; }
 .agent > .type { --cell: 4px; }
 .agent > p { font-size: 15.5px; line-height: 1.55; color: var(--marble-muted); }
 .ways { display: flex; gap: 8px; }
@@ -356,14 +374,14 @@ html.wide .gallery { padding-inline: max(var(--gutter), (100vw - var(--gw)) / 2)
     display: grid; grid-template-columns: minmax(0, 1fr); row-gap: 18px; align-content: center; align-items: start; min-height: 100svh;
     padding-block: calc(var(--bar-top) + var(--bar-h, 62px) + 18px) 84px; scroll-snap-align: start; scroll-snap-stop: always;
   }
-  .head .type, .studio .head .type { --cell: 4px; }
+  .head .type { --cell: 4px; }
   .method .predella { grid-template-columns: 1fr 1fr; row-gap: 14px; }
   .materials { --sample: calc((var(--content) - 20px) / 2); }
   .board { width: var(--content); }
   .samples, .names { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .sample { width: 100%; height: auto; aspect-ratio: 1; max-height: calc((var(--room-h) - 260px) / 2); justify-self: center; }
   .room { --side: var(--content); }
-  .head, .method .polyptych, .method .predella, .materials .board, .studio .head, .atelier, .agent { grid-column: 1 / -1; grid-row: auto; }
+  .head, .method .polyptych, .method .predella, .materials .board, .atelier, .agent { grid-column: 1 / -1; grid-row: auto; }
   .gallery { width: auto; grid-template-rows: none; }
   html.wide .gallery { padding-inline: 0; }
   .gallery .page.salon { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 14px; }
@@ -375,8 +393,8 @@ html.wide .gallery { padding-inline: max(var(--gutter), (100vw - var(--gw)) / 2)
   .work.leaf .frame, .work.crescent .frame { height: auto; aspect-ratio: 1; }
   .plaque .type { --cell: 2px; }
   .slab { padding: 18px 16px; }
-  .ways .type, .materials-pick .type, .file .type { --cell: 2.2px; }
-  .atelier .frame { width: 100%; }
+  .ways .type, .choice .type, .file .type { --cell: 2.2px; }
+  .atelier { width: 100%; }
   .tools { grid-template-columns: 1fr; }
   .picks { justify-content: flex-start; flex-wrap: wrap; }
   .colophon { grid-template-columns: 1fr; }

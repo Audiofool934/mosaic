@@ -51,12 +51,12 @@ The other works in its gallery are kept in `home/works/` as they were made, and 
 
 - `copper-leaf.webp` and `gold-crescent.webp` were made by Codex and by Claude Code, each given a copy of the skill.
 - `odyssey-lantern.mp4` is the 26-second master film of `piece/odyssey-lantern` at commit `ffd252e74e4aea362110d205fc36af09221a0f5e`, drawn by that piece's own single-file renderer and scaled to 1280 pixels wide.
-- `a-light-that-endures.mp4` is seconds 26 to 51 of the 4096 by 2160 film of `piece/middle-earth-may-it-be`, checked out at `900069429bfa11caf73919e21997ce64b9505bfe`, rendered on 2026-10-04 by that piece's own copy of the engine, with its audio track removed, scaled to 1280 pixels wide at 30 frames a second.
 - `the-road-home.mp4` is the whole 36-second 1920 by 1080 review film of `piece/the-road-home`, checked out at `be7fb47ef32d04cb3691094d38c97b4c5c6f3f4b`, rendered on 2026-10-04 by that piece's own renderer, scaled to 1280 pixels wide at 30 frames a second.
+- `arrakis.mp4` is the whole 26-second film of `piece/arrakis` at `36c655e`, drawn for this gallery with a copy of this engine and rendered by its command line at 1280 pixels wide, then encoded for the web at 30 frames a second.
 - Each poster is a single frame of its film.
 
 Odyssey Lantern draws every picture in code from Homer's poem, which is in the public domain.
-The two Middle-earth films draw every picture in code; they are fan work on Tolkien's world, shown here by the author's choice, and neither carries an audio track, so the song the first was cut to is not published.
+The Road Home and Arrakis draw every picture in code; they are fan work on the worlds of Tolkien and of Frank Herbert's *Dune*, shown here by the author's choice, take no frame, character, or design from any film, and carry no audio track.
 
 ## Distribution boundary
 

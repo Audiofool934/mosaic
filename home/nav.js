@@ -7,7 +7,7 @@ import { ITEMS, barFilm, barLayout } from "./bar.js";
 const READ = 0.4;
 // The lamp: how high it is held over the bar, in pixels, how wide its cone is, in degrees,
 // and how strong it shines.
-const LAMP = { height: 70, cone: 80, power: 0.03, color: "#fff2df" };
+const LAMP = { height: 70, cone: 80, power: 0.02, color: "#fff2df" };
 
 // nav holds the bar's canvas and one link to each section in ITEMS, by the section's id.
 export function createBar(nav, { reduceMotion, onReady = () => {} }) {

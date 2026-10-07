@@ -3,26 +3,38 @@
 // image of one's own, dropped on the frame or chosen, in glass, stone, or gold, its stones fine,
 // balanced, or bold; and it changes the light, looks closer, lets the stones move under the
 // pointer or holds them, plays and scrubs the film, and saves what is in the frame as a PNG.
-// An image never leaves the browser: it is read here, cropped to the frame, and cut in a worker.
+// An image never leaves the browser: it is read here, fitted to the frame, and cut in a worker.
 // The frame is first laid when it comes near the screen.
 import { createMosaic } from "../engine/runtime.js";
 
 const MODULE = new URL("./image.js", import.meta.url).href;
 // The image's longest side when it is analysed, in pixels.
 const READ = 640;
+// An image whose shape is within this ratio of the frame's is cropped to it; any other, as a
+// portrait in a landscape frame, is laid whole on a surround of this dark glass.
+const NEAR = 1.2, SURROUND = "#13212a";
 
-// An image's pixels, cropped from its middle to the frame's shape.
+// An image's pixels at the frame's shape: cropped from its middle when its shape is near the
+// frame's, and otherwise laid whole in the middle of the surround, so none of it is lost.
 async function pixels(source, aspect) {
   const blob = typeof source === "string" ? await (await fetch(source)).blob() : source;
   const bitmap = await createImageBitmap(blob);
   try {
-    const sw = Math.min(bitmap.width, bitmap.height * aspect), sh = sw / aspect;
     const canvas = document.createElement("canvas");
     canvas.width = READ;
     canvas.height = Math.round(READ / aspect);
     const context = canvas.getContext("2d", { willReadFrequently: true });
     context.imageSmoothingQuality = "high";
-    context.drawImage(bitmap, (bitmap.width - sw) / 2, (bitmap.height - sh) / 2, sw, sh, 0, 0, canvas.width, canvas.height);
+    const own = bitmap.width / bitmap.height;
+    if (Math.max(own / aspect, aspect / own) <= NEAR) {
+      const sw = Math.min(bitmap.width, bitmap.height * aspect), sh = sw / aspect;
+      context.drawImage(bitmap, (bitmap.width - sw) / 2, (bitmap.height - sh) / 2, sw, sh, 0, 0, canvas.width, canvas.height);
+    } else {
+      const k = Math.min(canvas.width / bitmap.width, canvas.height / bitmap.height), w = bitmap.width * k, h = bitmap.height * k;
+      context.fillStyle = SURROUND;
+      context.fillRect(0, 0, canvas.width, canvas.height);
+      context.drawImage(bitmap, (canvas.width - w) / 2, (canvas.height - h) / 2, w, h);
+    }
     const { width, height, data } = context.getImageData(0, 0, canvas.width, canvas.height);
     return { width, height, data };
   } finally {

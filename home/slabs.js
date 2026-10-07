@@ -9,7 +9,7 @@ import { typeBlock } from "./slab.js";
 const MODULE = new URL("./slab.js", import.meta.url).href;
 // The lamp, as over the bar: how high it is held, in pixels, its cone, in degrees, its power
 // and its colour.
-const LAMP = { height: 90, cone: 80, power: 0.03, color: "#fff2df" };
+const LAMP = { height: 90, cone: 80, power: 0.02, color: "#fff2df" };
 // How long a slab stays live once the lamp is taken from it, in milliseconds.
 const KEEP = 8000;
 

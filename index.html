@@ -42,7 +42,7 @@
       <div class="slab lede" data-slab>
         <p>mosAIc is an open mosaic engine and the agent skill that lays it. Your coding agent draws a picture, a film, or a whole page, and the engine cuts it into thousands of stones of glass, marble, and gold, sets them in mortar, and lights each one. This page is one of its walls, cut in your browser around the words you are reading.</p>
         <p class="actions">
-          <a class="stone-button" href="#studio" data-well><span class="type" data-type="GIVE YOUR AGENT THE SKILL" data-type-narrow="GIVE YOUR AGENT|THE SKILL" data-tone="gold">Give your agent the skill</span></a>
+          <a class="stone-button" href="#skill" data-well><span class="type" data-type="GIVE YOUR AGENT THE SKILL" data-type-narrow="GIVE YOUR AGENT|THE SKILL" data-tone="gold">Give your agent the skill</span></a>
           <a class="stone-button" href="#studio" data-well><span class="type" data-type="TRY THE STUDIO">Try the studio</span></a>
         </p>
         <p class="source"><a href="https://github.com/Audiofool934/mosaic">The source is on GitHub</a>, under the MIT License.</p>
@@ -124,15 +124,15 @@
           </div>
           <template><p>About eighteen thousand stones, laid outward from a lantern with the border last. The engine began in this piece.</p></template>
         </figure>
-        <figure class="work light">
-          <button class="frame" type="button" data-wall="emblem" data-film="home/works/a-light-that-endures.mp4" aria-describedby="light-plaque">
-            <video src="home/works/a-light-that-endures.mp4" poster="home/works/a-light-that-endures.webp" width="1280" height="676" muted loop playsinline preload="none" aria-label="A light that endures: a jewelled crown under dark peaks, the One Ring burning gold over Mordor, and the white city on its hill, each scene laid in stone."></video>
+        <figure class="work arrakis">
+          <button class="frame" type="button" data-wall="emblem" data-film="home/works/arrakis.mp4" aria-describedby="arrakis-plaque">
+            <video src="home/works/arrakis.mp4" poster="home/works/arrakis.webp" width="1280" height="720" muted loop playsinline preload="none" aria-label="Arrakis: dunes under two moons, a plume of spice and a winged flyer at dawn, a sandworm rising with its round mouth ringed with teeth, and a stepped city against a low sun, each scene flowing into the next."></video>
           </button>
-          <div class="slab plaque" data-slab id="light-plaque">
-            <h3 class="type" data-type="A LIGHT THAT ENDURES" data-type-narrow="A LIGHT|THAT ENDURES">A light that endures</h3>
-            <p>Film, a silent 25 s excerpt · from the sketchbook, on an earlier engine</p>
+          <div class="slab plaque" data-slab id="arrakis-plaque">
+            <h3 class="type" data-type="ARRAKIS">Arrakis</h3>
+            <p>Film, 26 s · four scenes flowing into each other · made with mosAIc</p>
           </div>
-          <template><p>Middle-earth from the first star to the Grey Havens, scene by scene in stone. A silent excerpt, made with an earlier version of the engine.</p></template>
+          <template><p>A desert planet in four pictures of stone: a night under two moons, spice at dawn, the worm, and a city at dusk. Each flows into the next, out from its subject.</p></template>
         </figure>
       </div>
       <div class="page salon">
@@ -190,9 +190,8 @@
       </dialog>
     </section>
 
-    <!-- The studio, two ways in: the whole studio right here, an image or the studio's own
-         artwork or film laid in stone in a frame in the wall, with every tool under it; and the
-         skill for a coding agent, with the command line beside it. -->
+    <!-- The studio: the whole studio right here, an image or the studio's own artwork or film
+         laid in stone in a frame in the wall, with every tool under it. -->
     <section class="room studio" id="studio" aria-labelledby="studio-title">
       <span id="use"></span>
       <h2 id="studio-title" class="unseen">Studio</h2>
@@ -203,73 +202,44 @@
             <p class="atelier-note" id="atelier-note" role="status">Drop an image here, or pick one below.</p>
           </div>
           <figcaption class="slab tools" data-slab>
-            <div class="tool-row picks" role="group" aria-label="What to lay in stone">
-              <button class="pick" type="button" data-project="examples/nocturne.json" aria-pressed="false"><img src="site/preview.jpg" width="1600" height="900" loading="lazy" alt="Moon over still water, the studio's own mosaic"></button>
-              <button class="pick" type="button" data-image="home/media/sample-heron.webp" aria-pressed="true"><img src="home/media/sample-heron.webp" width="320" height="180" alt="The heron under the moon, a flat painting"></button>
-              <button class="pick" type="button" data-image="home/media/sample-dawn.webp" aria-pressed="false"><img src="home/media/sample-dawn.webp" width="320" height="180" alt="A coast at dawn, a flat painting"></button>
-              <button class="pick" type="button" data-image="home/media/sample-peaks.webp" aria-pressed="false"><img src="home/media/sample-peaks.webp" width="320" height="180" alt="Peaks at first light, a flat painting"></button>
-              <button class="pick" type="button" data-project="examples/film.json" data-film aria-pressed="false"><img src="home/media/moon-to-morning.webp" width="320" height="180" loading="lazy" alt="From moon to morning, a film to play and scrub"></button>
-              <label class="stone-button file" data-well><input type="file" id="atelier-file" accept="image/png,image/jpeg,image/webp,image/avif,image/gif"><span class="type" data-type="YOUR OWN">Your own image</span></label>
-            </div>
             <div class="tool-row">
+              <div class="picks" role="group" aria-label="What to lay in stone">
+                <button class="pick" type="button" data-project="examples/nocturne.json" aria-pressed="false"><img src="site/preview.jpg" width="1600" height="900" loading="lazy" alt="Moon over still water, the studio's own mosaic"></button>
+                <button class="pick" type="button" data-image="home/media/sample-heron.webp" aria-pressed="true"><img src="home/media/sample-heron.webp" width="320" height="180" alt="The heron under the moon, a flat painting"></button>
+                <button class="pick" type="button" data-image="home/media/sample-dawn.webp" aria-pressed="false"><img src="home/media/sample-dawn.webp" width="320" height="180" alt="A coast at dawn, a flat painting"></button>
+                <button class="pick" type="button" data-image="home/media/sample-peaks.webp" aria-pressed="false"><img src="home/media/sample-peaks.webp" width="320" height="180" alt="Peaks at first light, a flat painting"></button>
+                <button class="pick" type="button" data-project="examples/film.json" data-film aria-pressed="false"><img src="home/media/moon-to-morning.webp" width="320" height="180" loading="lazy" alt="From moon to morning, a film to play and scrub"></button>
+                <label class="stone-button file" data-well><input type="file" id="atelier-file" accept="image/png,image/jpeg,image/webp,image/avif,image/gif"><span class="type" data-type="YOUR OWN">Your own image</span></label>
+              </div>
               <div class="choice" role="radiogroup" aria-label="Material">
                 <button class="stone-button" type="button" role="radio" aria-checked="true" data-material="glass" data-well><span class="type" data-type="GLASS">Glass</span></button>
                 <button class="stone-button" type="button" role="radio" aria-checked="false" data-material="stone" data-well><span class="type" data-type="STONE">Stone</span></button>
                 <button class="stone-button" type="button" role="radio" aria-checked="false" data-material="gold" data-well><span class="type" data-type="GOLD" data-tone="gold">Gold</span></button>
               </div>
+            </div>
+            <div class="tool-row">
               <div class="choice" role="radiogroup" aria-label="Stone size">
                 <button class="stone-button" type="button" role="radio" aria-checked="false" data-size="15" data-well><span class="type" data-type="FINE">Fine</span></button>
                 <button class="stone-button" type="button" role="radio" aria-checked="true" data-size="22" data-well><span class="type" data-type="BALANCED">Balanced</span></button>
                 <button class="stone-button" type="button" role="radio" aria-checked="false" data-size="32" data-well><span class="type" data-type="BOLD">Bold</span></button>
               </div>
-            </div>
-            <div class="tool-row">
               <label class="slide"><span class="type" data-type="LIGHT">Light</span><input type="range" id="atelier-light" min="-1" max="1" step="0.05" value="0"></label>
               <label class="slide"><span class="type" data-type="CLOSER">Look closer</span><input type="range" id="atelier-zoom" min="1" max="3" step="0.05" value="1"></label>
+            </div>
+            <div class="tool-row">
               <button class="stone-button" type="button" id="atelier-move" aria-pressed="true" data-well><span class="type" data-type="MOVE">Let it move</span></button>
               <button class="stone-button" type="button" id="atelier-save" data-well><span class="type" data-type="SAVE PNG">Save PNG</span></button>
-            </div>
-            <div class="tool-row status">
-              <p class="atelier-title" id="atelier-title" aria-live="polite">Your images stay in your browser.</p>
-              <div class="transport" id="atelier-film" hidden>
-                <button class="play" type="button" id="atelier-play" aria-label="Play the film">&#9654;</button>
-                <input type="range" id="atelier-time" min="0" max="10" step="0.016667" value="0" aria-label="Film position in seconds">
-                <output id="atelier-clock" for="atelier-time">0:00 / 0:10</output>
+              <div class="status">
+                <p class="atelier-title" id="atelier-title" aria-live="polite">Your images stay in your browser.</p>
+                <div class="transport" id="atelier-film" hidden>
+                  <button class="play" type="button" id="atelier-play" aria-label="Play the film">&#9654;</button>
+                  <input type="range" id="atelier-time" min="0" max="10" step="0.016667" value="0" aria-label="Film position in seconds">
+                  <output id="atelier-clock" for="atelier-time">0:00 / 0:10</output>
+                </div>
               </div>
             </div>
           </figcaption>
         </figure>
-      </div>
-      <div class="page">
-        <article class="slab agent" data-slab>
-          <h3 class="type" data-type="GIVE IT TO|YOUR AGENT">Give it to your agent</h3>
-          <p>Build the skill and copy it into Claude Code, then install the capture browser once. For Codex, copy it into <code>~/.codex/skills/</code> instead.</p>
-          <div class="ways" role="tablist" aria-label="How to run it">
-            <button class="stone-button" type="button" role="tab" id="way-skill" aria-controls="code-skill" aria-selected="true" data-well><span class="type" data-type="THE SKILL">The skill</span></button>
-            <button class="stone-button" type="button" role="tab" id="way-cli" aria-controls="code-cli" aria-selected="false" tabindex="-1" data-well><span class="type" data-type="COMMAND LINE" data-type-narrow="COMMAND|LINE">Command line</span></button>
-          </div>
-          <div class="code" data-well>
-            <pre id="code-skill" role="tabpanel" aria-labelledby="way-skill"><code>git clone https://github.com/Audiofool934/mosaic
-cd mosaic &amp;&amp; npm run build
-mkdir -p ~/.claude/skills
-cp -R dist/mosaic ~/.claude/skills/
-cd ~/.claude/skills/mosaic/assets/runtime
-npm ci &amp;&amp; npx playwright-core install chromium</code></pre>
-            <pre id="code-cli" role="tabpanel" aria-labelledby="way-cli" hidden><code>git clone https://github.com/Audiofool934/mosaic
-cd mosaic &amp;&amp; npm ci
-npx playwright-core install chromium
-node tools/cli.mjs init art
-node tools/cli.mjs preview art/project.json
-node tools/cli.mjs render art/project.json</code></pre>
-            <button class="copy" type="button">Copy</button>
-          </div>
-          <p class="ask">Then ask for one:</p>
-          <ul class="prompts">
-            <li>“Lay a lighthouse at dusk in glass and gold, and render a still.”</li>
-            <li>“Make a ten-second film where a winter field flows into spring.”</li>
-            <li>“Cut our landing page into a mosaic wall around its words.”</li>
-          </ul>
-        </article>
       </div>
     </section>
   </main>
@@ -284,15 +254,48 @@ node tools/cli.mjs render art/project.json</code></pre>
     </button>
   </div>
 
-  <footer class="room end">
-    <div class="slab colophon" data-slab>
-      <div class="colophon-mark">
-        <p class="type" data-type="MOSAIC 0.1.0">mosAIc 0.1.0</p>
-        <p><a href="https://github.com/Audiofool934/mosaic">Source on GitHub</a></p>
+  <footer class="room end" id="skill" aria-label="The skill, and about mosAIc">
+    <div class="page">
+      <article class="slab agent" data-slab>
+        <h3 class="type" data-type="GIVE IT TO|YOUR AGENT">Give it to your agent</h3>
+        <p>Build the skill and copy it into Claude Code, then install the capture browser once. For Codex, copy it into <code>~/.codex/skills/</code> instead.</p>
+        <div class="ways" role="tablist" aria-label="How to run it">
+          <button class="stone-button" type="button" role="tab" id="way-skill" aria-controls="code-skill" aria-selected="true" data-well><span class="type" data-type="THE SKILL">The skill</span></button>
+          <button class="stone-button" type="button" role="tab" id="way-cli" aria-controls="code-cli" aria-selected="false" tabindex="-1" data-well><span class="type" data-type="COMMAND LINE" data-type-narrow="COMMAND|LINE">Command line</span></button>
+        </div>
+        <div class="code" data-well>
+          <pre id="code-skill" role="tabpanel" aria-labelledby="way-skill"><code>git clone https://github.com/Audiofool934/mosaic
+cd mosaic &amp;&amp; npm run build
+mkdir -p ~/.claude/skills
+cp -R dist/mosaic ~/.claude/skills/
+cd ~/.claude/skills/mosaic/assets/runtime
+npm ci &amp;&amp; npx playwright-core install chromium</code></pre>
+          <pre id="code-cli" role="tabpanel" aria-labelledby="way-cli" hidden><code>git clone https://github.com/Audiofool934/mosaic
+cd mosaic &amp;&amp; npm ci
+npx playwright-core install chromium
+node tools/cli.mjs init art
+node tools/cli.mjs preview art/project.json
+node tools/cli.mjs render art/project.json</code></pre>
+          <button class="copy" type="button">Copy</button>
+        </div>
+        <p class="ask">Then ask for one:</p>
+        <ul class="prompts">
+          <li>“Lay a lighthouse at dusk in glass and gold, and render a still.”</li>
+          <li>“Make a ten-second film where a winter field flows into spring.”</li>
+          <li>“Cut our landing page into a mosaic wall around its words.”</li>
+        </ul>
+      </article>
+    </div>
+    <div class="page">
+      <div class="slab colophon" data-slab>
+        <div class="colophon-mark">
+          <p class="type" data-type="MOSAIC 0.1.0">mosAIc 0.1.0</p>
+          <p><a href="https://github.com/Audiofool934/mosaic">Source on GitHub</a></p>
+        </div>
+        <p>mosAIc began in a sketchbook of mosaic films. Its engine was cut out of those pieces and rebuilt to take any picture. <a href="https://github.com/Audiofool934/mosaic/blob/main/docs/provenance.md">Provenance</a></p>
+        <p>Checked in Chromium on macOS with Apple silicon. Safari, Firefox, Windows, and Linux are not checked yet. <a href="https://github.com/Audiofool934/mosaic/blob/main/docs/verification.md">Verification</a></p>
+        <p>MIT License, © 2026 Everett / Audiofool. <a href="https://github.com/Audiofool934/mosaic/blob/main/THIRD_PARTY_NOTICES.md">Third-party notices</a></p>
       </div>
-      <p>mosAIc began in a sketchbook of mosaic films. Its engine was cut out of those pieces and rebuilt to take any picture. <a href="https://github.com/Audiofool934/mosaic/blob/main/docs/provenance.md">Provenance</a></p>
-      <p>Checked in Chromium on macOS with Apple silicon. Safari, Firefox, Windows, and Linux are not checked yet. <a href="https://github.com/Audiofool934/mosaic/blob/main/docs/verification.md">Verification</a></p>
-      <p>MIT License, © 2026 Everett / Audiofool. <a href="https://github.com/Audiofool934/mosaic/blob/main/THIRD_PARTY_NOTICES.md">Third-party notices</a></p>
     </div>
   </footer>
   <script type="module" src="home/main.js"></script>

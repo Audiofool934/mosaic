@@ -318,11 +318,11 @@ export async function createMosaic(canvas, options = {}) {
   function stepLamp(dt) {
     if (!lampLook) return false;
     const on = lampGoal ? 1 : 0;
-    lampOn += (on - lampOn) * (1 - Math.exp(-dt / .09));
+    lampOn += (on - lampOn) * (1 - Math.exp(-dt / .05));
     let gliding = false;
     if (lampGoal) {
       const at = onWall(unproject(timeline.cameraAt(time)), lampGoal);
-      lampPos = lampPos ? lampPos.map((v, i) => v + (at[i] - v) * (1 - Math.exp(-dt / .05))) : at;
+      lampPos = lampPos ? lampPos.map((v, i) => v + (at[i] - v) * (1 - Math.exp(-dt / .018))) : at;
       gliding = Math.hypot(at[0] - lampPos[0], at[1] - lampPos[1]) > 2e-5;
     }
     return gliding || Math.abs(on - lampOn) > .002;

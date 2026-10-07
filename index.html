@@ -32,7 +32,7 @@
   <main>
     <section class="hero" id="top" aria-labelledby="title">
       <h1 id="title" class="unseen">mosAIc, from a prompt to stone</h1>
-      <div class="hero-art" id="hero" role="img" aria-label="The name MOSAIC set in white marble, with its AI inlaid in gold, laid live across the top of this page in front of mosaic scenes that flow into one another: moonlit water, dunes at dusk, sweeping currents, and peaks at first light."></div>
+      <div class="hero-art" id="hero" role="img" aria-label="The name MOSAIC set in white marble, with its AI inlaid in gold, laid live across the top of this page in a mosaic of still water under the moon."></div>
     </section>
 
     <section class="room intro" aria-label="What mosAIc is">
@@ -116,6 +116,13 @@
           <template><h3>From moon to morning</h3><p>A ten-second film in two scenes. The night's stones lift off the wall and resettle as a coastal dawn. <a href="site/?project=../examples/film.json">Scrub it in the studio</a>.</p></template>
         </li>
         <li>
+          <button class="plate" type="button" aria-pressed="false" data-film="home/media/name-in-stone.mp4" data-poster="home/media/name-in-stone.webp" data-alt="The name in stone: MOSAIC in white marble with its AI in gold, while behind it moonlit water, dunes at dusk, sweeping currents, and peaks at first light lift off the wall and resettle as one another.">
+            <span class="emblem" data-wall="emblem"><img src="home/media/name-in-stone.webp" width="1280" height="720" loading="lazy" decoding="async" alt=""></span>
+            <span class="plate-name">The name in stone</span>
+          </button>
+          <template><h3>The name in stone</h3><p>A twenty-four-second film. The name holds while four scenes flow into one another behind it, as this page's first screen once played them. <a href="site/?project=../examples/inscription.json">Scrub it in the studio</a>.</p></template>
+        </li>
+        <li>
           <button class="plate" type="button" aria-pressed="false" data-film="home/works/odyssey.mp4" data-poster="home/works/odyssey.webp" data-alt="ΟΔΥΣΣΕΙΑ: Troy burns, its stones fly up and seat as a dawn sea with a gold road of sunlight, and the eye painted on a ship's bow becomes the Cyclops' eye.">
             <span class="emblem" data-wall="emblem"><img src="home/works/odyssey.webp" width="1280" height="536" loading="lazy" decoding="async" alt=""></span>
             <span class="plate-name">ΟΔΥΣΣΕΙΑ</span>
@@ -190,9 +197,6 @@ node tools/cli.mjs render art/project.json</code></pre><button class="copy" type
   </main>
 
   <div class="controls">
-    <button class="control" id="wall-replay" type="button" hidden aria-label="Pause the scenes" title="Pause the scenes" data-state="playing">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path class="pause" d="M8.5 6.5v11M15.5 6.5v11"/><path class="play" d="M8.5 6.2v11.6L18 12z"/></svg>
-    </button>
     <button class="sound" id="sound" type="button" aria-pressed="false" title="Hear the stones">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path class="speaker" d="M4 9.5h3.5L12 6v12l-4.5-3.5H4z"/><path class="waves" d="M15.5 9.5a3.6 3.6 0 0 1 0 5M18 7a7.2 7.2 0 0 1 0 10"/><path class="mute" d="M16 10l4 4m0-4l-4 4"/></svg>
       <span class="sound-label">Sound</span>

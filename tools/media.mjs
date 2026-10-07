@@ -2,7 +2,7 @@
 // Renders the pictures the project page shows beside its live wall, from the examples and
 // through the same engine: the name in stone over the night, wide and tall, which stands in
 // for the wall without WebGL2 and makes the share image, the four-stage method plate, and
-// the short film. Run it after a visual change to the engine or the examples.
+// the gallery's short films. Run it after a visual change to the engine or the examples.
 import { spawnSync } from 'node:child_process';
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
@@ -161,13 +161,17 @@ async function main() {
     webp(method, path.join(OUT, 'method-1200.webp'), { width: 1200 });
 
 
-    const { file, project } = await inspectProject(path.join(ROOT, 'examples/film.json'));
-    const master = path.join(work, 'film.mp4');
-    await capture({ kind: 'render', projectFile: file, project, width: 1280, samples: 4, from: 0, to: project.frames, out: master, onProgress: () => {} });
-    ffmpeg(['-i', master, '-an', '-c:v', 'libx264', '-preset', 'slow', '-crf', '26', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', path.join(OUT, 'moon-to-morning.mp4')]);
-    // The poster is the dawn half laid, with the night's stones still in flight.
-    webp(master, path.join(OUT, 'moon-to-morning.webp'), { at: 5.2 });
-    console.log(`Rendered the film and wrote the page media to ${path.relative(ROOT, OUT)}`);
+    // Each film, and its poster: the dawn half laid, with the night's stones still in flight,
+    // and the name over the sweeping currents.
+    for (const [manifest, name, poster] of [['examples/film.json', 'moon-to-morning', 5.2], ['examples/inscription.json', 'name-in-stone', 13.5]]) {
+      const { file, project } = await inspectProject(path.join(ROOT, manifest));
+      const master = path.join(work, `${name}.mp4`);
+      await capture({ kind: 'render', projectFile: file, project, width: 1280, samples: 4, from: 0, to: project.frames, out: master, onProgress: () => {} });
+      ffmpeg(['-i', master, '-an', '-c:v', 'libx264', '-preset', 'slow', '-crf', '26', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', path.join(OUT, `${name}.mp4`)]);
+      webp(master, path.join(OUT, `${name}.webp`), { at: poster });
+      console.log(`Rendered ${name}`);
+    }
+    console.log(`Wrote the page media to ${path.relative(ROOT, OUT)}`);
   } finally {
     await rm(work, { recursive: true, force: true });
   }

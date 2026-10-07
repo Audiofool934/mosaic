@@ -93,20 +93,17 @@ h1[data-wall="band"], h2[data-wall="band"] { width: fit-content; }
 .bar[data-state="still"] a[aria-current] { color: var(--gilt); }
 .bar[data-state="still"] .unseen { position: static; width: auto; height: auto; overflow: visible; clip-path: none; }
 
-/* The page's own controls: the scenes' pause, and sound, which is off until asked for, so
-   the stones are heard only after it is pressed. */
+/* The page's own control: sound, which is off until asked for, so the stones are heard only
+   after it is pressed. */
 .controls { position: fixed; right: clamp(14px, 2vw, 28px); bottom: clamp(14px, 2vw, 28px); z-index: 2; display: flex; gap: 10px; }
-.sound, .control {
+.sound {
   display: flex; align-items: center; justify-content: center; gap: 8px; height: 40px; border: 1px solid rgb(239 235 225 / 0.28); border-radius: 20px;
   background: rgb(9 22 30 / 0.55); color: var(--light-muted); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
   font: 500 13px / 1 var(--sans);
 }
 .sound { padding: 0 14px 0 11px; }
-.control { width: 40px; padding: 0; }
-.sound:hover, .sound[aria-pressed="true"], .control:hover { color: var(--light); border-color: rgb(239 235 225 / 0.55); }
-.sound svg, .control svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
-.control .play { fill: currentColor; stroke: none; }
-.control[data-state="playing"] .play, .control[data-state="paused"] .pause { display: none; }
+.sound:hover, .sound[aria-pressed="true"] { color: var(--light); border-color: rgb(239 235 225 / 0.55); }
+.sound svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
 .sound .speaker { fill: currentColor; stroke: none; }
 .sound .waves, .sound[aria-pressed="false"] .waves { display: none; }
 .sound[aria-pressed="true"] .waves { display: inline; }

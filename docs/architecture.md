@@ -113,14 +113,14 @@ A view that jumps half its width or more from one frame to the next has been cut
 `coat` sets the colour of the bare bed, which shows wherever no stone has been set yet, or where stones have lifted off in a flow.
 
 The project page is such a wall.
-`home/wall.js` sets the name on the first screen, in white marble with its AI inlaid in gold, in front of four scenes from `examples/landscapes.js` that flow into one another in turn: moonlit water, dunes at dusk, sweeping currents, and peaks at first light.
+`home/wall.js` sets the name on the first screen, in white marble with its AI inlaid in gold, in still water under the moon, the first of the four scenes in `examples/landscapes.js`; the others are dunes at dusk, sweeping currents, and peaks at first light.
 Each scene is drawn on a stage 1600 by 900 millimetres, scaled evenly until it covers the first screen, the way a cover image fills a frame: a narrow screen cuts its sides around the scene's focus, and there the name is set as MOS over AIC, while a wide one cuts its foot.
 Below the first screen the scene runs on to a long wave, where a second picture takes over, painted from the page's measured layout: tablets and emblems become gold-framed openings, headings rest on level courses, and the material samples are medallions in the wall itself.
 The page is a column of rooms, each a screen high, which the browser settles on one at a time; on a phone, a room too full for one screen is set as pages, each a screen of its own.
 `home/rooms.js` makes sure a deliberate turn of the wheel always reaches the next room where a browser would snap a short scroll back, and leaves scrolling itself to the browser.
 Where motion is welcome and the screen is tall enough, `home/stage.js` sets the page on a stage, which turns sideways instead of scrolling.
 The first screen is page 0, and each screen under it is a page of its own, standing in place with its words until it is turned to.
-`stageFilm` in `home/wall.js` sets the pages side by side along one long wall: one sea runs along all of them after the first, and in front of it each page's own blocks, cut around its words, follow a copy of the first screen's name in one film.
+`stageFilm` in `home/wall.js` sets the pages side by side along one long wall: one screen of sea repeats under all of them after the first, the same stones under each, and in front of it each page's own blocks, cut around its words, follow a copy of the first screen's name in one film.
 Each turn has three parts: the stones of the blocks of the page in front lift off the wall together, then the view travels right along the sea, which stays on the wall, while they fly on, close to the wall, into the next page's blocks, and they settle onto the wall together as the view arrives.
 The page takes the wheel, a trackpad's sideways and upward strokes, the keys, and touch, and moves the film's clock from them with `setTime`, like a weight on a damped spring, so the stones carry their speed from one notch of a wheel to the next and ease into each stop.
 A turn is bound to the hand: a little of a push lifts the stones a little, more lifts them further, and more again turns the page, and it follows the hand both ways.
@@ -129,15 +129,17 @@ A turn finished under the hand is not carried on by the rest of a flick; a fresh
 The stage's canvas is see-through and lies over the first screen's, and its camera looks at a whole screen of the wall where the stage stands at each moment of its film, so its stones, the words, and the first screen move as one.
 As a turn from the first screen begins, the first screen takes its name's stones off its wall with `setHidden`, and the stage's copy, the same to the stone, lifts in their place and flies, leaving the letters' bed bare in the first screen's scene, which slides away to the left as the view travels on; its scenes hold still while a turn from it is under way.
 Each page's words travel with their page, going as its stones fly off and coming as the next page's land.
-Links, the browser's back and forward, an address naming a part of the page, and a keyboard's focus all turn the stage to the right page; with motion reduced, or on a short screen, the page scrolls as a column of rooms instead.
-The name's letters are drawn as shapes in `examples/letters.js` rather than set in a typeface, so the word is cut the same in every browser; `examples/inscription.json` is the same first screen as a film of its own.
+A page further than the next is reached by a jump instead, which leaves the pages between alone: the wind blows the stones of the page's own blocks, or the name, off downwind with `setGust`; the view goes over to the other page unseen, since the sea under every page is the same, sliding the first screen out or in on the way where one end is the first screen; and the wind brings the other page's stones in and sets them down.
+A jump forward blows to the left, the way a turn forward carries the stones, and one back to the right, and the words go and come with it.
+Links, the bar, the browser's back and forward, an address naming a part of the page, and a keyboard's focus all bring the right page to the front, by a turn or a jump; with motion reduced, or on a short screen, the page scrolls as a column of rooms instead.
+The name's letters are drawn as shapes in `examples/letters.js` rather than set in a typeface, so the word is cut the same in every browser; `examples/inscription.json` sets the name in front of all four scenes, flowing into one another in turn, as a film of its own, which the gallery shows.
 `home/bar.js` and `home/nav.js` set a bar of black glass over the top of the page, naming its sections in marble stone type, in a small canvas of its own at the screen's full resolution, with a link over each name.
 The section in view is inlaid in gold, and the bar's own film flows the gold from name to name as the page moves.
 Its stones never lift under the pointer: the pointer holds a lamp over the bar instead, so the glass glitters and the name under it is lit, and a keyboard's focus is lit the same way.
 The bar's lens is narrow, so it looks straight down at the whole bar and the lamp's reflection lands under the pointer.
 `home/main.js` measures the layout, has the pictures cut in workers, keeps a canvas one viewport tall (plus a margin) moving with the scroll, and cuts the wall again when a new width reflows the page.
 The name is laid first, and the page waits there until every picture has been cut before the first scene and the page are laid around it, so none appears half laid.
-Once laid, the wall plays in a loop that ends where the first scene flows back in, and the page pauses it at each scene's rest for a few seconds, so nothing is drawn while the stones are still and nothing flows while the first screen is out of view.
+Once laid, the wall rests, and its stones move only under the hand, so nothing is drawn while they are still.
 Images imported through that studio are processed locally.
 An application that loads remote image URLs still needs the server's normal cross-origin permission to read those images.
 

@@ -8,7 +8,8 @@
 // the nearer page, or finishes a flick. From the first screen, its name flies: the stage's
 // canvas lies over it, see-through but for a copy of the name, which takes the name's place
 // as a turn begins, leaving the letters' bed bare in the first screen's scene as that slides
-// away to the left.
+// away to the left. A page further than the next is reached by a jump instead, in which the
+// wind blows the page's own stones away and lays the other page's in their place.
 import { createMosaic } from "../engine/runtime.js";
 import { clamp, smoothstep } from "../engine/util.js";
 import { stageFilm, wallScale } from "./wall.js";
@@ -27,6 +28,14 @@ const WHEEL = 0.75, TOUCH = 0.8, QUIET = 170, FRESH = 90, NEAR = 0.03, FLICK = 0
 // FOLLOW seconds; settling a turn a finger let go, or making one asked for by a key or a
 // link, within about EASE seconds and no faster than FINISH or ASKED film seconds a second.
 const FOLLOW = 0.1, EASE = 0.32, FINISH = 1.8, ASKED = 2.4, QUICK = 14;
+// A jump, from one page to another two or more away, leaves the pages between alone. The wind
+// blows the stones of the page's own blocks, or on the first screen its name, off downwind
+// over OFF seconds; the view goes over to the other page unseen, since the sea is the same
+// under every page, sliding the first screen out or in over SLIDE seconds on the way where
+// one end is the first screen; and the wind brings the other page's stones in and sets them
+// down over ON seconds. A jump forward blows to the left, the way a turn forward carries the
+// stones, and one back to the right; the words go and come with it, drifting DRIFT pixels.
+const OFF = 0.6, SLIDE = 0.5, ON = 0.8, DRIFT = 48;
 
 // onChange(k, el) hears which page is in front whenever it changes, 0 being the first screen,
 // and its element;
@@ -57,6 +66,8 @@ export function createStage({ reduceMotion, budget, at = null, onChange = () => 
   // way it last pushed, and whether it finished that turn while still on the stage.
   let held = false, lo = 0, heading = 0, locked = false;
   let lastWheel = -Infinity, quiet = 0, touch = null;
+  // The jump under way, if any, and a page asked for while it, or the turn before it, is.
+  let jump = null, pending = null;
   // The film's clock as the stones move, its speed, the pace it moves at, and the last frame.
   let clock = 0, speed = 0, pace = { tau: EASE, top: FINISH }, last = 0;
 
@@ -92,16 +103,20 @@ export function createStage({ reduceMotion, budget, at = null, onChange = () => 
     // the pointer itself; from the first push it takes the first screen's name's place.
     host.style.visibility = at > 0 ? "visible" : "hidden";
     onCover(clamp(view, 0, 1), at > 0);
-    const k = Math.round(view);
-    if (k !== active) {
-      active = k;
-      screens.forEach((el, i) => el.toggleAttribute("data-active", i + 1 === k));
-      onChange(k, k > 0 ? screens[k - 1] : hero);
-    }
+    toFront(Math.round(view));
+  }
+  // The page in front answers the pointer, and the page hears which it is.
+  function toFront(k) {
+    if (k === active) return;
+    active = k;
+    screens.forEach((el, i) => el.toggleAttribute("data-active", i + 1 === k));
+    onChange(k, k > 0 ? screens[k - 1] : hero);
   }
 
-  // Moves the stones toward where the stage is going, at a pace, and the words with them.
+  // Moves the stones toward where the stage is going, at a pace, and the words with them,
+  // unless a jump is moving them.
   function drive(next) {
+    if (jump) return;
     pace = next;
     if (!film) return paint(goal);
     if (!raf) {
@@ -113,7 +128,7 @@ export function createStage({ reduceMotion, budget, at = null, onChange = () => 
   // under the pace's top, without overshooting it.
   function follow(now) {
     raf = 0;
-    if (!film || disposed) return;
+    if (!film || disposed || jump) return;
     const dt = last ? Math.min(0.05, (now - last) / 1000) : 1 / 60;
     last = now;
     const to = goal * film.step, w = 2 / pace.tau, from = clock;
@@ -130,6 +145,7 @@ export function createStage({ reduceMotion, budget, at = null, onChange = () => 
     film.mosaic.setTime(clock);
     paint(clock / film.step);
     if (clock !== to || speed !== 0) raf = requestAnimationFrame(follow);
+    else if (pending !== null) ask();
   }
   // The stones catch up with the hand quickly, wherever it goes.
   const chase = () => drive({ tau: FOLLOW, top: QUICK });
@@ -166,17 +182,126 @@ export function createStage({ reduceMotion, budget, at = null, onChange = () => 
       drive({ tau: EASE, top: FINISH });
     }
   }
-  // Turns to page k, as asked by a key or a link, through any pages between.
+  // Goes to page k, as asked by a key or a link: by a turn to the next page, and by a jump to
+  // one further, which starts from a page at rest, so from the middle of a turn the stage
+  // settles on the nearer page first.
   function turnTo(k, { instant = false } = {}) {
+    const to = clamp(Math.round(k), 0, n);
+    if (jump && !instant) {
+      pending = to;
+      return;
+    }
     held = locked = false;
-    goal = clamp(Math.round(k), 0, n);
+    pending = null;
     if (instant || reduceMotion.matches || !film) {
+      calm();
+      goal = to;
       clock = goal * (film?.step ?? 0);
       speed = 0;
       film?.mosaic.seek(clock);
       return paint(goal);
     }
-    drive({ tau: EASE, top: Math.max(ASKED, Math.abs(goal * film.step - clock) / 1.6) });
+    const here = Math.round(viewAt(clock / film.step));
+    if (Math.abs(to - here) < 2) {
+      goal = to;
+      return drive({ tau: EASE, top: ASKED });
+    }
+    pending = to;
+    if (clock === here * film.step && !raf) return ask();
+    goal = here;
+    drive({ tau: EASE, top: ASKED });
+  }
+  // Goes on to the page asked for while the stage was busy.
+  function ask() {
+    const to = pending, here = Math.round(goal);
+    pending = null;
+    if (to === null || to === here) return;
+    if (Math.abs(to - here) < 2) {
+      goal = to;
+      drive({ tau: EASE, top: ASKED });
+    } else leap(here, to);
+  }
+
+  // A jump from page a to page b: when each part of it begins and ends, in seconds from its
+  // start. The stones of a are blown off; the first screen slides out while its name blows
+  // away, or in before its name comes back; at the cut the view goes over to b, unseen; and
+  // the stones of b are brought in.
+  function plan(a, b) {
+    const wind = b > a ? -1 : 1;
+    const off = [0, OFF];
+    // The last stones blown off have gone out of the view four fifths of the way through.
+    const gone = OFF * 0.8;
+    const slide = a === 0 ? [OFF * 0.35, OFF * 0.35 + SLIDE] : b === 0 ? [gone, gone + SLIDE] : null;
+    const cut = a === 0 ? slide[1] : gone;
+    const on = b === 0 ? [gone + SLIDE * 0.5, gone + SLIDE * 0.5 + ON] : [cut, cut + ON];
+    return { a, b, wind, off, slide, cut, on, view: null, raf: 0 };
+  }
+  function leap(a, b) {
+    cancelAnimationFrame(raf);
+    raf = 0;
+    speed = 0;
+    held = locked = false;
+    goal = b;
+    jump = plan(a, b);
+    jump.start = performance.now();
+    jump.raf = requestAnimationFrame(blow);
+    host.style.visibility = "visible";
+    toFront(b);
+  }
+  const sceneOf = (k) => (k ? `page-${k}` : "name");
+  // Each frame of a jump. It asks for the next frame first, so the wall, which draws in a frame
+  // of its own once the gust has moved, draws after it in the same frame as the words move.
+  function blow(now) {
+    const J = jump;
+    if (!J || disposed || !film) return;
+    J.raf = requestAnimationFrame(blow);
+    const t = (now - J.start) / 1000;
+    jumpAt(J, t);
+    if (t >= J.on[1]) land();
+  }
+  // Shows a jump as it stands t seconds in.
+  function jumpAt(J, t) {
+    const part = ([from, to]) => clamp((t - from) / (to - from), 0, 1);
+    const u = part(J.off), v = part(J.on), s = J.slide ? smoothstep(0, 1, part(J.slide)) : 0;
+    const cut = t >= J.cut, mosaic = film.mosaic;
+    // Over the sea while the first screen slides, and otherwise where the clock stands.
+    J.view = J.a === 0 && !cut ? s : J.b === 0 && cut ? 1 - s : null;
+    mosaic.setGust(sceneOf(J.a), cut ? null : { at: u, wind: J.wind });
+    mosaic.setGust(sceneOf(J.b), cut ? { at: v, wind: J.wind, away: false } : null);
+    const at = (cut ? J.b : J.a) * film.step;
+    if (clock !== at) {
+      clock = at;
+      mosaic.setTime(clock);
+    }
+    screens.forEach((el, i) => {
+      const k = i + 1;
+      let shown = 0, drift = 0;
+      if (k === J.a && !cut) [shown, drift] = [1 - smoothstep(0, 0.4, u), J.wind * DRIFT * u];
+      if (k === J.b && cut) [shown, drift] = [smoothstep(0.45, 1, v), -J.wind * DRIFT * (1 - v)];
+      el.style.opacity = shown > 0.002 ? shown.toFixed(3) : "0";
+      el.style.transform = shown > 0.002 && Math.abs(drift) > 0.05 ? `translate3d(${drift.toFixed(1)}px, 0, 0)` : "";
+    });
+    host.style.visibility = "visible";
+    onCover(J.a === 0 ? s : J.b === 0 && cut ? 1 - s : 1, true);
+  }
+  // The jump is over: the stage stands on its page, and goes on to any asked for meanwhile.
+  function land() {
+    const J = jump;
+    cancelAnimationFrame(J.raf);
+    jump = null;
+    film.mosaic.setGust(sceneOf(J.b), null);
+    clock = J.b * film.step;
+    film.mosaic.setTime(clock);
+    paint(J.b);
+    if (pending !== null) ask();
+  }
+  // Calls off any jump under way, leaving the stage where it is asked to stand.
+  function calm() {
+    if (!jump) return;
+    cancelAnimationFrame(jump.raf);
+    film?.mosaic.setGust(sceneOf(jump.a), null);
+    film?.mosaic.setGust(sceneOf(jump.b), null);
+    jump = null;
   }
 
   // Whether an element under the hand scrolls sideways itself, the way it is pushed, like a
@@ -195,6 +320,8 @@ export function createStage({ reduceMotion, budget, at = null, onChange = () => 
     const sideways = Math.abs(event.deltaX) > Math.abs(event.deltaY);
     if (sideways && scrollsItself(event.target, event.deltaX)) return;
     event.preventDefault();
+    // A jump carries on whatever the wheel does meanwhile.
+    if (jump) return;
     const px = event.deltaMode === 1 ? 40 : event.deltaMode === 2 ? innerHeight : 1;
     const turn = innerHeight * WHEEL, d = (sideways ? event.deltaX : event.deltaY) * px;
     const fresh = event.timeStamp - lastWheel > FRESH;
@@ -224,7 +351,7 @@ export function createStage({ reduceMotion, budget, at = null, onChange = () => 
 
   // A finger: it pushes along whichever way it first moves, forward to the left or up.
   function touchStart(event) {
-    if (event.pointerType === "mouse" || !event.isPrimary) return;
+    if (event.pointerType === "mouse" || !event.isPrimary || jump) return;
     touch = { id: event.pointerId, x: event.clientX, y: event.clientY, axis: null, last: 0, at: event.timeStamp, speed: 0 };
   }
   function touchMove(event) {
@@ -292,7 +419,7 @@ export function createStage({ reduceMotion, budget, at = null, onChange = () => 
   };
   function focus(event) {
     const k = pageOf(event.target);
-    if (k >= 0 && k !== Math.round(viewAt(place))) turnTo(k, { instant: true });
+    if (k >= 0 && !jump && k !== Math.round(viewAt(place))) turnTo(k, { instant: true });
   }
   addEventListener("wheel", wheel, { passive: false });
   addEventListener("keydown", key);
@@ -342,7 +469,7 @@ export function createStage({ reduceMotion, budget, at = null, onChange = () => 
     // The camera looks at a whole screen of the wall where the stage stands at each moment of
     // the film, as the words and the first screen do, so all of them move as one.
     const W = width * m, H = h * m;
-    mosaic.setView({ frame: (t) => ({ x: (viewAt(t / step) + 0.5) * W, y: H / 2, w: W }) });
+    mosaic.setView({ frame: (t) => ({ x: ((jump?.view ?? viewAt(t / step)) + 0.5) * W, y: H / 2, w: W }) });
     clock = place * step;
     speed = 0;
     mosaic.seek(clock);
@@ -364,11 +491,20 @@ export function createStage({ reduceMotion, budget, at = null, onChange = () => 
     // Shows the stage at a place, its stones and words alike, as if the hand held it there.
     show(at) {
       if (!film) return;
+      calm();
       goal = clamp(at, 0, n);
       clock = goal * film.step;
       speed = 0;
       film.mosaic.seek(clock);
       paint(goal);
+    },
+    // Shows a jump from page a to page b as it stands t seconds in, held there.
+    showJump(a, b, t) {
+      if (!film) return;
+      calm();
+      jump = plan(a, b);
+      jumpAt(jump, t);
+      film.mosaic.requestFrame();
     },
     get mosaic() { return film?.mosaic ?? null; },
     get canvas() { return film?.canvas ?? null; },
@@ -381,6 +517,7 @@ export function createStage({ reduceMotion, budget, at = null, onChange = () => 
       disposed = true;
       generation++;
       cancelAnimationFrame(raf);
+      if (jump) cancelAnimationFrame(jump.raf);
       clearTimeout(quiet);
       removeEventListener("wheel", wheel);
       removeEventListener("keydown", key);

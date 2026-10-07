@@ -10,15 +10,10 @@ import { wallFilm, wallScale } from "./wall.js";
 const $ = (id) => document.getElementById(id);
 const wall = $("wall");
 const note = $("wall-note");
-const replay = $("wall-replay");
 const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)");
 // The canvas reaches this share of the viewport above and below it, so a fast scroll never
 // outruns the stones between two frames.
 const OVERSCAN = 0.15;
-// How long the page holds each scene behind the name, in seconds, and the first scene, once
-// it has been laid.
-const HOLD = 6;
-const FIRST = 2.5;
 // The page turns its screens on a stage where motion is welcome and the screen is tall
 // enough to hold a room; elsewhere it scrolls as a page.
 const STAGE_HEIGHT = 540;
@@ -70,72 +65,31 @@ function framing(canvas, scale, view) {
   };
 }
 
-function updateControls() {
-  if (!live) return;
-  replay.hidden = reduceMotion.matches;
-  replay.dataset.state = cycling ? "playing" : "paused";
-  const label = cycling ? "Pause the scenes" : "Play the scenes";
-  replay.setAttribute("aria-label", label);
-  replay.title = label;
-}
-
-// The scenes behind the name: the wall plays until its next rest, where the page holds the
-// scene for a while, then plays on into the next. It holds while the first screen is out of
-// view, and stops when paused. While it is first laid, it waits at the gate until every
-// picture has joined it, so none appears half laid.
-let cycling = false;
-let holding = 0;
-let held = false;
-let heroInView = true;
-// Whether a turn of the stage from the first screen has begun, when its scenes hold still.
+// The first screen is laid once: the name, then the scene and the page around it, waiting at
+// the gate until every picture has joined the wall, so none appears half laid; then it rests,
+// and its stones move only under the hand. It holds still while a turn of the stage from it
+// is under way.
 let covered = false;
 let watching = 0;
-let checked = 0;
 let frameTimes = [];
 
-function hold(seconds) {
-  clearTimeout(holding);
-  held = true;
-  holding = setTimeout(() => {
-    held = false;
-    advance();
-  }, seconds * 1000);
-}
-
-function advance() {
-  if (!live || !cycling || held || !heroInView || covered) return;
-  const { time, playing } = live.mosaic.getState();
-  if (playing || (!live.joined && time >= live.gate)) return;
-  live.mosaic.play();
+function lay() {
+  if (!live || covered) return;
+  // Once every picture has joined, the laying goes on past the gate, even on its way there.
+  const to = live.joined ? live.rest : live.gate;
+  if (live.mosaic.getState().time >= to) return;
+  live.mosaic.play({ to });
   watch();
 }
 
-// Each frame while the wall plays: has it passed a rest, counting a jump back to the loop's
-// start as passing the rest there? And while it is laid, if frames come too slowly, the
-// canvas draws fewer pixels from then on.
+// Each frame while the wall is laid: if frames come too slowly, the canvas draws fewer
+// pixels from then on.
 function watch() {
   cancelAnimationFrame(watching);
   let last = 0;
   const step = (now) => {
     watching = 0;
-    if (!live) return;
-    const { time, playing } = live.mosaic.getState();
-    if (!playing) return;
-    if (!live.joined && time >= live.gate) {
-      live.mosaic.pause();
-      checked = time;
-      return;
-    }
-    const looped = time < checked;
-    if (looped || live.rests.some((r) => checked < r && time >= r)) {
-      // The first rest, once the wall is first laid, is shorter.
-      const first = !looped && checked < live.rests[0] && time >= live.rests[0];
-      live.mosaic.pause();
-      checked = time;
-      hold(first ? FIRST : HOLD);
-      return;
-    }
-    checked = time;
+    if (!live?.mosaic.getState().playing) return;
     if (last && frameTimes.length < 90) frameTimes.push(now - last);
     last = now;
     if (frameTimes.length === 90 && budget > 0.9e6) {
@@ -182,10 +136,10 @@ async function build() {
   // is named rather than passed, so workers cut them while the page stays live, and the name
   // is laid as soon as it is ready.
   const module = new URL("./wall.js", import.meta.url).href;
-  const { project, loop, gate, rests } = wallFilm(layout, { module, laid: first && !reduceMotion.matches, band: view.px, page: !stage });
+  const { project, gate, rest } = wallFilm(layout, { module, laid: first && !reduceMotion.matches, band: view.px, page: !stage });
   let mosaic;
   try {
-    mosaic = await createMosaic(canvas, { project, loop, width: view.px[0], height: view.px[1], samples: 1, interactive: true, worker: true, onProgress: (line) => log.push(line) });
+    mosaic = await createMosaic(canvas, { project, width: view.px[0], height: view.px[1], samples: 1, interactive: true, worker: true, onProgress: (line) => log.push(line) });
     if (!first) await mosaic.ready;
   } catch (error) {
     if (!first) canvas.remove();
@@ -206,7 +160,7 @@ async function build() {
   }
   const previous = live;
   // A wall cut again has every picture before it is shown; the first joins them as they come.
-  live = { mosaic, canvas, scale: layout.scale, view, width: layout.width, height: layout.height, rests, gate, joined: !first };
+  live = { mosaic, canvas, scale: layout.scale, view, width: layout.width, height: layout.height, rest, gate, joined: !first };
   lastLog = log;
   mosaic.setView({ frame: framing(canvas, layout.scale, view) });
   listen();
@@ -218,10 +172,8 @@ async function build() {
     previous.mosaic.dispose();
     previous.canvas.remove();
     canvas.hidden = false;
-    mosaic.seek(reduceMotion.matches ? rests[0] : time);
-    checked = time;
-    advance();
-    updateControls();
+    mosaic.seek(reduceMotion.matches ? rest : time);
+    lay();
     return;
   }
   started = performance.now() - mosaic.info.setupMs;
@@ -229,18 +181,12 @@ async function build() {
   mosaic.ready.then(() => {
     if (live?.mosaic !== mosaic) return;
     live.joined = true;
-    advance();
+    lay();
     if (!stage) count([mosaic]);
   });
-  if (reduceMotion.matches) mosaic.seek(rests[0]);
-  else {
-    cycling = true;
-    checked = 0;
-    mosaic.seek(0);
-    advance();
-  }
+  mosaic.seek(reduceMotion.matches ? rest : 0);
+  lay();
   wall.dataset.state = "live";
-  updateControls();
 }
 
 // The stones are heard only once asked for, and only while sound is on: the wall's, and the
@@ -288,7 +234,7 @@ function cover(slide, on) {
   if (on !== covered) {
     covered = on;
     if (covered) live?.mosaic.pause();
-    else advance();
+    else lay();
   }
   // After any pause, so the redraw it asks for is not called off; and every time, so a wall
   // cut again for a new layout is held the same way.
@@ -308,22 +254,6 @@ soundButton.addEventListener("click", async () => {
   else await sound.stop();
   listen();
 });
-
-// Pausing stops the scenes where they are; playing again goes straight on to the next.
-replay.addEventListener("click", () => {
-  if (!live) return;
-  cycling = !cycling;
-  clearTimeout(holding);
-  held = false;
-  if (cycling) advance();
-  else live.mosaic.pause();
-  updateControls();
-});
-
-new IntersectionObserver(([entry]) => {
-  heroInView = entry.isIntersecting;
-  advance();
-}, { threshold: 0.25 }).observe($("hero"));
 
 addEventListener("scroll", () => { if (!stage) live?.mosaic.requestFrame(); }, { passive: true });
 
@@ -375,8 +305,6 @@ addEventListener("resize", relayoutSoon);
 
 window.addEventListener("pagehide", () => {
   cancelAnimationFrame(watching);
-  clearTimeout(holding);
-  held = false;
   live?.mosaic.dispose();
   live = null;
 });
@@ -404,5 +332,5 @@ for (const button of document.querySelectorAll(".copy")) {
 }
 
 // A small observable surface for browser verification.
-window.mosaicWall = { get mosaic() { return live?.mosaic; }, get bar() { return bar.mosaic; }, get stage() { return stage?.mosaic; }, showStage: (at) => stage?.show(at), get stageState() { return stage && { place: stage.place, view: stage.view, active: stage.active }; }, get log() { return lastLog; }, get building() { return building; } };
+window.mosaicWall = { get mosaic() { return live?.mosaic; }, get bar() { return bar.mosaic; }, get stage() { return stage?.mosaic; }, showStage: (at) => stage?.show(at), showJump: (a, b, t) => stage?.showJump(a, b, t), get stageState() { return stage && { place: stage.place, view: stage.view, active: stage.active }; }, get log() { return lastLog; }, get building() { return building; } };
 building = build().then(relayout);

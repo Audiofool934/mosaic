@@ -216,21 +216,36 @@ export async function createMosaic(canvas, options = {}) {
     for (const l of film.layers) renderer.addLayer(l);
     info.width = width; info.height = height;
   }
-  // A picture that joins a wall: its stones and beds go to the renderer as they are.
+  // Pictures that join a wall wait their turn, and go to the renderer one a frame, so that no
+  // frame waits on more than one picture's upload. A page out of sight draws no frames, and its
+  // pictures wait until it is shown. join resolves once all of a film's pictures have joined.
+  const waiting = [];
   function join(built) {
-    if (disposed || built === film) return;
-    for (const L of built.layers) {
+    if (disposed || built === film || !built.layers.length) return;
+    return new Promise(resolve => {
+      for (const L of built.layers) waiting.push({ L, joined: L === built.layers.at(-1) ? resolve : null });
+      if (lost) while (waiting.length) admit();
+      else schedule();
+    });
+  }
+  // The next picture joins the wall: its stones and beds go to the renderer as they are. One
+  // that cannot be uploaded is left out, and the wall goes on without it.
+  function admit() {
+    const { L, joined } = waiting.shift();
+    try {
+      if (!lost) renderer.addLayer(L);
       const scene = film.scenes[L.scene.index];
       L.scene = scene;
       scene.layer = L;
       film.layers.push(L);
-      if (!lost) renderer.addLayer(L);
       L.tiles = null; L.owners = null; L.pic.label = null; L.pic.color = null;
+      film.layers.sort((a, b) => a.scene.index - b.scene.index);
+      base = makeTimeline(film, width, height);
+      count();
+    } catch (error) {
+      progress(`A picture could not join the wall: ${error.message}`);
     }
-    film.layers.sort((a, b) => a.scene.index - b.scene.index);
-    base = makeTimeline(film, width, height);
-    count();
-    if (!lost) schedule();
+    joined?.();
   }
   // A frame looks straight at part of the panel instead of following the scene's camera. On a
   // wall of pictures placed with at, it is in the wall's own millimetres.
@@ -319,6 +334,11 @@ export async function createMosaic(canvas, options = {}) {
   function tick(now) {
     raf = 0;
     if (disposed || lost) return;
+    // A picture waiting to join the wall joins it in this frame, and is drawn.
+    if (waiting.length) {
+      admit();
+      asked = true;
+    }
     const dt = lastNow ? Math.min(.1, (now - lastNow) / 1000) : 1 / 60;
     lastNow = now;
     const lamping = stepLamp(dt), moved = playing;
@@ -341,9 +361,11 @@ export async function createMosaic(canvas, options = {}) {
       render(time, live, c);
       if (listeners.size) heard(c);
     }
-    if (playing || lamping || settling) schedule(); else lastNow = 0;
+    if (playing || lamping || settling || waiting.length) schedule(); else lastNow = 0;
   }
-  const contextLost = event => { event.preventDefault(); lost = true; playing = false; renderer?.dispose(); cancelAnimationFrame(raf); raf = 0; progress('Graphics context interrupted. Restoring the artwork…'); };
+  // Pictures still waiting join a lost wall at once, and are uploaded with the rest once it is
+  // restored.
+  const contextLost = event => { event.preventDefault(); lost = true; playing = false; renderer?.dispose(); cancelAnimationFrame(raf); raf = 0; while (waiting.length) admit(); progress('Graphics context interrupted. Restoring the artwork…'); };
   const contextRestored = () => { if (disposed) return; lost = false; try { setup(); redraw(); progress('Artwork restored'); } catch (e) { progress(e.message); } };
   canvas.addEventListener('webglcontextlost', contextLost);
   canvas.addEventListener('webglcontextrestored', contextRestored);
@@ -365,7 +387,8 @@ export async function createMosaic(canvas, options = {}) {
       rate = speed;
       playing = true; lastNow = 0; schedule();
     },
-    pause() { playing = false; goal = null; cancelAnimationFrame(raf); raf = 0; lastNow = 0; },
+    // Stops playing; a frame due for a picture waiting to join the wall still comes.
+    pause() { playing = false; goal = null; if (!waiting.length) { cancelAnimationFrame(raf); raf = 0; } lastNow = 0; },
     // Moves the film to time t and draws it now, keeping live input: for a page that moves
     // the film's clock itself, as a gesture does.
     setTime(t) {
@@ -418,7 +441,8 @@ export async function createMosaic(canvas, options = {}) {
       try { return await new Promise((resolve, reject) => canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('PNG export failed.')), 'image/png')); }
       finally { if (!disposed && !lost) { render(previousTime, ...previous); if (wasPlaying) controller.play(); } }
     },
-    dispose() { if (disposed) return; controller.pause(); disposed = true; record = null; listeners.clear(); renderer?.dispose(); canvas.removeEventListener('webglcontextlost', contextLost); canvas.removeEventListener('webglcontextrestored', contextRestored); }
+    // Pictures still waiting to join are let go, so ready still resolves.
+    dispose() { if (disposed) return; for (const { joined } of waiting.splice(0)) joined?.(); controller.pause(); disposed = true; record = null; listeners.clear(); renderer?.dispose(); canvas.removeEventListener('webglcontextlost', contextLost); canvas.removeEventListener('webglcontextrestored', contextRestored); }
   };
   progress('Ready');
   return controller;

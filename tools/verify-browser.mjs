@@ -265,6 +265,33 @@ try {
     pair.dispose();
     checks.push('a wall of pictures is cut in workers and joins as each is ready');
 
+    // Pictures cut together in one worker join the wall one a frame, so no frame waits on more
+    // than one picture's upload, and ready waits for the last of them.
+    {
+      const landscape = (name, w, h) => ({ module: '/examples/landscapes.js', export: 'scene', args: { name, w, h } });
+      const chain = await createMosaic(document.createElement('canvas'), {
+        project: { version: 1, seed: 42, fps: [60, 1], frames: 240, band: [320, 180], scenes: [
+          { id: 'small', picture: landscape('night', 160, 90), start: 0, end: 4, at: [0, 0], in: { type: 'settled' } },
+          { id: 'night', picture: landscape('night', 800, 450), start: 0, end: 2, at: [0, 0], in: { type: 'settled' } },
+          { id: 'dunes', picture: landscape('dunes', 800, 450), start: 1, end: 3, at: [0, 0], in: { type: 'flow', launch: [1, 1.4], land: [1.5, 2] } },
+          { id: 'peaks', picture: landscape('peaks', 800, 450), start: 2, end: 4, at: [0, 0], in: { type: 'flow', launch: [2, 2.4], land: [2.5, 3] } }
+        ] },
+        width: 320, height: 180, samples: 1, worker: true
+      });
+      const joined = [chain.info.stones.length];
+      let all = false;
+      chain.ready.then(() => { all = true; });
+      while (!all) {
+        await new Promise(resolve => requestAnimationFrame(resolve));
+        joined.push(chain.info.stones.length);
+      }
+      const most = Math.max(...joined.slice(1).map((n, i) => n - joined[i]));
+      require(joined[0] === 1 && chain.info.stones.length === 4, `The pictures joined the wall as ${joined.join(', ')}.`);
+      require(most === 1, `${most} pictures joined the wall in one frame.`);
+      chain.dispose();
+    }
+    checks.push('pictures cut together join the wall one a frame, and ready waits for the last');
+
     // A lamp held over the wall lights it in live frames, goes out when let go, and never
     // reaches an export.
     {

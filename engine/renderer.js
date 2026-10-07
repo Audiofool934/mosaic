@@ -1064,6 +1064,79 @@ function program(gl, vs, fs) {
   return { p, u };
 }
 
+// How a layer's stones are listed for drawing. A tall picture that asks for rows
+// (config.rows), such as a page that scrolls across one wall, lists its stones by height, and
+// a frame draws only the rows within reach of its view. Stones that fly in or leave can be
+// anywhere, so their picture is drawn whole. A wide picture set as columns (config.columns, in
+// millimetres) lists its stones along the wall, and a frame draws only those within a column
+// of its view: a stone that keeps within a column of its seat, as one flying within its column
+// does in a flow paired within columns, never shows further off. Any other, such as one
+// scattering when it has no partner in a flow, is listed after them, and drawn whole while
+// any of them is on its way. Other pictures keep their own drawing order, and so their exact
+// pixels. The lists follow from the stones and the picture's config alone, so the worker that
+// cuts a picture can make them, and the page that draws it need not.
+export function drawLists(L) {
+  const byColumn = columns(L);
+  return { columns: byColumn, rows: byColumn ? null : rows(L) };
+}
+function columns(L) {
+  const w = L.pic?.cfg?.columns;
+  if (!w) return null;
+  const n = L.count, d = L.data, reach = w / 1000;
+  const keep = [], roam = [];
+  let from = Infinity, to = -Infinity, arc = 0, drop = 0, until = -Infinity;
+  for (let i = 0; i < n; i++) {
+    const o = i * TEXELS * 4;
+    // How far it goes from its seat: leaving at speed, flying in from elsewhere, and falling
+    // in from a side.
+    const dur = d[o + 39] % 10, v = 1.2 * d[o + 26];
+    const leaves = d[o + 24] < 1e5 && v > 0 && v * (dur + 2.6 * dur * dur) > reach;
+    const flies = d[o + 30] < 1e5 && Math.abs(d[o + 28] - d[o]) > reach;
+    const falls = d[o + 27] < 100 && 2.2 * d[o + 22] > reach;
+    if (!leaves && !flies && !falls) {
+      keep.push(i);
+      // How high it rises on its way, for the shadow it throws: the arc of a flight, or the
+      // height it falls from, until it is seated, or until it leaves.
+      if (d[o + 30] < 1e5) arc = Math.max(arc, 1.4 * Math.min(0.55, 0.3 * Math.hypot(d[o + 28] - d[o], d[o + 29] - d[o + 1])));
+      drop = Math.max(drop, d[o + 22]);
+      until = Math.max(until, d[o + 2], d[o + 24] < 1e5 ? d[o + 24] : -Infinity);
+      continue;
+    }
+    roam.push(i);
+    from = Math.min(from, leaves ? d[o + 24] : flies ? d[o + 30] : d[o + 2] - d[o + 23] * 1.2);
+    to = Math.max(to, leaves ? d[o + 24] + dur : d[o + 2]);
+  }
+  const byX = (a, b) => d[a * TEXELS * 4] - d[b * TEXELS * 4] || a - b;
+  keep.sort(byX);
+  roam.sort(byX);
+  const xs = (list) => Float32Array.from(list, (i) => d[i * TEXELS * 4]);
+  return { order: Uint32Array.from([...keep, ...roam]), x: xs(keep), roam: xs(roam), on: [from, to], reach, arc, drop, until };
+}
+function rows(L) {
+  if (!L.pic?.cfg?.rows) return null;
+  const n = L.count, d = L.data;
+  let reach = 0.15;
+  for (let i = 0; i < n; i++) {
+    const o = i * TEXELS * 4;
+    if (d[o + 24] < 1e5 || d[o + 30] < 1e5) return null;
+    reach = Math.max(reach, d[o + 22] * 2.4 + 0.05);
+  }
+  const order = new Uint32Array(n).map((_, i) => i).sort((a, b) => d[a * TEXELS * 4 + 1] - d[b * TEXELS * 4 + 1] || a - b);
+  return { order, y: Float32Array.from(order, (i) => d[i * TEXELS * 4 + 1]), reach };
+}
+
+// Whether two arrays hold the same bytes, read four at a time where both allow it. It stops
+// at the first difference, so only arrays that are the same are read to the end.
+function equal(a, b) {
+  if (a === b) return true;
+  if (a.length !== b.length) return false;
+  const words = a.length % 4 === 0 && a.byteOffset % 4 === 0 && b.byteOffset % 4 === 0;
+  const x = words ? new Int32Array(a.buffer, a.byteOffset, a.length / 4) : a;
+  const y = words ? new Int32Array(b.buffer, b.byteOffset, b.length / 4) : b;
+  for (let i = 0; i < x.length; i++) if (x[i] !== y[i]) return false;
+  return true;
+}
+
 // opts: W, H (band pixels), FOVY, shutter (s), aperture (m), timeline (cameraAt, rigAt, layersAt).
 export function createRenderer(gl, opts) {
   const { W, H } = opts;
@@ -1142,88 +1215,32 @@ export function createRenderer(gl, opts) {
       return { vao, count: ix.length, per, buffers: [vb, eb] };
     }
 
-    // A layer: one shot's stones and its bed, uploaded once.
-    // A tall picture that asks for rows (config.rows), such as a page that scrolls across one
-    // wall, lists its stones by height, and a frame draws only the rows within reach of its
-    // view. Stones that fly in or leave can be anywhere, so their picture is drawn whole. A
-    // wide picture set as columns (config.columns, in millimetres) lists its stones along the
-    // wall, and a frame draws only those within a column of its view: a stone that keeps
-    // within a column of its seat, as one flying within its column does in a flow paired
-    // within columns, never shows further off. Any other, such as one scattering when it has
-    // no partner in a flow, is listed after them, and drawn whole while any of them is on its
-    // way. Other pictures keep their own drawing order, and so their exact pixels.
-    function columns(L) {
-      const w = L.pic?.cfg?.columns;
-      if (!w) return null;
-      const n = L.count, d = L.data, reach = w / 1000;
-      const keep = [], roam = [];
-      let from = Infinity, to = -Infinity, arc = 0, drop = 0, until = -Infinity;
-      for (let i = 0; i < n; i++) {
-        const o = i * TEXELS * 4;
-        // How far it goes from its seat: leaving at speed, flying in from elsewhere, and
-        // falling in from a side.
-        const dur = d[o + 39] % 10, v = 1.2 * d[o + 26];
-        const leaves = d[o + 24] < 1e5 && v > 0 && v * (dur + 2.6 * dur * dur) > reach;
-        const flies = d[o + 30] < 1e5 && Math.abs(d[o + 28] - d[o]) > reach;
-        const falls = d[o + 27] < 100 && 2.2 * d[o + 22] > reach;
-        if (!leaves && !flies && !falls) {
-          keep.push(i);
-          // How high it rises on its way, for the shadow it throws: the arc of a flight, or
-          // the height it falls from, until it is seated, or until it leaves.
-          if (d[o + 30] < 1e5) arc = Math.max(arc, 1.4 * Math.min(0.55, 0.3 * Math.hypot(d[o + 28] - d[o], d[o + 29] - d[o + 1])));
-          drop = Math.max(drop, d[o + 22]);
-          until = Math.max(until, d[o + 2], d[o + 24] < 1e5 ? d[o + 24] : -Infinity);
-          continue;
-        }
-        roam.push(i);
-        from = Math.min(from, leaves ? d[o + 24] : flies ? d[o + 30] : d[o + 2] - d[o + 23] * 1.2);
-        to = Math.max(to, leaves ? d[o + 24] + dur : d[o + 2]);
-      }
-      const byX = (a, b) => d[a * TEXELS * 4] - d[b * TEXELS * 4] || a - b;
-      keep.sort(byX);
-      roam.sort(byX);
-      const xs = (list) => Float32Array.from(list, (i) => d[i * TEXELS * 4]);
-      return { order: Uint32Array.from([...keep, ...roam]), x: xs(keep), roam: xs(roam), on: [from, to], reach, arc, drop, until };
-    }
-    function rows(L) {
-      if (!L.pic?.cfg?.rows) return null;
-      const n = L.count, d = L.data;
-      let reach = 0.15;
-      for (let i = 0; i < n; i++) {
-        const o = i * TEXELS * 4;
-        if (d[o + 24] < 1e5 || d[o + 30] < 1e5) return null;
-        reach = Math.max(reach, d[o + 22] * 2.4 + 0.05);
-      }
-      const order = new Uint32Array(n).map((_, i) => i).sort((a, b) => d[a * TEXELS * 4 + 1] - d[b * TEXELS * 4 + 1] || a - b);
-      return { order, y: Float32Array.from(order, (i) => d[i * TEXELS * 4 + 1]), reach };
-    }
-
-    // Pictures cut alike, as copies of one scene are, share one ownership map.
+    // Pictures cut alike, as copies of one scene are, share one ownership map: a map that is the
+    // same, texel for texel, as one already uploaded takes its texture.
     const owners = [];
     function ownTexture(L) {
       const { w, h, own } = L.bed;
-      const words = own.byteOffset % 4 ? own : new Uint32Array(own.buffer, own.byteOffset, own.byteLength >> 2);
-      let hash = 2166136261;
-      for (let i = 0; i < words.length; i++) hash = Math.imul(hash ^ words[i], 16777619);
-      const same = owners.find((o) => o.w === w && o.h === h && o.hash === hash && o.data.length === own.length && o.data.every((v, i) => v === own[i]));
+      const same = owners.find((o) => o.w === w && o.h === h && equal(o.data, own));
       if (same) {
         L.bed.own = same.data;
         return same.tex;
       }
       const t = tex(w, h, gl.RGBA8, gl.RGBA, gl.UNSIGNED_BYTE, own, gl.LINEAR, false);
-      owners.push({ w, h, hash, data: own, tex: t });
+      owners.push({ w, h, data: own, tex: t });
       return t;
     }
 
+    // A layer: one shot's stones and its bed, uploaded once, and drawn by the lists the worker
+    // that cut it made, or that are made here for a film cut on the page.
     function addLayer(L) {
       const instH = Math.ceil(L.count / PER_ROW);
       const data = new Float32Array(PER_ROW * TEXELS * instH * 4);
       data.set(L.data);
-      const byColumn = columns(L), byRow = byColumn ? null : rows(L), order = (byColumn ?? byRow)?.order;
+      const lists = (L.lists ??= drawLists(L)), order = (lists.columns ?? lists.rows)?.order;
       const g = {
         inst: tex(PER_ROW * TEXELS, instH, gl.RGBA32F, gl.RGBA, gl.FLOAT, data, gl.NEAREST, false),
-        rows: byRow,
-        columns: byColumn,
+        rows: lists.rows,
+        columns: lists.columns,
         stones: stoneVao(L.count, MESH, order),
         casters: stoneVao(L.count, shadowMesh(), order),
         own: ownTexture(L),

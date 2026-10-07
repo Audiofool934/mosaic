@@ -54,7 +54,7 @@ To hear the stones, create `createStoneSound()` from `engine/sound.js`, call its
 
 A page that scrolls across a wall can keep one viewport-sized canvas moving with the scroll and give `setView({ frame })` a function returning `{ x, y, w }` in panel millimetres for the stretch in view; call `requestFrame()` on scroll.
 The function is given the film time it is drawn at, so a page can also move its view as its film plays.
-Scenes placed with `at: [x, y]` form one wall of several pictures, each cut in its own worker and drawn as soon as it is ready; `controller.ready` resolves when all have joined.
+Scenes placed with `at: [x, y]` form one wall of several pictures, each cut in its own worker and drawn as soon as it is ready, one picture to an animation frame; `controller.ready` resolves when all have joined.
 A picture that flows in from the one before it is cut in the same worker.
 A wide picture can set `columns` in its config, a width in millimetres, so each frame draws only the stones within a column of the view; pair its flows within the same columns, so a page of screens side by side draws only the screens near the one in view.
 `createMosaic(canvas, { loop: [from, to] })` plays on from `to` at `from`, until paused; a page can pause at rest times of its own to hold each picture, so the canvas draws nothing while the stones are still.

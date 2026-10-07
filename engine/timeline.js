@@ -6,7 +6,7 @@ import { readProject } from "./project.js";
 // is a pure function of t.
 import { loadPicture } from "./picture.js";
 import { tessellate } from "./tessellate.js";
-import { FLAG_TYPE, lightDir } from "./renderer.js";
+import { FLAG_TYPE, drawLists, lightDir } from "./renderer.js";
 import { clamp, clamp01, edt, fbm, hash, hexRgb, lerp, monotone, noise1, smoothstep, strSeed, toLinear } from "./util.js";
 
 export const FOVY = (24 * Math.PI) / 180;
@@ -623,14 +623,15 @@ export async function loadFilm(source, opts = {}) {
 
 // ---------------------------------------------------------------------------
 // A built film as plain data and the buffers it can hand over, so a worker can build it
-// and a page can draw it. The camera paths are made again from each picture's config.
+// and a page can draw it. The camera paths are made again from each picture's config. The
+// stones come listed for drawing, so the page only uploads them.
 // ---------------------------------------------------------------------------
 
 export function packFilm(film) {
   const plain = ({ layer, picture, ...scene }) => scene;
   const layers = film.layers.map((L) => ({
     scene: film.scenes.indexOf(L.scene), W: L.W, H: L.H, world: L.world, grout: L.grout, wet: L.wet, flicker: L.flicker, ripple: L.ripple, rise: L.rise, settle: L.settle, fly: L.fly,
-    timing: L.timing, count: L.count, data: L.data, bed: L.bed, first: L.first, last: L.last, cfg: L.pic.cfg
+    timing: L.timing, count: L.count, data: L.data, bed: L.bed, lists: drawLists(L), first: L.first, last: L.last, cfg: L.pic.cfg
   }));
   const film2 = { table: { ...film.table, scenes: film.table.scenes.map(plain) }, fps: film.fps, aspect: film.aspect, no: film.no, scenes: film.scenes.map(plain), layers };
   return { film: film2, transfer: layers.flatMap((L) => [L.data.buffer, L.bed.own.buffer, L.bed.own2.buffer, L.bed.sin.buffer]) };

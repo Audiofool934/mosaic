@@ -85,8 +85,9 @@ Contacts come only from live input; seeks, replays, and exports are silent.
 ## Walls of pictures
 
 Scenes placed with `at: [x, y]` share one wall, in millimetres from its top left corner, instead of each being centred on its own.
-With `worker: true`, each picture of such a wall is cut in its own worker.
-The wall is drawn from the moment the first picture is ready, and the others join it as they finish; `controller.ready` resolves once all of them have.
+With `worker: true`, each picture of such a wall is cut in its own worker, which also lists its stones for drawing, so the page only uploads them.
+The wall is drawn from the moment the first picture is ready, and the others join it as they finish, one to an animation frame, so no frame waits on more than one picture's upload; `controller.ready` resolves once all of them have.
+A page out of sight draws no frames, so pictures that finish while it is hidden join once it is shown.
 `setView({ frame: { x, y, w } })` looks straight at part of the wall, in the wall's millimetres, instead of following the scene's camera.
 A frame can also be a function of the film time, read once for every frame drawn, so a page can follow its own scroll, or move its view as its film plays; `requestFrame()` draws once on the next animation frame.
 A picture whose config sets `rows: true` lists its stones by height, so each frame draws only the stones within reach of its view.

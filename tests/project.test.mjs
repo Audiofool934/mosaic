@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createContacts } from '../engine/contact.js';
 import { MATERIALS } from '../engine/picture.js';
 import { validateProject } from '../engine/project.js';
-import { TEXELS } from '../engine/renderer.js';
+import { TEXELS, drawLists } from '../engine/renderer.js';
 import { voiceOf } from '../engine/sound.js';
 import { addInput, pointerAtTime } from '../engine/runtime.js';
 import { packFilm, unpackFilm } from '../engine/timeline.js';
@@ -96,15 +96,19 @@ test('a picture is set in front of the others only when asked, plainly', () => {
   }
 });
 test('a built film crosses to the page as plain data and comes back whole', () => {
-  const cfg = { camera: { keys: [[0, 50, 40, 100], [1, 60, 40, 90]] }, light: { exposure: 0.5 } };
+  const cfg = { camera: { keys: [[0, 50, 40, 100], [1, 60, 40, 90]] }, light: { exposure: 0.5 }, rows: true };
   const scene = { id: 'one', index: 0, start: 0, end: 1, at: [0, 0], picture: { module: './one.js' }, in: { type: 'laid' } };
+  // One stone that never lifts off nor flies in, so the picture is listed by rows.
+  const data = new Float32Array(40).fill(0.5);
+  data[24] = data[30] = 1e6;
   const layer = {
     scene, W: 100, H: 80, world: [0, 0], grout: [0.1, 0.1, 0.1], wet: [0.2, 1], flicker: 0, ripple: [1, 0, 0, 0], timing: { base: [1, 2, 3, 4] },
-    count: 1, data: new Float32Array(40).fill(0.5), bed: { w: 2, h: 1, own: new Uint8Array(8), own2: new Uint8Array(8), sin: new Uint8Array(2) },
+    count: 1, data, bed: { w: 2, h: 1, own: new Uint8Array(8), own2: new Uint8Array(8), sin: new Uint8Array(2) },
     first: 0, last: 1, pic: { cfg, mod: { draw() {} }, label: new Uint8Array(4) }, tiles: [{}], cam: null
   };
   scene.layer = layer;
   const film = { table: { title: 'Wall', scenes: [{ id: 'one', picture: { draw() {} } }] }, fps: 60, aspect: 1.5, no: 'Wall', scenes: [scene], layers: [layer] };
+  const lists = drawLists(layer);
   const { film: packed, transfer } = packFilm(film);
   assert.equal(transfer.length, 4);
   const back = unpackFilm(structuredClone(packed, { transfer }));
@@ -113,6 +117,9 @@ test('a built film crosses to the page as plain data and comes back whole', () =
   assert.equal(back.scenes[0].layer, L);
   assert.deepEqual(back.scenes[0].at, [0, 0]);
   assert.equal(L.data.length, 40);
+  // The stones come listed for drawing, so the page only uploads them.
+  assert.ok(lists.rows);
+  assert.deepEqual(L.lists, lists);
   assert.equal(L.pic.cfg.light.exposure, 0.5);
   assert.equal(typeof L.cam.X, 'function');
   assert.equal(L.tiles, undefined);

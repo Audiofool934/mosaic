@@ -389,9 +389,9 @@ html.wide .gallery { padding-inline: max(var(--gutter), (100vw - var(--gw)) / 2)
   .room > *, .page > * { grid-column: 1 / -1; }
   .room:has(> .page) { display: block; min-height: 0; padding-block: 0; scroll-snap-align: none; }
   .page {
-    --room-h: calc(100svh - var(--bar-top) - var(--bar-h, 62px) - 18px - 84px);
+    --room-h: calc(100svh - var(--bar-top) - var(--bar-h, 31px) - 18px - 84px);
     display: grid; grid-template-columns: minmax(0, 1fr); row-gap: 18px; align-content: center; align-items: start; min-height: 100svh;
-    padding-block: calc(var(--bar-top) + var(--bar-h, 62px) + 18px) 84px; scroll-snap-align: start; scroll-snap-stop: always;
+    padding-block: calc(var(--bar-top) + var(--bar-h, 31px) + 18px) 84px; scroll-snap-align: start; scroll-snap-stop: always;
   }
   .head .type { --cell: 4px; }
   /* The method's picture stands taller than on a desktop, so each band is wide enough to see;
@@ -406,7 +406,12 @@ html.wide .gallery { padding-inline: max(var(--gutter), (100vw - var(--gw)) / 2)
   .room { --side: var(--content); }
   .head, .method .polyptych, .method .predella, .materials .board, .atelier, .agent, .end .colophon { grid-column: 1 / -1; grid-row: auto; }
   .gallery { width: var(--content); grid-template-rows: none; }
-  .gallery .page.salon { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 14px; }
+  /* On a phone the works hang without their plaques, each row of the hang a page: the three
+     films one under another, then the film over its two pictures. A work opened whole still
+     shows its caption. */
+  .gallery .page.salon { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 30px; }
+  .gallery .plaque { display: none; }
+  .work.morning { order: -1; }
   .work { grid-row: auto; grid-template-rows: none; row-gap: 12px; margin-bottom: 0; }
   .work.lantern, .work.arrakis, .work.road, .work.morning { grid-column: 1 / -1; grid-row: auto; margin-bottom: 0; }
   .work.leaf, .work.crescent { grid-column: auto; grid-row: auto; }

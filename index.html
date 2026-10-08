@@ -108,8 +108,8 @@
     </section>
 
     <!-- The gallery hangs every work at once, in two rows whose frames line up along all four
-         outer edges, each with a plaque under it; on a phone they hang a few to a page. A film
-         plays while the pointer is on it, and any work opens whole. -->
+         outer edges, each with a plaque under it; on a phone each row is a page, with no plaques.
+         A film plays while the pointer is on it, and any work opens whole, with its caption. -->
     <section class="room gallery" id="gallery" aria-labelledby="gallery-title">
       <span id="work"></span>
       <h2 id="gallery-title" class="unseen">Gallery</h2>
@@ -134,8 +134,6 @@
           </div>
           <template><p>A desert planet in four pictures of stone: a night under two moons, spice at dawn, the worm, and a city at dusk. Each flows into the next, out from its subject.</p></template>
         </figure>
-      </div>
-      <div class="page salon">
         <figure class="work road">
           <button class="frame" type="button" data-wall="emblem" data-film="home/works/the-road-home.mp4" aria-describedby="road-plaque">
             <video src="home/works/the-road-home.mp4" poster="home/works/the-road-home.webp" width="1280" height="720" muted loop playsinline preload="none" aria-label="The road home: a round green door in a hill, a gold ring, a forest gate, and a fiery mountain, and back to the door at dusk."></video>
@@ -145,16 +143,6 @@
             <p>Film, 36 s · from the sketchbook, on an earlier engine</p>
           </div>
           <template><p>From a round door in the hill to the mountain of fire and home again. Made with an earlier version of the engine.</p></template>
-        </figure>
-        <figure class="work morning">
-          <button class="frame" type="button" data-wall="emblem" data-film="home/media/moon-to-morning.mp4" aria-describedby="morning-plaque">
-            <video src="home/media/moon-to-morning.mp4" poster="home/media/moon-to-morning.webp" width="1280" height="720" muted loop playsinline preload="none" aria-label="From moon to morning: the stones of a night scene lift off the wall and resettle as a coastal dawn."></video>
-          </button>
-          <div class="slab plaque" data-slab id="morning-plaque">
-            <h3 class="type" data-type="FROM MOON TO MORNING" data-type-narrow="FROM MOON|TO MORNING">From moon to morning</h3>
-            <p>Film, 10 s · 17,387 stones · a mosAIc example</p>
-          </div>
-          <template><p>A ten-second film in two scenes. The night's stones lift off the wall and resettle as a coastal dawn. <a href="#studio" data-studio-film>Scrub it in the studio</a>.</p></template>
         </figure>
       </div>
       <div class="page salon">
@@ -167,6 +155,16 @@
             <p>Still · 5,250 stones · by Codex with the skill</p>
           </div>
           <template><p>Given a copy of the skill, the agent wrote the scene as code, rendered it from the command line, and inspected the result before showing it.</p></template>
+        </figure>
+        <figure class="work morning">
+          <button class="frame" type="button" data-wall="emblem" data-film="home/media/moon-to-morning.mp4" aria-describedby="morning-plaque">
+            <video src="home/media/moon-to-morning.mp4" poster="home/media/moon-to-morning.webp" width="1280" height="720" muted loop playsinline preload="none" aria-label="From moon to morning: the stones of a night scene lift off the wall and resettle as a coastal dawn."></video>
+          </button>
+          <div class="slab plaque" data-slab id="morning-plaque">
+            <h3 class="type" data-type="FROM MOON TO MORNING" data-type-narrow="FROM MOON|TO MORNING">From moon to morning</h3>
+            <p>Film, 10 s · 17,387 stones · a mosAIc example</p>
+          </div>
+          <template><p>A ten-second film in two scenes. The night's stones lift off the wall and resettle as a coastal dawn. <a href="#studio" data-studio-film>Scrub it in the studio</a>.</p></template>
         </figure>
         <figure class="work crescent">
           <button class="frame" type="button" data-wall="emblem" aria-describedby="crescent-plaque">

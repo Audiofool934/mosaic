@@ -17,34 +17,31 @@ export const ITEMS = [
   { text: "STUDIO", name: "Studio", id: "studio" }
 ];
 
-// The largest cell, in pixels, the smallest that still keeps every letter's shape, and the
-// space between names, between rows, and round them, in cells. On a narrow screen the names
-// close up, and where that would make the cells too small they go on two rows.
-const CELL = 3.2, LEGIBLE = 2.4, GAP = 12, NARROW_GAP = 7, ROW_GAP = 3, PAD_X = 9, PAD_Y = 3.6;
+// The largest cell, in pixels; the space between names, round them, and above and below them,
+// in cells; and the same, closed up, for a screen too narrow for the largest cell. The names
+// always stand in one row: on a phone they close up, and the cell shrinks to fit.
+const CELL = 3.2, GAP = 12, PAD_X = 9, PAD_Y = 3.6;
+const TIGHT = { gap: 4, padX: 3, padY: 4.6 };
 
 // The bar for a screen `room` pixels wide: its cell, its size, and where each name sits.
 export function barLayout(room) {
-  const across = (row, gap) => row.reduce((n, it) => n + typeWidth(it.text, 1), 0) + gap * (row.length - 1);
-  const fit = (rows, gap) => {
-    const widest = Math.max(...rows.map((row) => across(row, gap)));
-    return { rows, gap, widest, cell: Math.min(CELL, room / (widest + 2 * PAD_X)) };
+  const across = ITEMS.reduce((n, it) => n + typeWidth(it.text, 1), 0);
+  const fit = ({ gap, padX, padY }) => {
+    const widest = across + gap * (ITEMS.length - 1);
+    return { gap, padX, padY, widest, cell: Math.min(CELL, room / (widest + 2 * padX)) };
   };
-  let set = fit([ITEMS], GAP);
-  if (set.cell < CELL) set = fit([ITEMS], NARROW_GAP);
-  if (set.cell < LEGIBLE) set = fit([ITEMS.slice(0, 3), ITEMS.slice(3)], NARROW_GAP);
-  const { cell, gap, widest, rows } = set;
-  // Every name starts on a whole cell, so all of them lie on one grid of stones, each row
-  // centred on the widest.
-  const items = rows.flatMap((row, r) => {
-    let x = PAD_X + Math.floor((widest - across(row, gap)) / 2);
-    return row.map((it) => {
-      const at = { ...it, x: x * cell, y: (PAD_Y + r * (ROWS + ROW_GAP)) * cell, w: typeWidth(it.text, cell) };
-      x += typeWidth(it.text, 1) + gap;
-      return at;
-    });
+  let set = fit({ gap: GAP, padX: PAD_X, padY: PAD_Y });
+  if (set.cell < CELL) set = fit(TIGHT);
+  const { cell, gap, padX, padY, widest } = set;
+  // Every name starts on a whole cell, so all of them lie on one grid of stones.
+  let x = padX;
+  const items = ITEMS.map((it) => {
+    const at = { ...it, x: x * cell, y: padY * cell, w: typeWidth(it.text, cell) };
+    x += typeWidth(it.text, 1) + gap;
+    return at;
   });
-  const W = Math.round((widest + 2 * PAD_X) * cell), H = Math.round((rows.length * ROWS + (rows.length - 1) * ROW_GAP + 2 * PAD_Y) * cell);
-  return { cell, W, H, radius: Math.round(Math.min(H, (ROWS + 2 * PAD_Y) * cell) * 0.3), top: PAD_Y * cell, row: (ROWS + ROW_GAP) * cell, items };
+  const W = Math.round((widest + 2 * padX) * cell), H = Math.round((ROWS + 2 * padY) * cell);
+  return { cell, W, H, radius: Math.round(H * 0.3), top: padY * cell, row: (ROWS + 3) * cell, items };
 }
 
 const rounded = (x, y, w, h, r) => {

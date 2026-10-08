@@ -14,9 +14,11 @@ const READ = 640;
 // portrait in a landscape frame, is laid whole on a surround of this dark glass.
 const NEAR = 1.2, SURROUND = "#13212a";
 
-// An image's pixels at the frame's shape: cropped from its middle when its shape is near the
-// frame's, and otherwise laid whole in the middle of the surround, so none of it is lost.
-async function pixels(source, aspect) {
+// An image's pixels at the frame's shape: cropped round `focus`, a share of its width, when its
+// shape is near the frame's or it is one of the page's own paintings, which always fill the
+// frame, as a phone's tall one; and otherwise laid whole in the middle of the surround, so none
+// of an image of one's own is lost.
+async function pixels(source, aspect, focus = 0.5) {
   const blob = typeof source === "string" ? await (await fetch(source)).blob() : source;
   const bitmap = await createImageBitmap(blob);
   try {
@@ -26,9 +28,10 @@ async function pixels(source, aspect) {
     const context = canvas.getContext("2d", { willReadFrequently: true });
     context.imageSmoothingQuality = "high";
     const own = bitmap.width / bitmap.height;
-    if (Math.max(own / aspect, aspect / own) <= NEAR) {
+    if (typeof source === "string" || Math.max(own / aspect, aspect / own) <= NEAR) {
       const sw = Math.min(bitmap.width, bitmap.height * aspect), sh = sw / aspect;
-      context.drawImage(bitmap, (bitmap.width - sw) / 2, (bitmap.height - sh) / 2, sw, sh, 0, 0, canvas.width, canvas.height);
+      const sx = Math.min(bitmap.width - sw, Math.max(0, bitmap.width * focus - sw / 2));
+      context.drawImage(bitmap, sx, (bitmap.height - sh) / 2, sw, sh, 0, 0, canvas.width, canvas.height);
     } else {
       const k = Math.min(canvas.width / bitmap.width, canvas.height / bitmap.height), w = bitmap.width * k, h = bitmap.height * k;
       context.fillStyle = SURROUND;
@@ -57,7 +60,8 @@ export function createAtelier(figure, { reduceMotion, coat, onLaid = () => {} })
   const film = $("#atelier-film"), play = $("#atelier-play"), time = $("#atelier-time"), shown = $("#atelier-clock");
   // What is laid: a project, by its address, or an image, by its address or as a file.
   const chosen = picks.find((p) => p.getAttribute("aria-pressed") === "true");
-  let source = chosen.dataset.project ? { project: chosen.dataset.project, film: "film" in chosen.dataset } : { image: chosen.dataset.image };
+  const sourceOf = (pick) => pick.dataset.project ? { project: pick.dataset.project, film: "film" in pick.dataset } : { image: pick.dataset.image, focus: Number(pick.dataset.focus ?? 0.5) };
+  let source = sourceOf(chosen);
   let material = "glass", size = 22, moving = !reduceMotion.matches, mosaic = null, token = 0, started = false, frameId = 0;
 
   const say = (text) => {
@@ -96,7 +100,7 @@ export function createAtelier(figure, { reduceMotion, coat, onLaid = () => {} })
       const dpr = Math.min(devicePixelRatio || 1, 2), px = [Math.max(2, Math.round(r.width * dpr)), Math.max(2, Math.round(r.height * dpr))];
       let project = source.project && new URL(source.project, document.baseURI).href;
       if (!project) {
-        const image = await pixels(source.image, aspect);
+        const image = await pixels(source.image, aspect, source.focus);
         if (mine !== token) return;
         project = {
           version: 1, title: typeof source.image === "string" ? "A painting in stone" : source.image.name.replace(/\.[^.]+$/, ""), seed: 7, fps: [60, 1], frames: 120, band: px,
@@ -148,7 +152,7 @@ export function createAtelier(figure, { reduceMotion, coat, onLaid = () => {} })
   canvas.addEventListener("blur", settle);
 
   function choose(pick) {
-    source = pick.dataset.project ? { project: pick.dataset.project, film: "film" in pick.dataset } : { image: pick.dataset.image };
+    source = sourceOf(pick);
     press(picks, pick, "aria-pressed");
     lay();
   }

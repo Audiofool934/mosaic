@@ -74,7 +74,7 @@ function measure() {
   const left = scrollX, top = scrollY;
   const blocks = [...document.querySelectorAll("[data-wall]")].filter((el) => !el.hidden && el.getClientRects().length).flatMap((el) => {
     const r = shown(el);
-    return r ? [{ kind: el.dataset.wall, material: el.dataset.material, x: r.left + left, y: r.top + top, w: r.width, h: r.height }] : [];
+    return r ? [{ kind: el.dataset.wall, material: el.dataset.material, picture: el.dataset.picture, x: r.left + left, y: r.top + top, w: r.width, h: r.height }] : [];
   });
   const width = root.clientWidth;
   if (wide) {

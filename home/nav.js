@@ -43,6 +43,10 @@ export function createBar(nav, { reduceMotion, onReady = () => {} }) {
     width = document.documentElement.clientWidth;
     const room = width - 2 * Math.max(12, Math.min(28, width * 0.02));
     const bar = barLayout(room);
+    // The page lays itself out round the bar's height, and the wall is cut round that layout, so
+    // the height is given at once, before the bar's stones are cut; the bar takes its own size
+    // when they are ready.
+    document.documentElement.style.setProperty("--bar-h", `${bar.H}px`);
     const dpr = Math.min(devicePixelRatio || 1, 3);
     const px = [Math.max(2, Math.round(bar.W * dpr)), Math.max(2, Math.round(bar.H * dpr))];
     const canvas = document.createElement("canvas");
@@ -78,7 +82,6 @@ export function createBar(nav, { reduceMotion, onReady = () => {} }) {
     nav.style.setProperty("--bar-w", `${bar.W}px`);
     nav.style.setProperty("--bar-h", `${bar.H}px`);
     nav.style.setProperty("--bar-radius", `${bar.radius}px`);
-    document.documentElement.style.setProperty("--bar-h", `${bar.H}px`);
     live?.mosaic.dispose();
     live?.canvas.remove();
     nav.prepend(canvas);

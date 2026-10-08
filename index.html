@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
-  <meta name="theme-color" content="#0f2531">
+  <meta name="theme-color" content="#12303f">
   <meta name="description" content="mosAIc lets your coding agent make real mosaic: pictures, films, and whole pages cut from thousands of stones of glass, marble, and gold. Give your agent the skill, or try the studio in your browser.">
   <title>mosAIc, from a prompt to stone</title>
   <link rel="canonical" href="https://mosaic.audiofool.ai/">
@@ -33,6 +33,7 @@
     <section class="hero" id="top" aria-labelledby="title">
       <h1 id="title" class="unseen">mosAIc, from a prompt to stone</h1>
       <div class="hero-art" id="hero" role="img" aria-label="The name MOSAIC set in white marble, with its AI inlaid in gold, laid live across the top of this page in a mosaic of still water under the moon." data-wide-label="The name MOSAIC set in white marble, with its AI inlaid in gold, laid live at the start of a mosaic wall that runs the length of this page, where moonlit water, dunes at dusk, sweeping currents, and peaks at first light flow into one another in turn."></div>
+      <p class="hint">Better viewed on a desktop</p>
     </section>
 
     <!-- The page's words are set on slabs of black glass, like the bar. Each slab marked
@@ -57,9 +58,9 @@
         <!-- One picture in four bands, each a stage of it. The last is a hole in the page where
              the wall itself lays the rest of the picture in finished stones. -->
         <figure class="polyptych" data-wall="frame">
-          <img class="band" data-wall="opening" src="home/media/method-draw.webp" width="860" height="1800" decoding="async" alt="The heron by the moon as a flat drawing: a few regions of colour.">
-          <img class="band" data-wall="opening" src="home/media/method-flow.webp" width="740" height="1800" decoding="async" alt="The same stretch of the scene as courses: lines that follow every edge.">
-          <img class="band" data-wall="opening" src="home/media/method-cut.webp" width="620" height="1800" decoding="async" alt="The same scene cut into flat stones on dark mortar.">
+          <img class="band" data-wall="opening" src="home/media/method-draw.webp" loading="lazy" width="860" height="1800" decoding="async" alt="The heron by the moon as a flat drawing: a few regions of colour.">
+          <img class="band" data-wall="opening" src="home/media/method-flow.webp" loading="lazy" width="740" height="1800" decoding="async" alt="The same stretch of the scene as courses: lines that follow every edge.">
+          <img class="band" data-wall="opening" src="home/media/method-cut.webp" loading="lazy" width="620" height="1800" decoding="async" alt="The same scene cut into flat stones on dark mortar.">
           <div class="band" data-wall="live" role="img" aria-label="The rest of the scene, the moon's other half and the water under it, in finished stones lit live in this wall."></div>
         </figure>
         <ol class="slab predella" data-slab>
@@ -68,6 +69,22 @@
           <li><h3><span class="type" data-type="III" data-tone="gold">III</span> <span class="type" data-type="CUT">Cut</span></h3><p>Each course is cut into stones a little smaller than their cells, so mortar shows.</p></li>
           <li><h3><span class="type" data-type="IV" data-tone="gold">IV</span> <span class="type" data-type="LIGHT">Light</span></h3><p>Each stone gets a thickness, a bevel, and a tilt of its own, so the light catches them one at a time.</p></li>
         </ol>
+        <!-- On a phone: a tree under the moon in four bands, top to bottom, each a stage of it,
+             named in one word beside it. The last is a hole the wall lays in finished stones. -->
+        <div class="tree">
+          <ol class="slab stages" data-slab>
+            <li><span class="type" data-type="DRAW">Draw</span></li>
+            <li><span class="type" data-type="FLOW">Flow</span></li>
+            <li><span class="type" data-type="CUT">Cut</span></li>
+            <li><span class="type" data-type="LIGHT">Light</span></li>
+          </ol>
+          <figure class="tree-bands" data-wall="frame">
+            <img class="band" data-wall="opening" src="home/media/tree-draw.webp" loading="lazy" width="1350" height="690" decoding="async" alt="The top of a tree under the moon as a flat drawing: a few regions of colour.">
+            <img class="band" data-wall="opening" src="home/media/tree-flow.webp" loading="lazy" width="1350" height="660" decoding="async" alt="The tree's crown as courses: lines that wind round every cluster of leaves.">
+            <img class="band" data-wall="opening" src="home/media/tree-cut.webp" loading="lazy" width="1350" height="600" decoding="async" alt="The fork of the tree cut into flat stones on dark mortar.">
+            <div class="band" data-wall="live" data-picture="tree" role="img" aria-label="The foot of the tree, its roots in an island, and the moon on the water, in finished stones lit live in this wall."></div>
+          </figure>
+        </div>
       </div>
     </section>
 
@@ -75,11 +92,11 @@
       <h2 id="materials-title" class="unseen">Eight materials</h2>
       <div class="page">
         <div class="board">
-          <ul class="samples" aria-hidden="true">
-            <li class="sample" data-wall="sample" data-material="glass"></li>
-            <li class="sample" data-wall="sample" data-material="gold"></li>
-            <li class="sample" data-wall="sample" data-material="silver"></li>
-            <li class="sample" data-wall="sample" data-material="marble"></li>
+          <ul class="samples">
+            <li><div class="sample" data-wall="sample" data-material="glass" aria-hidden="true"></div><p class="slab tag" data-slab><span class="type" data-type="GLASS">Glass</span></p></li>
+            <li><div class="sample" data-wall="sample" data-material="gold" aria-hidden="true"></div><p class="slab tag" data-slab><span class="type" data-type="GOLD">Gold</span></p></li>
+            <li><div class="sample" data-wall="sample" data-material="silver" aria-hidden="true"></div><p class="slab tag" data-slab><span class="type" data-type="SILVER">Silver</span></p></li>
+            <li><div class="sample" data-wall="sample" data-material="marble" aria-hidden="true"></div><p class="slab tag" data-slab><span class="type" data-type="MARBLE">Marble</span></p></li>
           </ul>
           <ul class="slab predella names" data-slab>
             <li><h3 class="type" data-type="GLASS">Glass</h3><p>Smalti with a broken face and the odd bubble.</p></li>
@@ -91,11 +108,11 @@
       </div>
       <div class="page">
         <div class="board">
-          <ul class="samples" aria-hidden="true">
-            <li class="sample" data-wall="sample" data-material="basalt"></li>
-            <li class="sample" data-wall="sample" data-material="limestone"></li>
-            <li class="sample" data-wall="sample" data-material="terracotta"></li>
-            <li class="sample" data-wall="sample" data-material="light"></li>
+          <ul class="samples">
+            <li><div class="sample" data-wall="sample" data-material="basalt" aria-hidden="true"></div><p class="slab tag" data-slab><span class="type" data-type="BASALT">Basalt</span></p></li>
+            <li><div class="sample" data-wall="sample" data-material="limestone" aria-hidden="true"></div><p class="slab tag" data-slab><span class="type" data-type="LIMESTONE">Limestone</span></p></li>
+            <li><div class="sample" data-wall="sample" data-material="terracotta" aria-hidden="true"></div><p class="slab tag" data-slab><span class="type" data-type="TERRACOTTA">Terracotta</span></p></li>
+            <li><div class="sample" data-wall="sample" data-material="light" aria-hidden="true"></div><p class="slab tag" data-slab><span class="type" data-type="LIGHT">Light</span></p></li>
           </ul>
           <ul class="slab predella names" data-slab>
             <li><h3 class="type" data-type="BASALT">Basalt</h3><p>Dark and dense, with a rare glint.</p></li>
@@ -164,7 +181,7 @@
             <h3 class="type" data-type="FROM MOON TO MORNING" data-type-narrow="FROM MOON|TO MORNING">From moon to morning</h3>
             <p>Film, 10 s · 17,387 stones · a mosAIc example</p>
           </div>
-          <template><p>A ten-second film in two scenes. The night's stones lift off the wall and resettle as a coastal dawn. <a href="#studio" data-studio-film>Scrub it in the studio</a>.</p></template>
+          <template><p>A ten-second film in two scenes. The night's stones lift off the wall and resettle as a coastal dawn.<span class="studio-link"> <a href="#studio" data-studio-film>Scrub it in the studio</a>.</span></p></template>
         </figure>
         <figure class="work crescent">
           <button class="frame" type="button" data-wall="emblem" aria-describedby="crescent-plaque">
@@ -203,7 +220,7 @@
             <div class="tool-row">
               <div class="picks" role="group" aria-label="What to lay in stone">
                 <button class="pick" type="button" data-project="examples/nocturne.json" aria-pressed="false"><img src="site/preview.jpg" width="1600" height="900" loading="lazy" alt="Moon over still water, the studio's own mosaic"></button>
-                <button class="pick" type="button" data-image="home/media/sample-heron.webp" aria-pressed="true"><img src="home/media/sample-heron.webp" width="320" height="180" alt="The heron under the moon, a flat painting"></button>
+                <button class="pick" type="button" data-image="home/media/sample-heron.webp" data-focus="0.53" aria-pressed="true"><img src="home/media/sample-heron.webp" width="320" height="180" alt="The heron under the moon, a flat painting"></button>
                 <button class="pick" type="button" data-image="home/media/sample-dawn.webp" aria-pressed="false"><img src="home/media/sample-dawn.webp" width="320" height="180" alt="A coast at dawn, a flat painting"></button>
                 <button class="pick" type="button" data-image="home/media/sample-peaks.webp" aria-pressed="false"><img src="home/media/sample-peaks.webp" width="320" height="180" alt="Peaks at first light, a flat painting"></button>
                 <button class="pick" type="button" data-project="examples/film.json" data-film aria-pressed="false"><img src="home/media/moon-to-morning.webp" width="320" height="180" loading="lazy" alt="From moon to morning, a film to play and scrub"></button>

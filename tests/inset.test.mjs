@@ -2,7 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { loadPicture } from "../engine/picture.js";
 import { INSETS, INSET_REACH, TRAIL, insetRadius, insetsNear, markTrail, wallInsets } from "../engine/renderer.js";
-import { methodPicture, wallPicture } from "../home/wall.js";
+import { methodPicture, treePicture, wallPicture } from "../home/wall.js";
+import { BANDS, config as tree } from "../examples/tree.js";
 
 const close = (actual, expected, message) => {
   assert.equal(actual.length, expected.length, message);
@@ -61,4 +62,13 @@ test("the page's gold frames hold still under the pointer, and the method's live
   const { regions } = wallPicture({ width: 1440, height: 900, hero: 900, scale: 1.11, blocksOnly: true, blocks: [] });
   assert.equal(regions().find((r) => r.name === "frame").still, true);
   assert.deepEqual(methodPicture({ w: 400, h: 600 }).config.insets, [[0, 0, 400, 600]]);
+});
+
+test("the tree's bands run down its panel in order, and its live band is its foot, an inset of its own", () => {
+  assert.ok(BANDS.every((y, i) => y > (BANDS[i - 1] ?? 0) && y < tree.panel.h), `bands ${BANDS} within ${tree.panel.h} mm`);
+  // A band as tall as the foot's own shape is scaled, not cropped, and moves on its own.
+  const w = 300, h = (300 * (tree.panel.h - BANDS[2])) / tree.panel.w;
+  const band = treePicture({ w, h });
+  assert.deepEqual(band.config.insets, [[0, 0, w, h]]);
+  assert.ok(Math.abs(band.config.res - tree.res / (w / tree.panel.w)) < 1e-9, "the band keeps the tree's raster density");
 });

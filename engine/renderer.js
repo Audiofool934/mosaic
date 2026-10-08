@@ -1059,7 +1059,9 @@ void main() {
   vec2 d0 = vUv - 0.5;
   vec2 shift = d0 * dot(d0, d0) * uCA;
   vec3 c = vec3(lensAt(vUv + shift).r, lensAt(vUv).g, lensAt(vUv - shift).b);
-  vec2 d = d0 * vec2(1.0, 1.0 / uAspect) * 1.9;
+  // A round vignette, measured against the longer side, so a tall frame darkens toward its
+  // ends no more than a wide one toward its sides.
+  vec2 d = d0 * (uAspect >= 1.0 ? vec2(1.0, 1.0 / uAspect) : vec2(uAspect, 1.0)) * 1.9;
   float vig = 1.0 / (1.0 + dot(d, d) * 0.3);
   c *= uExposure * vig * vig;
   c = agx(c) * uFade;

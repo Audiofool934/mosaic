@@ -148,7 +148,7 @@ The slab under the frame also changes the light, looks closer, lets the stones m
 The slab keeps one layout whatever is laid, so the wall cut round it never moves: the material and the stone size are dimmed for the artwork and the film, which bring their own, and the film's transport shows only in the status line.
 `site/` stays the standalone studio that ships with the skill.
 The studio takes its whole room, its frame as large as the screen allows; an image whose shape is far from the frame's, as a portrait, is laid whole on a surround of dark glass rather than cut to fit.
-The last room sets the skill for a coding agent, with the command line, beside the colophon.
+The last room sets the skill for a coding agent, with the command line, across the room, its words beside its code, and the colophon under it as a band of four columns.
 The image is read on the page, cropped to the frame, and analysed and cut in a worker by `home/image.js`, so the page stays responsive, and it never leaves the browser.
 `home/main.js` measures the layout, has the pictures cut in workers, keeps the canvas moving with the scroll, and cuts the wall again when a new size reflows the page, on the screen that was in view.
 The name is laid first, and the page waits there until the pictures it lays next have been cut, so none appears half laid; the wide wall's scenes flow only once every one of them has been cut.

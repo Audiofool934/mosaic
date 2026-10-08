@@ -324,7 +324,7 @@ html.wide .gallery { padding-inline: max(var(--gutter), (100vw - var(--gw)) / 2)
 .slab[data-state="laid"] .stone-button[aria-pressed="true"] { box-shadow: 0 4px 0 -2px var(--gilt); }
 .file input { position: absolute; width: 1px; height: 1px; opacity: 0; }
 .file:focus-within { outline: 1px solid rgb(217 182 116 / 0.8); outline-offset: 3px; }
-.agent { grid-column: 1 / span 6; grid-row: 1; align-self: stretch; display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-content: start; padding: 26px 28px; }
+.agent { grid-column: 1 / -1; grid-row: 1; display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-content: start; padding: 26px 28px; }
 .agent > .type { --cell: 4px; }
 .agent > p { font-size: 15.5px; line-height: 1.55; color: var(--marble-muted); }
 .ways { display: flex; gap: 8px; }
@@ -342,19 +342,28 @@ html.wide .gallery { padding-inline: max(var(--gutter), (100vw - var(--gw)) / 2)
 .prompts { display: grid; gap: 8px; margin: -6px 0 0; padding: 0; list-style: none; font: italic 400 16px / 1.45 var(--serif); }
 
 /* The colophon closes the page in a room of its own. */
-/* The last room: the skill for a coding agent, with the command line, beside the colophon, two
-   slabs of one width and one height. */
-.end { align-content: center; align-items: center; }
+/* The last room: the skill for a coding agent across the room, its words on the left and the
+   code on the right, and the colophon under it as a band of four columns. */
+.end { align-content: center; }
+@media (min-width: 721px) {
+  .end .agent {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); column-gap: 40px; align-items: start;
+    grid-template-areas: "title code" "text code" "ways code" "ask code" "prompts code";
+  }
+  .end .agent > .type { grid-area: title; }
+  .end .agent > p:not(.ask) { grid-area: text; }
+  .end .agent > .ways { grid-area: ways; }
+  .end .agent > .code { grid-area: code; align-self: center; }
+  .end .agent > .ask { grid-area: ask; }
+  .end .agent > .prompts { grid-area: prompts; }
+}
 .colophon {
   display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 24px 32px; padding: 30px 34px;
   font: 400 14px / 1.6 var(--sans); color: var(--marble-muted);
 }
 .colophon-mark { display: grid; gap: 10px; align-content: start; }
 .colophon-mark .type { --cell: 3px; }
-.end .colophon { grid-column: 7 / -1; grid-row: 1; align-self: stretch; display: flex; flex-direction: column; gap: 18px; padding: 26px 34px; font-size: 15px; }
-/* Its name at the top, as the skill's title is, and its notes at the foot, as the prompts are. */
-.end .colophon-mark + p { margin-top: auto; }
-.end .colophon-mark .type { --cell: 4px; }
+.end .colophon { grid-column: 1 / -1; grid-row: 2; }
 
 @media (max-height: 820px) {
   .head { gap: 12px; }

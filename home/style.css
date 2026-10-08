@@ -380,31 +380,32 @@ html.wide .gallery { padding-inline: max(var(--gutter), (100vw - var(--gw)) / 2)
   .colophon { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
-/* On a phone, a room too full for one screen is set as pages, each a screen of its own. */
+/* On a phone the page is always a column of rooms, scrolled down, and a room too full for one
+   screen is set as pages, each a screen of its own. */
 @media (max-width: 720px) {
   :root { font-size: 17px; --gutter: 22px; }
   .slab { padding: 20px 20px; }
   .room { grid-template-columns: minmax(0, 1fr); column-gap: 0; row-gap: 18px; padding-bottom: 84px; }
   .room > *, .page > * { grid-column: 1 / -1; }
   .room:has(> .page) { display: block; min-height: 0; padding-block: 0; scroll-snap-align: none; }
-  /* On the wide wall a room set as pages stands as its pages, side by side. */
-  html.wide .room:has(> .page) { display: contents; }
-  html.wide .page { position: relative; flex: none; width: 100vw; height: 100svh; min-height: 0; padding-inline: var(--gutter); scroll-snap-align: none; }
   .page {
     --room-h: calc(100svh - var(--bar-top) - var(--bar-h, 62px) - 18px - 84px);
     display: grid; grid-template-columns: minmax(0, 1fr); row-gap: 18px; align-content: center; align-items: start; min-height: 100svh;
     padding-block: calc(var(--bar-top) + var(--bar-h, 62px) + 18px) 84px; scroll-snap-align: start; scroll-snap-stop: always;
   }
   .head .type { --cell: 4px; }
-  .method .predella { grid-template-columns: 1fr 1fr; row-gap: 14px; }
+  /* The method's picture stands taller than on a desktop, so each band is wide enough to see;
+     the drawn bands are cropped to it, and the live one is cut to it. */
+  .method .polyptych { width: calc(var(--content) - 20px); height: min(var(--content) * 1.1, var(--room-h) - 330px); }
+  .method .predella { width: var(--content); grid-template-columns: 1fr 1fr; row-gap: 14px; }
   .materials { --sample: calc((var(--content) - 20px) / 2); }
   .board { width: var(--content); }
   .samples, .names { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .names { row-gap: 14px; }
   .sample { width: 100%; height: auto; aspect-ratio: 1; max-height: calc((var(--room-h) - 260px) / 2); justify-self: center; }
   .room { --side: var(--content); }
   .head, .method .polyptych, .method .predella, .materials .board, .atelier, .agent, .end .colophon { grid-column: 1 / -1; grid-row: auto; }
-  .gallery { width: auto; grid-template-rows: none; }
-  html.wide .gallery { padding-inline: 0; }
+  .gallery { width: var(--content); grid-template-rows: none; }
   .gallery .page.salon { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 14px; }
   .work { grid-row: auto; grid-template-rows: none; row-gap: 12px; margin-bottom: 0; }
   .work.lantern, .work.arrakis, .work.road, .work.morning { grid-column: 1 / -1; grid-row: auto; margin-bottom: 0; }
@@ -414,9 +415,23 @@ html.wide .gallery { padding-inline: max(var(--gutter), (100vw - var(--gw)) / 2)
   .plaque .type { --cell: 2px; }
   .slab { padding: 18px 16px; }
   .ways .type, .choice .type, .file .type { --cell: 2.2px; }
+  /* The studio's tools each take the slab's width, one under another: the five pictures in a
+     row, then a button or a choice to a row, and moving and saving side by side. */
   .atelier { width: 100%; }
-  .tools { grid-template-columns: 1fr; }
-  .picks { justify-content: flex-start; flex-wrap: wrap; }
+  .tools .tool-row { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+  .tools .tool-row:last-child { grid-template-columns: 1fr 1fr; }
+  .tool-row > .choice:last-child, .tool-row > .status { margin-left: 0; }
+  .tools .picks { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+  .tools .pick { width: auto; }
+  .tools .choice { display: flex; gap: 6px; }
+  .tools .choice > * { flex: 1 1 auto; }
+  .tools .file { grid-column: 1 / -1; }
+  .slide { justify-content: space-between; }
+  .slide input { flex: 0 1 62%; width: auto; }
+  .status { grid-column: 1 / -1; justify-content: flex-start; height: auto; min-height: 22px; }
+  .transport input { flex: 1; width: auto; }
+  /* Long commands wrap, breaking where they must, rather than run off the slab. */
+  .code pre { padding: 2px 14px 14px; font-size: 10.5px; white-space: pre-wrap; overflow-wrap: anywhere; }
   .colophon { grid-template-columns: 1fr; }
   .viewer[open] { grid-template-columns: 1fr; }
 }

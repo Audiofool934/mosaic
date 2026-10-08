@@ -88,11 +88,14 @@ function liveScenes(layout, { module, arrive, end, origin }) {
 }
 
 // The last band of the method's picture: the nocturne from x0 millimetres across its panel to
-// its right edge, where the other bands leave off, scaled to fill w by h millimetres of wall.
-// It is cut from the same raster as the nocturne itself, so its stones are the nocturne's
-// own, scaled with it.
+// its right edge, where the other bands leave off, scaled to cover w by h millimetres of wall:
+// a band taller than that stretch, as on a phone, keeps its left edge, so the moon goes on
+// from the band beside it, and loses the right. On a desktop the band has the stretch's own
+// shape, so none of it is lost. It is cut from the same raster as the
+// nocturne itself, so its stones are the nocturne's own, scaled with it.
 export function methodPicture({ w, h, x0 = 1110 }) {
-  const s = w / (1600 - x0);
+  const s = Math.max(w / (1600 - x0), h / 900);
+  const left = x0, top = (900 - h / s) / 2;
   return {
     config: {
       panel: { w, h }, res: (house.res ?? 1) / s, background: "sky",
@@ -102,10 +105,10 @@ export function methodPicture({ w, h, x0 = 1110 }) {
       insets: [[0, 0, w, h]],
       build: { origin: [w / 2, h / 2], start: WORLD, end: LAID - 0.3, rise: 0.08 }
     },
-    regions: () => nocturneRegions().map((r) => ({ ...r, size: r.size * s, ...(r.center && { center: [(r.center[0] - x0) * s, r.center[1] * s] }) })),
+    regions: () => nocturneRegions().map((r) => ({ ...r, size: r.size * s, ...(r.center && { center: [(r.center[0] - left) * s, (r.center[1] - top) * s] }) })),
     draw(g, mode, D) {
       g.save();
-      g.transform(s, 0, 0, s, -x0 * s, 0);
+      g.transform(s, 0, 0, s, -left * s, -top * s);
       drawNocturne(g, mode, D);
       g.restore();
     }

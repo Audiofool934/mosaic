@@ -21,11 +21,13 @@ const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)");
 // rooms and on either side on the wide wall, so a fast scroll never outruns the stones
 // between two frames.
 const OVERSCAN = 0.15;
-// Where motion is welcome and the screen is tall enough to hold a room, the page's screens
-// stand side by side along one wide wall that scrolls sideways; elsewhere the page is a
-// column of rooms.
+// Where motion is welcome and the screen is wide and tall enough to hold a room, the page's
+// screens stand side by side along one wide wall that scrolls sideways; elsewhere, as on a
+// phone, where a finger scrolls down and a swipe from the edge goes back, the page is a column
+// of rooms.
 const WIDE_HEIGHT = 540;
-const wants = () => !reduceMotion.matches && innerHeight >= WIDE_HEIGHT && wall.dataset.state !== "still";
+const phone = matchMedia("(max-width: 720px)");
+const wants = () => !reduceMotion.matches && !phone.matches && innerHeight >= WIDE_HEIGHT && wall.dataset.state !== "still";
 let wide = false;
 // On the wide wall, the screen in view, kept as the page scrolls while its screens are the
 // width they were set at, so a new window size reopens the page on it.

@@ -34,7 +34,8 @@ let current = 0, screenWidth = 0;
 // The wall on screen: its controller, its canvas, the millimetres of wall in each CSS
 // pixel, and the stretch of page its canvas covers.
 let live = null;
-let budget = 2.6e6;
+// Enough for the wide wall at a Retina display's full sharpness; halved while frames come slowly.
+let budget = 9e6;
 let tallest = 0;
 let generation = 0;
 let resizeTimer = 0;

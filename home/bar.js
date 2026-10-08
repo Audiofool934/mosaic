@@ -74,10 +74,14 @@ export function platePicture(bar) {
   return picture(bar, [
     { name: "plate", size: cell * 1.7, mode: "contour", mat: "glass", tray: ["#07090c", "#0b0f13", "#10151b"] },
     { name: "rim", size: rim, mode: "contour", mat: "gold", tray: ["#b18a50", "#c99d5c", "#d8b571"] },
+    // The glass round each name is laid on the letters' own grid, a stone to each cell, so no
+    // stone of the plate's courses strays among them and takes a corner off a letter.
+    { name: "ground", size: cell, mode: "grid", origin: [0, top], mat: "glass", tray: ["#07090c", "#0b0f13", "#10151b"] },
     { name: "type", size: cell, mode: "grid", origin: [0, top], mat: "marble", tray: ["#d9d6c4", "#e6e1cc", "#efe9d6"] }
   ], (D) => {
     D.fill(rounded(0, 0, W, H, radius), "rim", "#c99d5c");
     D.fill(rounded(rim, rim, W - 2 * rim, H - 2 * rim, radius - rim), "plate", "#0b0f13");
+    for (const it of items) D.fill(poly([[it.x - cell, it.y - cell], [it.x + it.w + cell, it.y - cell], [it.x + it.w + cell, it.y + (ROWS + 1) * cell], [it.x - cell, it.y + (ROWS + 1) * cell]]), "ground", "#0b0f13");
     for (const it of items) D.fill(typeShape(typeCells(it.text, it.x, it.y, cell), cell), "type", "#e6e1cc");
   });
 }

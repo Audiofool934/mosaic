@@ -1,0 +1,12 @@
+{
+  "title": "Currents, upright",
+  "version": 1,
+  "seed": 42,
+  "fps": [60, 1],
+  "frames": 240,
+  "band": [1080, 1920],
+  "look": [[0, 1], [4, 1]],
+  "scenes": [
+    { "id": "currents", "picture": "./currents.js", "start": 0, "end": 4, "in": { "type": "settled" } }
+  ]
+}

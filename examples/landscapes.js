@@ -287,13 +287,13 @@ export function stageOn(w, screen) {
 // Its stones are `k` times their size on a desktop page, cut from a raster of `res` pixels a
 // millimetre, and it leaves a hole where the name is set unless `hole` is false. `build`
 // says how it is laid, if it is, straight onto the bare plaster, with no sinopia drawn first.
-export function scene({ name, w, h, screen = h, total = w, stack, k = 1, res = 1, hole = true, build }) {
+export function scene({ name, w, h, screen = h, total = w, k = 1, res = 1, hole = true, build }) {
   const s = SCENES[name];
   if (!s) throw new Error(`No scene ${name}.`);
   const { scale, h: band } = stageOn(w, screen), sx = scale, sy = scale;
   const tx = clamp(w / 2 - (s.focus ?? 0.5) * STAGE.w * sx, w - STAGE.w * sx, 0);
   const regions = () => s.regions(STAGE.w, STAGE.h).map((r) => ({ ...r, size: r.size * k, ...(r.center && { center: [tx + r.center[0] * sx, r.center[1] * sy] }) }));
-  const set = nameAt(w, band, stack);
+  const set = nameAt(w, band);
   return {
     config: { panel: { w: total, h }, res, background: s.regions(STAGE.w, STAGE.h)[0].name, camera: { keys: [[0, total / 2, h / 2, total]], tilt: 0, yaw: 0, aperture: 0.004, drift: 0 }, light: house.light, sinopia: false, ...(build && { build }) },
     regions,

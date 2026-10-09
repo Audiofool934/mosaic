@@ -2,11 +2,11 @@
 // Renders the pictures the project page shows beside its live wall, from the examples and
 // through the same engine: the name in stone over the night, wide and tall, which stands in
 // for the wall without WebGL2 and makes the share image; the method's first three bands, the
-// heron by the moon as a flat drawing, as courses, and as cut stones, and the same of the tree
-// under the moon for a phone, in bands across it; the flat paintings the
-// studio in the wall offers to lay; and the short film. Run it after a visual change to the
-// engine or the examples, with the names of the parts to render, or none for all of them:
-// stills, method, tree, paintings, film.
+// heron by the moon as a flat drawing, as courses, and as cut stones, and the same of the
+// upright currents for a phone, in bands down them; the flat paintings the studio in the wall
+// offers to lay; and the short film. Run it after a visual change to the engine or the
+// examples, with the names of the parts to render, or none for all of them: stills, method,
+// currents, paintings, film.
 import { spawnSync } from 'node:child_process';
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
@@ -25,9 +25,10 @@ const OUT = path.join(ROOT, 'home/media');
 const EDGES = [430, 800, 1110];
 // Pixels to the millimetre in the bands.
 const BAND_SCALE = 2;
-// The tree's bands run down its panel, ending where examples/tree.js says, and are drawn finer,
-// since its panel is smaller and a phone shows it close.
-const TREE_SCALE = 3;
+// The currents' bands run down their panel, ending where examples/currents.js says, and are
+// drawn finer, since their panel is smaller and a phone shows it close, with courses bold
+// enough to stay clear once the band is shrunk to a phone's width.
+const CURRENTS_SCALE = 3, CURRENTS_LINE = 2.6;
 
 function ffmpeg(args) {
   const result = spawnSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', ...args], { stdio: ['ignore', 'ignore', 'pipe'] });
@@ -69,8 +70,8 @@ async function inPage(work, fn, arg) {
 
 // A picture, its whole panel, as a flat drawing, as the courses its stones are laid along, and
 // as the stones cut from them on dark mortar: the cut the wall uses, at the scene's own
-// resolution and the page's seed.
-const drawPlates = async ({ scale, module }) => {
+// resolution and the page's seed. The courses are drawn `line` pixels wide.
+const drawPlates = async ({ scale, module, line = 1.05 }) => {
   const { loadPicture } = await import('/engine/picture.js');
   const { tessellate } = await import('/engine/tessellate.js');
   const { hexRgb } = await import('/engine/util.js');
@@ -115,7 +116,7 @@ const drawPlates = async ({ scale, module }) => {
     g.globalCompositeOperation = 'destination-over';
     g.fillRect(0, 0, W, H);
     g.globalCompositeOperation = 'source-over';
-    g.lineWidth = 1.05 / scale;
+    g.lineWidth = line / scale;
     g.lineCap = 'round';
     g.lineJoin = 'round';
     for (const line of lines) {
@@ -190,15 +191,15 @@ const PARTS = {
     });
     console.log(`Drew the method's bands: ${edges.slice(1).map((e, i) => e - edges[i]).join(', ')} px wide`);
   },
-  async tree(work) {
-    const { BANDS } = await import(pathToFileURL(path.join(ROOT, 'examples/tree.js')).href);
-    const tree = await inPage(work, drawPlates, { scale: TREE_SCALE, module: '/examples/tree.js' });
-    const rows = [0, ...BANDS].map((mm) => mm * TREE_SCALE);
+  async currents(work) {
+    const { BANDS } = await import(pathToFileURL(path.join(ROOT, 'examples/currents.js')).href);
+    const plates = await inPage(work, drawPlates, { scale: CURRENTS_SCALE, line: CURRENTS_LINE, module: '/examples/currents.js' });
+    const rows = [0, ...BANDS].map((mm) => mm * CURRENTS_SCALE);
     ['draw', 'flow', 'cut'].forEach((name, i) => {
-      const source = tree[{ draw: 'drawing', flow: 'flow', cut: 'cut' }[name]];
-      webp(source, path.join(OUT, `tree-${name}.webp`), { crop: `crop=iw:${rows[i + 1] - rows[i]}:0:${rows[i]}` });
+      const source = plates[{ draw: 'drawing', flow: 'flow', cut: 'cut' }[name]];
+      webp(source, path.join(OUT, `currents-${name}.webp`), { crop: `crop=iw:${rows[i + 1] - rows[i]}:0:${rows[i]}` });
     });
-    console.log(`Drew the tree's bands: ${rows.slice(1).map((e, i) => e - rows[i]).join(', ')} px high`);
+    console.log(`Drew the currents' bands: ${rows.slice(1).map((e, i) => e - rows[i]).join(', ')} px high`);
   },
   async paintings(work) {
     const files = await inPage(work, drawPaintings, { width: 1280 });

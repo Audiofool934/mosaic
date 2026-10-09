@@ -8,28 +8,20 @@ import { config as house } from "./nocturne.js";
 
 const box = (x, y, w, h) => poly([[x, y], [x + w, y], [x + w, y + h], [x, y + h]]);
 
-// How much of a panel's width the name may take, its tallest capitals in millimetres, where
-// its middle sits as a share of the first screen's height, and how high the band is that
-// the scenes keep clear for it, as a share of the same.
+// How much of a panel's width the name may take, its tallest capitals in millimetres, and
+// where its middle sits as a share of the first screen's height.
 const WIDTH = 0.84;
 const TALLEST = 300;
 const MIDDLE = 0.47;
-const BAND = 0.62;
 
 // Where the name is set on a panel `w` wide whose first screen is `screen` high: one line
-// across, or on a tall panel MOS over AIC, as large as fits, with the AI in gold either way,
-// around the same middle. The ring of dark stone round each letter keeps it clear of any
-// scene behind it.
-export function nameAt(w, screen, stack = w < screen) {
+// across, as large as fits, with the AI in gold, so the word reads whole on any screen, a
+// phone's included. The ring of dark stone round each letter keeps it clear of any scene
+// behind it.
+export function nameAt(w, screen) {
   const middle = screen * MIDDLE;
-  if (!stack) {
-    const cap = Math.min(TALLEST, (w * WIDTH) / wordWidth("MOSAIC"));
-    return { cap, ring: cap * 0.09, middle, lines: [{ text: "MOSAIC", x: w / 2, y: middle + cap / 2, gilt: [3, 4] }] };
-  }
-  const gap = 0.28;
-  const cap = Math.min(TALLEST, (w * WIDTH) / Math.max(wordWidth("MOS"), wordWidth("AIC")), (screen * BAND) / (2 + gap));
-  const top = middle - cap * (1 + gap / 2);
-  return { cap, ring: cap * 0.09, middle, lines: [{ text: "MOS", x: w / 2, y: top + cap, gilt: [] }, { text: "AIC", x: w / 2, y: top + cap * (2 + gap), gilt: [0, 1] }] };
+  const cap = Math.min(TALLEST, (w * WIDTH) / wordWidth("MOSAIC"));
+  return { cap, ring: cap * 0.09, middle, lines: [{ text: "MOSAIC", x: w / 2, y: middle + cap / 2, gilt: [3, 4] }] };
 }
 
 const lettersOf = (set) => set.lines.flatMap((line) => word(line.text, { x: line.x, y: line.y, cap: set.cap }).map((l, i) => ({ ...l, gilt: line.gilt.includes(i) })));
@@ -46,8 +38,8 @@ export function nameHole(D, set) {
 // its letters set as `nameAt` places them, each ringed first by dark stone, and nothing else.
 // Their stones are sized to the letters, so every stroke is about six stones across at any
 // size, and they are laid straight onto the bare plaster, with no sinopia drawn first.
-export function nameAlone({ w, h, screen = h, stack }) {
-  const set = nameAt(w, screen, stack);
+export function nameAlone({ w, h, screen = h }) {
+  const set = nameAt(w, screen);
   const s = set.cap * 0.03;
   return {
     config: { panel: { w, h }, res: 1, background: "outline", camera: { keys: [[0, w / 2, h / 2, w]], tilt: 0, yaw: 0, aperture: 0.004, drift: 0 }, light: house.light, sinopia: false },

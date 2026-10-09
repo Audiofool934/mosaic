@@ -144,9 +144,9 @@ main { position: relative; }
    and no words of the page's own type. */
 .hero { position: relative; scroll-snap-align: start; scroll-snap-stop: always; }
 .hero-art { height: var(--hero); }
-/* What only a phone shows: the note on the first screen, the method's tree, and the tags under
-   the materials. */
-.hint, .tree, .tag { display: none; }
+/* What only a phone shows: the note on the first screen, the method's upright bands, and the
+   tags naming the stages and the materials. */
+.hint, .upright, .tag { display: none; }
 /* On a screen much taller than it is wide, the name is set in two lines. */
 @media (max-aspect-ratio: 4/5) {
   .wall[data-state="still"] { background: url("media/hero-tall.webp") center top / 100% auto no-repeat, var(--ground); }
@@ -387,8 +387,8 @@ html.wide .gallery { padding-inline: max(var(--gutter), (100vw - var(--gw)) / 2)
 /* On a phone the page is a column of rooms scrolled down freely, one long wall with no rooms
    to stop at, and the bar sits in two rows at the foot of the screen. Its words are few: each
    room shows its work with no more than a name, the first screen says the page is better on a
-   desktop, and the stones are not heard. A room too full for one screen is set as pages, each
-   a screen high. */
+   desktop, and the stones are not heard. Under the first screen, each room is as tall as its
+   work, a short way below the one above it, and a room's pages run on as one. */
 @media (max-width: 720px) {
   :root { font-size: 17px; --gutter: 22px; --bar-foot: 12px; }
   html { scroll-snap-type: none; }
@@ -399,50 +399,51 @@ html.wide .gallery { padding-inline: max(var(--gutter), (100vw - var(--gw)) / 2)
     text-align: center; font: italic 400 15px / 1.4 var(--serif); color: var(--light-muted); text-shadow: var(--lift);
   }
   .slab { padding: 18px 16px; }
-  /* Every room and its pages measure a screen from under its top to over the bar. */
+  /* --between parts works within a room, and rooms lie twice as far apart. --room-h is a
+     screen from under its top to over the bar, for a room that must fit on one, as the studio
+     does. The last room clears the bar. */
   .room {
     --side: var(--content);
+    --between: 22px;
     --pad-top: calc(20px + env(safe-area-inset-top));
     --pad-foot: calc(var(--bar-foot) + var(--bar-h, 62px) + 20px);
     --room-h: calc(100svh - var(--pad-top) - var(--pad-foot));
-    grid-template-columns: minmax(0, 1fr); column-gap: 0; row-gap: 18px;
+    grid-template-columns: minmax(0, 1fr); column-gap: 0; row-gap: var(--between); align-content: start;
+    min-height: 0; padding-block: var(--between);
   }
   .room > *, .page > * { grid-column: 1 / -1; grid-row: auto; }
-  .room:has(> .page) { display: block; min-height: 0; padding-block: 0; }
-  .page, .room.end {
-    display: grid; grid-template-columns: minmax(0, 1fr); row-gap: 18px; align-content: center; align-items: start; min-height: 100svh;
-    padding-block: var(--pad-top) var(--pad-foot);
-  }
+  .page { display: grid; grid-template-columns: minmax(0, 1fr); row-gap: var(--between); align-items: start; }
+  .room.end { padding-bottom: var(--pad-foot); }
   .head .type { --cell: 4px; }
 
-  /* The method on a phone is a tree under the moon in four bands, top to bottom, each named in
-     one word beside it. The bands keep the shares of the tree's panel examples/tree.js gives them, so
-     none is cropped. */
+  /* The method on a phone: the upright currents of examples/currents.js in four bands down the
+     room, as wide as it, each a stage of them, named on a small tag in its top left corner. The
+     bands are equal shares of the panel and keep their shape, so none is cropped. */
   .method .polyptych, .method .predella { display: none; }
-  .tree {
-    --stage: 100px; --mullion: 6px;
-    --tw: min(var(--content) - var(--stage) - 24px, (var(--room-h) - 40px - 3 * var(--mullion)) / 2);
-    display: grid; grid-template-columns: var(--stage) var(--tw); column-gap: 24px; justify-content: center;
-  }
-  .tree-bands, .stages { display: grid; grid-template-rows: 230fr 220fr 200fr 250fr; row-gap: var(--mullion); height: calc(var(--tw) * 2 + 3 * var(--mullion)); margin: 0; }
-  .stages { padding: 0 10px; list-style: none; }
-  .stages li { display: grid; align-content: center; justify-items: center; }
-  .stages .type { --cell: 2.6px; }
+  /* The first room under the name starts clear of the name's water, which runs on past the
+     first screen to a wavy shore up to 100 mm of wall below it (home/wall.js), where the wall
+     sets none of the page's own blocks: 100 mm is 100 / 880 of the page's width on a phone, and
+     a frame's gold reaches 9 pixels past its picture. */
+  .method { padding-top: calc(11.4vw + 20px); }
+  .upright { --mullion: 6px; display: grid; row-gap: var(--mullion); margin: 0; }
+  .upright .stage { position: relative; aspect-ratio: 450 / 200; }
+  .upright .tag { position: absolute; top: 8px; left: 8px; z-index: 1; padding: 5px 8px; border-radius: 6px; }
+  .upright .tag .type { --cell: 2px; }
 
-  /* The materials: two rows of two samples a page, each named on a small tag under it. */
-  .materials { --sample: min((var(--content) - 20px) / 2, (var(--room-h) - 2 * 48px - 24px) / 2); }
+  /* The materials: all eight samples two to a row, each named on a small tag under it. */
+  .materials { --sample: calc((var(--content) - 20px) / 2); }
   .board { width: auto; justify-self: center; }
-  .samples { grid-template-columns: repeat(2, var(--sample)); gap: 24px 20px; }
+  .samples { grid-template-columns: repeat(2, var(--sample)); gap: var(--between) 20px; }
   .samples > li { display: grid; justify-items: center; gap: 10px; }
   .names { display: none; }
   .tag { display: block; margin: 0; padding: 7px 11px; border-radius: 7px; }
   .tag .type { --cell: 2.2px; }
 
-  /* On a phone the works hang without their plaques, each row of the hang a page: the three
-     films one under another, then the film over its two pictures. A work opened whole still
-     shows its caption. */
-  .gallery { width: min(var(--content), (var(--room-h) - 52px) / 3 * 16 / 9); grid-template-rows: none; }
-  .gallery .page.salon { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 26px; }
+  /* On a phone the works hang without their plaques, in one column as wide as the room: the
+     four films one under another, then the two pictures side by side. A work opened whole
+     still shows its caption. */
+  .gallery { width: var(--content); grid-template-rows: none; row-gap: var(--between); }
+  .gallery .page.salon { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--between); }
   .gallery .plaque, .studio-link { display: none; }
   .work.morning { order: -1; }
   .work { grid-row: auto; grid-template-rows: none; row-gap: 12px; margin-bottom: 0; }

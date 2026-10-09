@@ -222,10 +222,11 @@ This lets the instructions and executable examples stay portable without absolut
 ```text
 dist/
   site/
-    index.html                 Root redirect to the studio
+    index.html                 Project page, or a redirect to the studio when built without one
+    home/                      Project page scripts, styles, media, and gallery works
     site/                      Studio HTML, CSS, and JavaScript
     engine/                    Canonical shared engine
-    examples/                  Original example source
+    examples/                  Original example source, with page-wall/ and photo/
     docs/                      Public architecture and provenance
     README.md
     LICENSE
@@ -236,7 +237,7 @@ dist/
     scripts/
     references/
     agents/
-    assets/runtime/            Engine, tools, studio, examples, tests, docs
+    assets/runtime/            Engine, tools, studio, examples, tests, docs; never the project page
     manifest.json
 ```
 

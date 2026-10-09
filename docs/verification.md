@@ -1,12 +1,13 @@
 # Initial verification
 
 These results were observed on 4 October 2026 on macOS with an Apple M2 Pro.
-They describe the 0.1.0 local release candidate; hosted CI and other platforms have not been verified.
+They describe the 0.1.0 local release candidate; other platforms have not been visually verified, and automated counts below note where they were taken.
 
 ## Automated checks
 
-`npm test` passes 30 tests covering manifest validation, image analysis, distance transforms, command input, project generation, local preview isolation, and distribution integrity.
-`npm run check` checks the syntax of all 27 JavaScript modules.
+`npm test` passes 58 tests covering manifest validation, image analysis, distance transforms, command input, project generation and image import, the page-wall example, local preview isolation, and distribution integrity.
+`npm run check` checks the syntax of all 55 JavaScript modules.
+These two counts were last taken on 8 October 2026 on Linux with Node 20.
 `npm run test:browser` passes seven GPU lifecycle and rendering checks using Chromium 153 with ANGLE Metal and 9,340 stones at 640 by 360 pixels.
 
 - Seeking frames in different orders produces identical pixels.
@@ -48,4 +49,4 @@ These trials used the development name before it changed to `mosaic`; final pack
 Safari, Firefox, Windows, and Linux still need visual acceptance.
 Image import is intentionally bounded and may simplify texture or small details.
 Continuous video conversion is outside this release.
-Publication and hosted CI are separate release steps.
+The `Verify` workflow runs `npm test`, `npm run check`, and `npm run build` on Node 20 and 24 for every push, and the `Pages` workflow publishes the website from `main`; neither runs the GPU browser check.

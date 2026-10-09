@@ -224,7 +224,8 @@ h2, h3 { margin: 0; font-weight: 400; }
 .band[data-wall="live"] { background: none; }
 .predella { display: grid; margin: 0; padding: 16px 0; list-style: none; }
 .predella li { padding-inline: 16px; }
-.method .predella { grid-template-columns: 430fr 370fr 310fr 490fr; column-gap: var(--mullion); width: calc(var(--bands) + 3 * var(--mullion)); }
+/* The slab reaches out as far as the frame's gold, and its names keep under their bands. */
+.method .predella { grid-template-columns: 430fr 370fr 310fr 490fr; column-gap: var(--mullion); width: calc(var(--bands) + 3 * var(--mullion) + 2 * var(--gold)); padding-inline: var(--gold); }
 .predella h3 { display: flex; gap: 15px; align-items: center; margin-bottom: 8px; }
 .predella .type { --cell: 3px; }
 .predella p { font: 400 13.5px / 1.45 var(--sans); color: var(--marble-muted); }
@@ -269,7 +270,8 @@ html.wide .gallery { padding-inline: max(var(--gutter), (100vw - var(--gw)) / 2)
 .work.morning { grid-column: 2 / span 3; grid-row: 3 / span 2; }
 .work.crescent { grid-column: 5; grid-row: 3 / span 2; }
 .work .frame { width: 100%; height: 100%; cursor: zoom-in; }
-.plaque { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; align-content: start; padding: 11px 15px; border-radius: 9px; }
+/* A plaque reaches out as far as its frame's gold on either side. */
+.plaque { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; align-content: start; margin-inline: calc(-1 * var(--gold)); padding: 11px 15px; border-radius: 9px; }
 .plaque .type { --cell: 2.4px; }
 .plaque p { font: 400 12.5px / 1.45 var(--sans); color: var(--marble-muted); }
 

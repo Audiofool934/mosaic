@@ -11,10 +11,10 @@ export const HELP = `mosAIc - physical mosaic artwork for people and agents
   mosaic preview [project.json] [--port 0]
   mosaic inspect [project.json]
   mosaic still [project.json] [--time 2] [--width 1920] [--samples 4] [--out output/still.png]
-  mosaic render [project.json] [--from 0] [--to 120] [--width 1920] [--samples 4] [--out output/video.mp4]
+  mosaic render [project.json] [--from 0] [--to <all frames>] [--width 1920] [--samples 4] [--out output/video.mp4]
 
 The default project is examples/nocturne.json.
-Video frame ranges are inclusive at --from and exclusive at --to.
+Video frame ranges are inclusive at --from and exclusive at --to; render draws every frame unless --to is given.
 Exports are always fresh and refuse to overwrite existing files.
 Preview, init, and inspect need only Node 20+.
 Capture also needs npm ci, Chromium, and ffmpeg for video.
@@ -91,19 +91,13 @@ export function captureOptions(args, project) {
   return { kind: 'render', width, samples, from, to, out: path.resolve(args.out || 'output/video.mp4') };
 }
 
-export async function initProject(directory) {
-  const destination = path.resolve(directory);
-  await mkdir(destination, { recursive: true });
-  if ((await readdir(destination)).length) throw new Error('The destination must be empty; no existing files were changed.');
-  await cp(path.join(ROOT, 'engine'), path.join(destination, 'engine'), { recursive: true });
-  await cp(path.join(ROOT, 'LICENSE'), path.join(destination, 'LICENSE'));
-  await cp(path.join(ROOT, 'THIRD_PARTY_NOTICES.md'), path.join(destination, 'THIRD_PARTY_NOTICES.md'));
-  const scene = (await readFile(path.join(ROOT, 'examples/nocturne.js'), 'utf8')).replaceAll('../engine/paint.js', './engine/paint.js');
-  await writeFile(path.join(destination, 'scene.js'), scene);
-  const project = JSON.parse(await readFile(path.join(ROOT, 'examples/nocturne.json'), 'utf8'));
-  project.scenes[0].picture = './scene.js';
-  await writeFile(path.join(destination, 'project.json'), JSON.stringify(project, null, 2) + '\n');
-  await writeFile(path.join(destination, 'index.html'), `<!doctype html>
+// Quotes a path for a shell only where it needs it, so a printed command can be pasted.
+export function shellPath(file) {
+  return /^[\w@%+=:,./-]+$/.test(file) ? file : `"${file.replace(/(["\\$`])/g, '\\$1')}"`;
+}
+
+// The page that shows a project, written into each new project directory.
+const VIEWER = `<!doctype html>
 <html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Mosaic artwork</title>
 <style>html,body{margin:0;background:#161916;color:#ede7d8;font:16px system-ui}main{max-width:1440px;margin:3vh auto}canvas{display:block;width:100%;height:auto;touch-action:none}p{padding:0 1rem}</style>
 <main><canvas aria-label="Interactive mosaic artwork"></canvas><p id="status" role="status">Laying the stones...</p></main>
@@ -118,7 +112,27 @@ try {
   window.addEventListener('pagehide',()=>mosaic.dispose(),{once:true});
 } catch(error) {status.textContent=error.message;}
 </script></html>
-`);
+`;
+
+// A new project directory carries its own copy of the engine and its notices.
+async function scaffold(directory) {
+  const destination = path.resolve(directory);
+  await mkdir(destination, { recursive: true });
+  if ((await readdir(destination)).length) throw new Error('The destination must be empty; no existing files were changed.');
+  await cp(path.join(ROOT, 'engine'), path.join(destination, 'engine'), { recursive: true });
+  await cp(path.join(ROOT, 'LICENSE'), path.join(destination, 'LICENSE'));
+  await cp(path.join(ROOT, 'THIRD_PARTY_NOTICES.md'), path.join(destination, 'THIRD_PARTY_NOTICES.md'));
+  await writeFile(path.join(destination, 'index.html'), VIEWER);
+  return destination;
+}
+
+export async function initProject(directory) {
+  const destination = await scaffold(directory);
+  const scene = (await readFile(path.join(ROOT, 'examples/nocturne.js'), 'utf8')).replaceAll('../engine/paint.js', './engine/paint.js');
+  await writeFile(path.join(destination, 'scene.js'), scene);
+  const project = JSON.parse(await readFile(path.join(ROOT, 'examples/nocturne.json'), 'utf8'));
+  project.scenes[0].picture = './scene.js';
+  await writeFile(path.join(destination, 'project.json'), JSON.stringify(project, null, 2) + '\n');
   return destination;
 }
 
@@ -127,7 +141,7 @@ export async function main(argv = process.argv.slice(2)) {
   if (args.command === 'help') { console.log(HELP); return; }
   if (args.command === 'init') {
     const directory = await initProject(args.project);
-    console.log(`Created ${directory}\nPreview: node ${fileURLToPath(import.meta.url)} preview ${path.join(directory, 'project.json')}`);
+    console.log(`Created ${directory}\nPreview: node ${shellPath(fileURLToPath(import.meta.url))} preview ${shellPath(path.join(directory, 'project.json'))}`);
     return;
   }
   const { file, project, metadata } = await inspectProject(args.project);

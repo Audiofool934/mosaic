@@ -8,20 +8,22 @@ import { ROOT, startServer } from './server.mjs';
 export const HELP = `mosAIc - physical mosaic artwork for people and agents
 
   mosaic init <directory>
+  mosaic import <image> <directory> [--material glass] [--stone-size 12]
   mosaic preview [project.json] [--port 0]
   mosaic inspect [project.json]
   mosaic still [project.json] [--time 2] [--width 1920] [--samples 4] [--out output/still.png]
   mosaic render [project.json] [--from 0] [--to <all frames>] [--width 1920] [--samples 4] [--out output/video.mp4]
 
 The default project is examples/nocturne.json.
+import makes a project of a PNG, JPEG, WebP, or GIF; --material is glass, stone, or gold.
 Video frame ranges are inclusive at --from and exclusive at --to; render draws every frame unless --to is given.
 Exports are always fresh and refuse to overwrite existing files.
-Preview, init, and inspect need only Node 20+.
+Preview, init, import, and inspect need only Node 20+.
 Capture also needs npm ci, Chromium, and ffmpeg for video.
 Set MOSAIC_BROWSER to an installed Chromium executable, or run npx playwright-core install chromium.
 `;
 
-const OPTIONS = { init: [], preview: ['port'], inspect: [], still: ['time', 'width', 'samples', 'out'], render: ['from', 'to', 'width', 'samples', 'out'] };
+const OPTIONS = { init: [], import: ['material', 'stone-size'], preview: ['port'], inspect: [], still: ['time', 'width', 'samples', 'out'], render: ['from', 'to', 'width', 'samples', 'out'] };
 
 export function parseArgs(argv) {
   if (!argv.length || argv[0] === '--help' || argv[0] === '-h' || argv[0] === 'help') return { command: 'help' };
@@ -37,12 +39,15 @@ export function parseArgs(argv) {
       if (result[key] !== undefined) throw new Error(`Option ${value} was provided twice.`);
       if (!argv[i + 1] || argv[i + 1].startsWith('--')) throw new Error(`Option ${value} needs a value.`);
       result[key] = argv[++i];
+    } else if (command === 'import' && result.image === undefined) {
+      result.image = value;
     } else {
-      if (result.project !== undefined) throw new Error('Provide only one project path.');
+      if (result.project !== undefined) throw new Error(command === 'import' ? 'Provide one image and one destination directory.' : 'Provide only one project path.');
       result.project = value;
     }
   }
   if (command === 'init' && !result.project) throw new Error('init needs a destination directory.');
+  if (command === 'import' && !result.project) throw new Error('import needs an image and a destination directory.');
   return result;
 }
 
@@ -136,12 +141,93 @@ export async function initProject(directory) {
   return destination;
 }
 
+// The pixel size of a PNG, GIF, JPEG, or WebP file, read from its header, or null.
+export function imageSize(data) {
+  const ascii = (start, end) => data.toString('latin1', start, end);
+  if (data.length >= 24 && data.readUInt32BE(0) === 0x89504e47 && ascii(12, 16) === 'IHDR') return { width: data.readUInt32BE(16), height: data.readUInt32BE(20), type: 'png' };
+  if (data.length >= 10 && /^GIF8[79]a$/.test(ascii(0, 6))) return { width: data.readUInt16LE(6), height: data.readUInt16LE(8), type: 'gif' };
+  if (data.length >= 30 && ascii(0, 4) === 'RIFF' && ascii(8, 12) === 'WEBP') {
+    const chunk = ascii(12, 16);
+    if (chunk === 'VP8 ') return { width: data.readUInt16LE(26) & 0x3fff, height: data.readUInt16LE(28) & 0x3fff, type: 'webp' };
+    if (chunk === 'VP8L') { const bits = data.readUInt32LE(21); return { width: (bits & 0x3fff) + 1, height: ((bits >> 14) & 0x3fff) + 1, type: 'webp' }; }
+    if (chunk === 'VP8X') return { width: data.readUIntLE(24, 3) + 1, height: data.readUIntLE(27, 3) + 1, type: 'webp' };
+    return null;
+  }
+  if (data.length >= 4 && data[0] === 0xff && data[1] === 0xd8) {
+    let at = 2, turned = false;
+    while (at + 9 < data.length) {
+      if (data[at] !== 0xff) { at++; continue; }
+      const marker = data[at + 1];
+      if (marker === 0xff) { at++; continue; }
+      if (marker === 0xd8 || marker === 0x01 || (marker >= 0xd0 && marker <= 0xd7)) { at += 2; continue; }
+      // A start-of-frame marker carries the size; DHT, JPG, and DAC share its range but do not.
+      if (marker >= 0xc0 && marker <= 0xcf && ![0xc4, 0xc8, 0xcc].includes(marker)) {
+        const width = data.readUInt16BE(at + 7), height = data.readUInt16BE(at + 5);
+        return turned ? { width: height, height: width, type: 'jpeg' } : { width, height, type: 'jpeg' };
+      }
+      // Browsers turn a photo upright from its EXIF orientation, so a quarter turn swaps its sides.
+      if (marker === 0xe1 && ascii(at + 4, at + 10) === 'Exif\0\0') turned = exifTurned(data, at + 10);
+      if (marker === 0xd9 || marker === 0xda) return null;
+      at += 2 + data.readUInt16BE(at + 2);
+    }
+  }
+  return null;
+}
+
+// Whether a JPEG's EXIF orientation (5 to 8) turns it a quarter, from its TIFF header.
+function exifTurned(data, tiff) {
+  if (tiff + 8 > data.length) return false;
+  const little = data.toString('latin1', tiff, tiff + 2) === 'II';
+  const u16 = at => (little ? data.readUInt16LE(at) : data.readUInt16BE(at));
+  const u32 = at => (little ? data.readUInt32LE(at) : data.readUInt32BE(at));
+  const ifd = tiff + u32(tiff + 4);
+  if (ifd + 2 > data.length) return false;
+  for (let i = 0, n = u16(ifd); i < n && ifd + 14 + i * 12 <= data.length; i++) {
+    const entry = ifd + 2 + i * 12;
+    if (u16(entry) === 0x0112) return u16(entry + 8) >= 5 && u16(entry + 8) <= 8;
+  }
+  return false;
+}
+
+const IMPORT_MATERIALS = ['glass', 'stone', 'gold'];
+const IMPORT_TYPES = { png: '.png', gif: '.gif', jpeg: '.jpg', webp: '.webp' };
+
+// An image of one's own as a project: the image, a picture function that analyses it in the
+// browser, and a manifest whose band follows the image's shape.
+export async function importProject(image, directory, { material = 'glass', stoneSize = 12 } = {}) {
+  if (!IMPORT_MATERIALS.includes(material)) throw new Error('--material must be glass, stone, or gold.');
+  const size = numeric(stoneSize, 12, '--stone-size', 3, 100);
+  let data;
+  try { data = await readFile(image); }
+  catch (error) { throw new Error(`Cannot read image ${path.basename(image)}: ${error.message}`); }
+  const info = imageSize(data);
+  if (!info || !(info.width > 0 && info.height > 0)) throw new Error(`Cannot read the size of ${path.basename(image)}. Use a PNG, JPEG, WebP, or GIF image.`);
+  const destination = await scaffold(directory);
+  const name = 'image' + IMPORT_TYPES[info.type];
+  await writeFile(path.join(destination, name), data);
+  const module = (await readFile(path.join(ROOT, 'examples/photo/photo.js'), 'utf8')).replaceAll('../../engine/image.js', './engine/image.js');
+  await writeFile(path.join(destination, 'photo.js'), module);
+  const project = JSON.parse(await readFile(path.join(ROOT, 'examples/photo/project.json'), 'utf8'));
+  project.title = path.basename(image, path.extname(image)) || 'Your mosaic';
+  // The engine lays an image 1600 millimetres wide, so the band shares its shape.
+  project.band = [1600, Math.max(2, Math.round(1600 * info.height / info.width))];
+  project.scenes[0].picture.args = { src: `./${name}`, material, stoneSize: size };
+  await writeFile(path.join(destination, 'project.json'), JSON.stringify(project, null, 2) + '\n');
+  return { destination, ...info };
+}
+
 export async function main(argv = process.argv.slice(2)) {
   const args = parseArgs(argv);
   if (args.command === 'help') { console.log(HELP); return; }
   if (args.command === 'init') {
     const directory = await initProject(args.project);
     console.log(`Created ${directory}\nPreview: node ${shellPath(fileURLToPath(import.meta.url))} preview ${shellPath(path.join(directory, 'project.json'))}`);
+    return;
+  }
+  if (args.command === 'import') {
+    const { destination, width, height } = await importProject(args.image, args.project, { material: args.material, stoneSize: args['stone-size'] });
+    const manifest = shellPath(path.join(destination, 'project.json'));
+    console.log(`Created ${destination} from a ${width}×${height} image\nPreview: node ${shellPath(fileURLToPath(import.meta.url))} preview ${manifest}\nStill: node ${shellPath(fileURLToPath(import.meta.url))} still ${manifest} --out ${shellPath(path.join(destination, 'output/still.png'))}`);
     return;
   }
   const { file, project, metadata } = await inspectProject(args.project);

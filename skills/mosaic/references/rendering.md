@@ -11,6 +11,7 @@ Do not install system software or use paid rendering infrastructure outside the 
 
 ```bash
 node <skill-directory>/scripts/mosaic.mjs init ./my-mosaic
+node <skill-directory>/scripts/mosaic.mjs import ./photo.jpg ./my-photo
 node <skill-directory>/scripts/mosaic.mjs inspect ./my-mosaic/project.json
 node <skill-directory>/scripts/mosaic.mjs preview ./my-mosaic/project.json
 node <skill-directory>/scripts/mosaic.mjs still ./my-mosaic/project.json --time 2 --width 1920 --samples 4 --out ./output/art.png

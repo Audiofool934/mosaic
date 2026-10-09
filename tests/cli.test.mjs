@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { HELP, captureOptions, initProject, inspectProject, parseArgs, shellPath } from '../tools/cli.mjs';
+import { HELP, captureOptions, imageSize, importProject, initProject, inspectProject, parseArgs, shellPath } from '../tools/cli.mjs';
 import { fingerprintProject } from '../tools/capture.mjs';
 
 const cli = fileURLToPath(new URL('../tools/cli.mjs', import.meta.url));
@@ -14,6 +14,8 @@ const project = { version: 1, seed: 42, frames: 240, fps: [30000, 1001], band: [
 test('CLI parses explicit commands and rejects ambiguous or misspelled input', () => {
   assert.deepEqual(parseArgs(['render', 'my art/project.json', '--from', '12', '--to', '24']), { command: 'render', project: 'my art/project.json', from: '12', to: '24' });
   assert.equal(parseArgs([]).command, 'help');
+  assert.deepEqual(parseArgs(['import', 'my photo.jpg', 'my art', '--material', 'gold', '--stone-size', '8']), { command: 'import', image: 'my photo.jpg', project: 'my art', material: 'gold', 'stone-size': '8' });
+  for (const args of [['import'], ['import', 'photo.jpg'], ['import', 'a.jpg', 'b', 'c'], ['import', 'a.jpg', 'b', '--time', '2']]) assert.throws(() => parseArgs(args));
   for (const args of [['init'], ['unknown'], ['still', '--sample', '2'], ['still', '--width'], ['inspect', 'one', 'two'], ['still', '--width', '200', '--width', '400']]) assert.throws(() => parseArgs(args));
 });
 
@@ -153,4 +155,75 @@ test('printed paths are quoted for a shell only where they need it', async () =>
     assert.equal(result.status, 0, result.stderr);
     assert.ok(result.stdout.includes(`preview "${path.join(directory, 'project.json')}"`), result.stdout);
   } finally { await rm(parent, { recursive: true, force: true }); }
+});
+
+// Minimal headers: only the bytes the size reader looks at.
+function jpeg({ width, height, orientation }) {
+  const parts = [Buffer.from([0xff, 0xd8])];
+  if (orientation) {
+    const tiff = Buffer.alloc(26);
+    tiff.write('II', 0, 'latin1'); tiff.writeUInt16LE(42, 2); tiff.writeUInt32LE(8, 4);
+    tiff.writeUInt16LE(1, 8); tiff.writeUInt16LE(0x0112, 10); tiff.writeUInt16LE(3, 12); tiff.writeUInt32LE(1, 14); tiff.writeUInt16LE(orientation, 18);
+    const body = Buffer.concat([Buffer.from('Exif\0\0', 'latin1'), tiff]);
+    const head = Buffer.from([0xff, 0xe1, 0, 0]); head.writeUInt16BE(body.length + 2, 2);
+    parts.push(head, body);
+  }
+  const sof = Buffer.from([0xff, 0xc0, 0, 17, 8, 0, 0, 0, 0, 3, 1, 0x22, 0, 2, 0x11, 1, 3, 0x11, 1]);
+  sof.writeUInt16BE(height, 5); sof.writeUInt16BE(width, 7);
+  parts.push(sof, Buffer.from([0xff, 0xd9]));
+  return Buffer.concat(parts);
+}
+
+test('image sizes are read from PNG, GIF, WebP, and JPEG headers, upright', async () => {
+  const png = Buffer.alloc(24); png.writeUInt32BE(0x89504e47, 0); png.writeUInt32BE(0x0d0a1a0a, 4); png.write('IHDR', 12, 'latin1'); png.writeUInt32BE(640, 16); png.writeUInt32BE(480, 20);
+  assert.deepEqual(imageSize(png), { width: 640, height: 480, type: 'png' });
+  const gif = Buffer.alloc(10); gif.write('GIF89a', 0, 'latin1'); gif.writeUInt16LE(320, 6); gif.writeUInt16LE(200, 8);
+  assert.deepEqual(imageSize(gif), { width: 320, height: 200, type: 'gif' });
+  const webp = (chunk) => { const b = Buffer.alloc(30); b.write('RIFF', 0, 'latin1'); b.write('WEBP', 8, 'latin1'); b.write(chunk, 12, 'latin1'); return b; };
+  const lossless = webp('VP8L'); lossless.writeUInt32LE((800 - 1) | ((600 - 1) << 14), 21);
+  assert.deepEqual(imageSize(lossless), { width: 800, height: 600, type: 'webp' });
+  const extended = webp('VP8X'); extended.writeUIntLE(1999, 24, 3); extended.writeUIntLE(999, 27, 3);
+  assert.deepEqual(imageSize(extended), { width: 2000, height: 1000, type: 'webp' });
+  assert.deepEqual(imageSize(await readFile(new URL('../examples/photo/heron.webp', import.meta.url))), { width: 1280, height: 720, type: 'webp' });
+  assert.deepEqual(imageSize(jpeg({ width: 4032, height: 3024 })), { width: 4032, height: 3024, type: 'jpeg' });
+  assert.deepEqual(imageSize(jpeg({ width: 4032, height: 3024, orientation: 6 })), { width: 3024, height: 4032, type: 'jpeg' });
+  assert.deepEqual(imageSize(jpeg({ width: 4032, height: 3024, orientation: 3 })), { width: 4032, height: 3024, type: 'jpeg' });
+  assert.equal(imageSize(Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"/>')), null);
+});
+
+test('import makes a portable project whose band follows the image', async () => {
+  const parent = await mkdtemp(path.join(os.tmpdir(), 'mosaic-import-test-'));
+  try {
+    const portrait = path.join(parent, 'tall photo.jpg');
+    await writeFile(portrait, jpeg({ width: 4032, height: 3024, orientation: 6 }));
+    const directory = path.join(parent, 'tall art');
+    const made = await importProject(portrait, directory, { material: 'gold', stoneSize: '9' });
+    assert.equal(made.width, 3024); assert.equal(made.height, 4032);
+    const { project: manifest, metadata } = await inspectProject(path.join(directory, 'project.json'));
+    assert.deepEqual(manifest.band, [1600, 2133]);
+    assert.equal(metadata.title, 'tall photo');
+    assert.deepEqual(metadata.scenes[0].picture, { module: './photo.js', export: 'photo', args: { src: './image.jpg', material: 'gold', stoneSize: 9 } });
+    const module = await readFile(path.join(directory, 'photo.js'), 'utf8');
+    assert.match(module, /from "\.\/engine\/image\.js"/);
+    assert.deepEqual(await readFile(path.join(directory, 'image.jpg')), await readFile(portrait));
+    assert.match(await readFile(path.join(directory, 'engine/image.js'), 'utf8'), /export async function imageToPicture/);
+    assert.match(await readFile(path.join(directory, 'index.html'), 'utf8'), /project\.json/);
+    await assert.rejects(importProject(portrait, directory), /must be empty/);
+    await assert.rejects(importProject(portrait, path.join(parent, 'other'), { material: 'chrome' }), /glass, stone, or gold/);
+    await assert.rejects(importProject(portrait, path.join(parent, 'other'), { stoneSize: '1' }), /stone-size/);
+    const svg = path.join(parent, 'mark.svg');
+    await writeFile(svg, '<svg xmlns="http://www.w3.org/2000/svg"/>');
+    await assert.rejects(importProject(svg, path.join(parent, 'other')), /PNG, JPEG, WebP, or GIF/);
+    const result = spawnSync(process.execPath, [cli, 'import', portrait, path.join(parent, 'from cli')], { encoding: 'utf8' });
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout, /3024×4032 image/);
+    assert.ok(result.stdout.includes(`preview "${path.join(parent, 'from cli', 'project.json')}"`), result.stdout);
+  } finally { await rm(parent, { recursive: true, force: true }); }
+});
+
+test('the shipped photo and page-wall examples are valid projects', async () => {
+  const photo = await inspectProject(fileURLToPath(new URL('../examples/photo/project.json', import.meta.url)));
+  assert.deepEqual(photo.project.band, [1600, 900]);
+  const wall = await inspectProject(fileURLToPath(new URL('../examples/page-wall/project.json', import.meta.url)));
+  assert.equal(wall.metadata.scenes[0].picture.export, 'pageWall');
 });

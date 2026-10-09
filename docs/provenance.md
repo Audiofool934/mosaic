@@ -55,6 +55,8 @@ The other works in its gallery are kept in `home/works/` as they were made, and 
 - `arrakis.mp4` is the whole 26-second film of `piece/arrakis` at `36c655e`, drawn for this gallery with a copy of this engine and rendered by its command line at 1280 pixels wide, then encoded for the web at 30 frames a second.
 - Each poster is a single frame of its film.
 
+`examples/photo/heron.webp` is a copy of `home/media/sample-heron.webp`, the flat painting of `examples/nocturne.js` that `tools/media.mjs` renders for the studio; it is project-authored and lets the photo example run without an outside image.
+
 Odyssey Lantern draws every picture in code from Homer's poem, which is in the public domain.
 The Road Home and Arrakis draw every picture in code; they are fan work on the worlds of Tolkien and of Frank Herbert's *Dune*, shown here by the author's choice, take no frame, character, or design from any film, and carry no audio track.
 

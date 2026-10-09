@@ -205,8 +205,9 @@ Different drivers can differ in rasterization and floating-point rounding, so a 
 
 ## Tools and skill
 
-`tools/cli.mjs` exposes `init`, `inspect`, `preview`, `still`, and `render`.
+`tools/cli.mjs` exposes `init`, `import`, `inspect`, `preview`, `still`, and `render`.
 Initialization creates a project manifest and editable scene source.
+Import copies an image into a new project with `examples/photo/photo.js`, a picture function that analyses it in the browser, and sets the manifest's band to the image's upright shape, read from its header.
 Preview serves the project to a browser, while capture evaluates the same engine at explicit times.
 MP4 encoding uses a separately installed FFmpeg executable.
 

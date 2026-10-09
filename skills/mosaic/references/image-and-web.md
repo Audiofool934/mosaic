@@ -7,6 +7,23 @@ Prefer a source with a clear silhouette and readable lighting.
 Inspect fine features after conversion, especially eyes, fingers, thin lines, and text.
 Conversion preserves image structure but does not understand those features semantically.
 
+## From the command line
+
+`import <image> <directory>` makes a project of a PNG, JPEG, WebP, or GIF file.
+It copies the image and the engine into the directory, writes `photo.js`, and sets the manifest's `band` to the image's shape, upright as a browser shows it.
+`--material` chooses `glass`, `stone`, or `gold`, and `--stone-size` the stone size in millimetres.
+Then `inspect`, `preview`, `still`, and `render` work on it as on any project.
+
+```bash
+node <skill-directory>/scripts/mosaic.mjs import ./photo.jpg ./photo-mosaic --material glass --stone-size 12
+node <skill-directory>/scripts/mosaic.mjs still ./photo-mosaic/project.json --width 1600 --samples 4 --out ./photo-mosaic/output/still.png
+```
+
+The picture is the function in `examples/photo/photo.js`: its `src` is the image's path relative to the module, and its other arguments are `imageToPicture()` options, so `paletteSize`, `detail`, or `seed` can be added to the scene's `args` in `project.json`.
+The image is analysed in the capture browser, never uploaded.
+If you change the image, keep `band` at 1600 by 1600 × height / width so the output keeps its shape.
+`examples/photo/` is the same project made from a flat painting of the nocturne; inspect or capture it to check an installation.
+
 ```javascript
 import { createMosaic } from './engine/runtime.js';
 const artwork = await createMosaic(document.querySelector('canvas'), {

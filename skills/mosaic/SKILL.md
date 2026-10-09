@@ -24,7 +24,8 @@ Read [scene-authoring.md](references/scene-authoring.md) for the drawing, materi
 Use a clear silhouette, a controlled palette, and stone courses that explain the subject's form.
 Show macro and full-frame views during iteration; a beautiful close-up does not guarantee a legible composition.
 
-For a supplied image, use the browser studio's import control or the `imageToPicture()` API.
+For a supplied image, run `import <image> <directory>` to make a project of it, then inspect, preview, and capture it like any other.
+In a page of your own, use the `imageToPicture()` API; people can also use the browser studio's import control.
 For an existing web page, start from `assets/runtime/examples/page-wall/`, which cuts a wall around the page's own blocks.
 Read [image-and-web.md](references/image-and-web.md) for import options, the page wall, and website embedding.
 Image conversion is a bounded colour analysis followed by contour tessellation.

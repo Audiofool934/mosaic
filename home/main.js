@@ -1,9 +1,10 @@
-import { createMosaic } from "../engine/runtime.js";
+import { contextLost, createMosaic, releaseContext } from "../engine/runtime.js";
 import { createStoneSound } from "../engine/sound.js";
 import { clamp } from "../engine/util.js";
 import { createAtelier } from "./atelier.js";
 import { createGallery } from "./gallery.js";
 import { ITEMS } from "./bar.js";
+import { whenLost } from "./context.js";
 import { createBar } from "./nav.js";
 import { watchRooms } from "./rooms.js";
 import { createSlabs, sizeType } from "./slabs.js";
@@ -143,7 +144,7 @@ function hold(seconds) {
 }
 
 function advance() {
-  if (!live || held || (paused && live.cycle)) return;
+  if (!live || held || (paused && live.cycle) || contextLost(live.canvas)) return;
   const m = live.mosaic;
   let { time, playing } = m.getState();
   if (playing) return;
@@ -277,7 +278,10 @@ async function build() {
     mosaic = await createMosaic(canvas, { project: film.project, width: view.px[0], height: view.px[1], samples: 1, interactive: true, worker: true, coat: COAT, onProgress: (line) => log.push(line) });
     if (!first) await mosaic.ready;
   } catch (error) {
-    if (!first) canvas.remove();
+    if (!first) {
+      releaseContext(canvas);
+      canvas.remove();
+    }
     if (token !== generation || live) return;
     console.error("The wall could not be laid:", error);
     // Without a wall the page scrolls as a column, over a still of the first screen.
@@ -291,14 +295,19 @@ async function build() {
   }
   if (token !== generation) {
     mosaic.dispose();
-    if (!first) canvas.remove();
+    if (!first) {
+      releaseContext(canvas);
+      canvas.remove();
+    }
     return;
   }
   const previous = live;
   // A wall cut again has every picture before it is shown; the first joins them as they come.
   live = {
     mosaic, canvas, scale: layout.scale, view, width: layout.width, height: layout.height, wide, joined: !first,
-    gate: film.gate, rest: film.rest, cycle: wide ? { gate: film.gate, laid: film.laid, rests: film.rests, first: film.first, ids: film.cycle } : null, cycled: false
+    gate: film.gate, rest: film.rest, cycle: wide ? { gate: film.gate, laid: film.laid, rests: film.rests, first: film.first, ids: film.cycle } : null, cycled: false,
+    // A wall whose context is taken back and not restored is cut again on a fresh canvas.
+    unwatch: whenLost(canvas, () => { if (live?.canvas === canvas) building = building.then(build); })
   };
   lastLog = log;
   mosaic.setView({ frame: framing(canvas, layout.scale, view) });
@@ -309,7 +318,9 @@ async function build() {
   if (previous) {
     // The wall cut again shows the same scene at rest, or as far as the last one got.
     const { time } = previous.mosaic.getState();
+    previous.unwatch();
     previous.mosaic.dispose();
+    releaseContext(previous.canvas);
     previous.canvas.remove();
     canvas.hidden = false;
     const rests = live.cycle?.rests;
@@ -528,7 +539,8 @@ addEventListener("blur", settle);
 // taller viewport, as when a phone's toolbar hides or a window is made taller, only needs a
 // taller canvas; it resizes nothing on the page, so it is heard from the window itself.
 function relayout() {
-  if (!live) return;
+  // A wall that has lost its context is cut again on its own, for the layout then.
+  if (!live || contextLost(live.canvas)) return;
   const width = root.clientWidth;
   const height = wide ? Math.round($("top").getBoundingClientRect().height) : root.scrollHeight;
   if (width !== live.width || Math.abs(height - live.height) > 2 || wide !== wants()) building = building.then(build);
@@ -555,6 +567,7 @@ window.addEventListener("pagehide", () => {
   cancelAnimationFrame(watching);
   clearTimeout(holding);
   held = false;
+  live?.unwatch();
   live?.mosaic.dispose();
   live = null;
 });

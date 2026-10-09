@@ -157,8 +157,30 @@ try {
     require(compiles > 0, 'The restored context drew with the programs it lost.');
     checks.push('context loss and restoration allow an error-free identical fresh frame');
 
+    // A context taken back and never restored, as a phone short of memory does, is named lost:
+    // live input is let go, a new artwork on that canvas is refused plainly, and a fresh canvas
+    // draws again. A context given back is lost at once.
+    const { contextLost, createMosaic, releaseContext } = await import('/engine/runtime.js');
+    const lostCanvas = document.createElement('canvas');
+    const lostArt = await createMosaic(lostCanvas, { project: '/examples/nocturne.json', width: 320, height: 180, samples: 1 });
+    require(!contextLost(lostCanvas), 'A fresh context was named lost.');
+    lostCanvas.getContext('webgl2').getExtension('WEBGL_lose_context').loseContext();
+    require(contextLost(lostCanvas), 'A context taken back was not named lost.');
+    lostArt.setPointer({ x: 0.5, y: 0.5, active: true });
+    lostArt.setLamp({ x: 0.5, y: 0.5 });
+    lostArt.requestFrame();
+    const refusal = await createMosaic(lostCanvas, { project: '/examples/nocturne.json', width: 320, height: 180, samples: 1 }).then(() => null, error => error.message);
+    require(/context was lost/.test(refusal ?? ''), `A lost canvas was not refused plainly: ${refusal}`);
+    lostArt.dispose();
+    const freshCanvas = document.createElement('canvas');
+    const freshArt = await createMosaic(freshCanvas, { project: '/examples/nocturne.json', width: 320, height: 180, samples: 1 });
+    freshArt.seek(2);
+    releaseContext(freshCanvas);
+    require(contextLost(freshCanvas), 'A context given back was not lost.');
+    freshArt.dispose();
+    checks.push('a context never restored is named lost, its canvas refused, and a fresh canvas draws again');
+
     // Live input draws while the stones move and stops once they rest under a still pointer.
-    const { createMosaic } = await import('/engine/runtime.js');
     const live = await createMosaic(document.createElement('canvas'), { project: '/examples/nocturne.json', width: 320, height: 180, samples: 1 });
     const heard = [];
     live.onContact(events => heard.push(...events));

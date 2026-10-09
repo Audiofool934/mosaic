@@ -1,6 +1,7 @@
 // The bar on the page: its stones in a canvas of their own, a link over each name, the gold
 // that follows the section in view, and the lamp the pointer holds over it.
-import { createMosaic } from "../engine/runtime.js";
+import { contextLost, createMosaic, releaseContext } from "../engine/runtime.js";
+import { whenLost } from "./context.js";
 import { ITEMS, barFilm, barLayout } from "./bar.js";
 
 // A section is the one in view once its top has passed this share of the screen's height.
@@ -32,7 +33,7 @@ export function createBar(nav, { reduceMotion, onReady = () => {} }) {
     const from = current;
     current = i;
     links.forEach((a, k) => (k === i ? a.setAttribute("aria-current", "true") : a.removeAttribute("aria-current")));
-    if (!live || (i === from && !at)) return;
+    if (!live || (i === from && !at) || contextLost(live.canvas)) return;
     const t = live.rests[i];
     if (at || reduceMotion.matches) live.mosaic.seek(t);
     else live.mosaic.play({ to: t, rate: Math.max(1, Math.abs(i - from)) });
@@ -60,6 +61,7 @@ export function createBar(nav, { reduceMotion, onReady = () => {} }) {
       mosaic = await createMosaic(canvas, { project, width: px[0], height: px[1], samples: dpr < 1.5 ? 2 : 1, interactive: true, worker: true, lamp: LAMP, fov: 1, fringes: false });
       await mosaic.ready;
     } catch (error) {
+      releaseContext(canvas);
       if (token === generation && !live) {
         console.error("The bar could not be laid:", error);
         nav.dataset.state = "still";
@@ -68,6 +70,7 @@ export function createBar(nav, { reduceMotion, onReady = () => {} }) {
     }
     if (token !== generation) {
       mosaic.dispose();
+      releaseContext(canvas);
       return;
     }
     mosaic.setView({ frame: { x: bar.W / 2, y: bar.H / 2, w: bar.W } });
@@ -82,10 +85,15 @@ export function createBar(nav, { reduceMotion, onReady = () => {} }) {
     nav.style.setProperty("--bar-w", `${bar.W}px`);
     nav.style.setProperty("--bar-h", `${bar.H}px`);
     nav.style.setProperty("--bar-radius", `${bar.radius}px`);
-    live?.mosaic.dispose();
-    live?.canvas.remove();
+    if (live) {
+      live.unwatch();
+      live.mosaic.dispose();
+      releaseContext(live.canvas);
+      live.canvas.remove();
+    }
     nav.prepend(canvas);
-    live = { mosaic, canvas, rests };
+    // A bar whose context is taken back and not restored is cut again on a fresh canvas.
+    live = { mosaic, canvas, rests, unwatch: whenLost(canvas, () => { if (live?.canvas === canvas) build(); }) };
     nav.dataset.state = "live";
     const i = inView();
     if (first && !reduceMotion.matches) {
@@ -129,6 +137,7 @@ export function createBar(nav, { reduceMotion, onReady = () => {} }) {
   });
   addEventListener("pagehide", () => {
     generation++;
+    live?.unwatch();
     live?.mosaic.dispose();
     live?.canvas.remove();
     live = null;

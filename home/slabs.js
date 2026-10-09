@@ -2,8 +2,9 @@
 // resolution, into a canvas behind its words, the ones in view first. The pointer holds a lamp
 // over the slab it is on, as over the bar, and so does a keyboard's focus: that slab is cut
 // again on a canvas of its own, to the same stones, and drawn live over the still one while
-// the lamp is held, so the lamp is all that changes.
-import { createMosaic } from "../engine/runtime.js";
+// the lamp is held, so the lamp is all that changes. A finger lights none: it would hide the
+// lamp, and the lamp takes a graphics context of its own, which a phone can ill spare.
+import { contextLost, createMosaic } from "../engine/runtime.js";
 import { typeBlock } from "./slab.js";
 
 const MODULE = new URL("./slab.js", import.meta.url).href;
@@ -96,9 +97,13 @@ const AT_ONCE = 2;
 export function createSlabs(root = document) {
   // The stills are drawn on these, a slab at a time on each.
   const easels = Array.from({ length: AT_ONCE }, () => document.createElement("canvas"));
-  const live = { canvas: document.createElement("canvas"), slab: null, key: null, mosaic: null, building: null, timer: 0 };
-  live.canvas.className = "slab-live";
-  live.canvas.setAttribute("aria-hidden", "true");
+  const liveCanvas = () => {
+    const canvas = document.createElement("canvas");
+    canvas.className = "slab-live";
+    canvas.setAttribute("aria-hidden", "true");
+    return canvas;
+  };
+  const live = { canvas: liveCanvas(), slab: null, key: null, mosaic: null, building: null, timer: 0 };
   const states = new Map();
   let queue = Promise.resolve(), generation = 0;
 
@@ -108,7 +113,11 @@ export function createSlabs(root = document) {
     return Math.max(0, r.left - innerWidth, -r.right) + Math.max(0, r.top - innerHeight, -r.bottom);
   };
 
-  async function still(job, easel) {
+  // An easel, or the live canvas, whose context the browser has taken back draws no more, so
+  // a fresh canvas takes its place.
+  async function still(job, i) {
+    if (contextLost(easels[i])) easels[i] = document.createElement("canvas");
+    const easel = easels[i];
     const mosaic = await lay(easel, job);
     try {
       let state = states.get(job.slab);
@@ -137,17 +146,17 @@ export function createSlabs(root = document) {
       const px = [Math.max(2, Math.round(slabLay.w * dpr)), Math.max(2, Math.round(slabLay.h * dpr))];
       return { slab, lay: slabLay, px, dpr, key: JSON.stringify([slabLay, px]), far: distance(slab) };
     }).filter((job) => states.get(job.slab)?.key !== job.key).sort((a, b) => a.far - b.far);
-    queue = queue.then(() => Promise.all(easels.map(async (easel) => {
+    queue = queue.then(() => Promise.all(easels.map(async (_, i) => {
       while (jobs.length && token === generation) {
         const job = jobs.shift();
         try {
-          await still(job, easel);
+          await still(job, i);
         } catch (error) {
           console.error("A slab could not be laid:", error);
         }
       }
       // An easel at rest keeps no picture.
-      easel.width = easel.height = 1;
+      easels[i].width = easels[i].height = 1;
     })));
     return queue;
   }
@@ -159,6 +168,7 @@ export function createSlabs(root = document) {
     live.mosaic?.dispose();
     Object.assign(live, { mosaic: null, slab: null, key: null });
     live.canvas.remove();
+    if (contextLost(live.canvas)) live.canvas = liveCanvas();
     Object.assign(live.canvas, { width: state.px[0], height: state.px[1] });
     const promise = lay(live.canvas, state).then((mosaic) => {
       if (live.building?.promise !== promise) return mosaic.dispose();
@@ -194,12 +204,12 @@ export function createSlabs(root = document) {
   const slabAt = (event) => event.target.closest?.("[data-slab]");
   addEventListener("pointermove", (event) => {
     const slab = slabAt(event);
-    if (slab && (event.pointerType === "mouse" || event.buttons)) hold(slab, event.clientX, event.clientY);
+    if (slab && event.pointerType !== "touch" && (event.pointerType === "mouse" || event.buttons)) hold(slab, event.clientX, event.clientY);
     else if (live.slab && slab !== live.slab) letGo();
   }, { passive: true });
   addEventListener("pointerdown", (event) => {
     const slab = slabAt(event);
-    if (slab) hold(slab, event.clientX, event.clientY);
+    if (slab && event.pointerType !== "touch") hold(slab, event.clientX, event.clientY);
   }, { passive: true });
   addEventListener("pointerup", (event) => { if (event.pointerType !== "mouse") letGo(); });
   addEventListener("pointercancel", letGo);

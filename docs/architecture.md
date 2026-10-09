@@ -112,6 +112,10 @@ A flow can lift its stones on its own clock: with `rise: [from, to, mm]` the out
 A view that jumps half its width or more from one frame to the next has been cut, not slid, so the pointer's trail starts again from it.
 `fov` narrows the lens, so the camera stands back and looks straight at every part of a long, low panel, and `fringes: false` drops the lens's colour fringes.
 `coat` sets the colour of the bare bed, which shows wherever no stone has been set yet, or a stone has come off its bed.
+A browser may take back a canvas's WebGL context, as a phone short of memory does, and never restore it, and a canvas that has lost its context draws no more.
+`contextLost(canvas)` says whether that has happened to the context a mosaic drew with on that canvas, so a page can draw on a fresh canvas instead.
+`releaseContext(canvas)` gives the context back once a page is done with the canvas, since a browser keeps only so many.
+While the context is lost, `setPointer`, `setLamp`, and `requestFrame` do nothing.
 
 The project page is such a wall.
 `home/wall.js` sets the name on the first screen, in white marble with its AI inlaid in gold, in front of four scenes from `examples/landscapes.js`: moonlit water, dunes at dusk, sweeping currents, and peaks at first light.
@@ -150,6 +154,7 @@ The bar lays the glass round each of its names the same way.
 `home/slabs.js` sizes each line of stone type from its cell, so the page lays out around it, and sets it on more lines, from `data-type-narrow`, where it would not fit its slab; then it cuts and lights every slab at the screen's full resolution, the ones in view first, and keeps each as a still canvas behind the slab's words.
 The camera stands four metres from every slab with a lens just wide enough for it, so it looks almost straight down and the whole slab stays within its reach.
 The pointer holds the bar's lamp over the slab it is on, and so does a keyboard's focus: that slab is cut again on a canvas of its own, to the same stones, and drawn live over its still while the lamp is held.
+A finger lights no slab: it would hide the lamp, and the lamp takes a graphics context of its own, which a phone can ill spare.
 The gallery hangs every work at once in two rows, each in its frame with a slab under it for its plaque: each row's frames stand as high as each other and both rows reach the same width, so the hang's four outer edges are straight, and a work whose shape differs a little from its frame's is cropped to it; a film plays by itself while it is in view, unless motion is reduced, and any work opens whole, uncropped, as large as the screen allows, with its caption.
 On a phone the works hang without their plaques in one column, the four films and then the two pictures side by side, and the materials' eight samples hang two to a row, each named on a small tag under it.
 The studio's room holds the whole studio in a frame on the page, with `home/atelier.js`, so nobody leaves the page for it: it lays the studio's own artwork, its film, one of three flat paintings `tools/media.mjs` renders from the examples, or an image of one's own, dropped on the frame or chosen, in glass, stone, or gold, with fine, balanced, or bold stones.
@@ -161,6 +166,7 @@ On a phone the frame stands tall, 4 by 5, so a photo taken upright fills it, and
 The last room sets the skill for a coding agent, with the command line, across the room, its words beside its code, and the colophon under it as a band of four columns; on a phone one stands under the other, with only their names, the commands, and the licence.
 The image is read on the page, cropped to the frame, and analysed and cut in a worker by `home/image.js`, so the page stays responsive, and it never leaves the browser.
 `home/main.js` measures the layout, has the pictures cut in workers, keeps the canvas moving with the scroll, and cuts the wall again when a new size reflows the page, on the screen that was in view.
+A part of the page whose context is lost and not restored within a moment, the wall, the bar, the studio, or a slab's easel, is laid again on a fresh canvas, with `home/context.js`, and the page gives back the context of every canvas it is done with.
 The name is laid first, and the page waits there until the pictures it lays next have been cut, so none appears half laid; the wide wall's scenes flow only once every one of them has been cut.
 Nothing is drawn while the stones are still: a column of rooms rests once laid, and the wide wall between flows.
 Images imported through that studio are processed locally.

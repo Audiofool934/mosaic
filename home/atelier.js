@@ -5,7 +5,8 @@
 // pointer or holds them, plays and scrubs the film, and saves what is in the frame as a PNG.
 // An image never leaves the browser: it is read here, fitted to the frame, and cut in a worker.
 // The frame is first laid when it comes near the screen.
-import { createMosaic } from "../engine/runtime.js";
+import { contextLost, createMosaic } from "../engine/runtime.js";
+import { whenLost } from "./context.js";
 
 const MODULE = new URL("./image.js", import.meta.url).href;
 // The image's longest side when it is analysed, in pixels.
@@ -53,7 +54,8 @@ const clock = (seconds) => {
 // coat: the colour of the bare bed, which shows under a stone the pointer lifts, as on the wall.
 export function createAtelier(figure, { reduceMotion, coat, onLaid = () => {} }) {
   const $ = (selector) => figure.querySelector(selector);
-  const frame = $(".frame"), canvas = frame.querySelector("canvas"), note = $("#atelier-note"), title = $("#atelier-title");
+  const frame = $(".frame"), note = $("#atelier-note"), title = $("#atelier-title");
+  let canvas = frame.querySelector("canvas");
   const picks = [...figure.querySelectorAll(".pick")], file = $("#atelier-file");
   const materials = [...figure.querySelectorAll("[data-material]")], sizes = [...figure.querySelectorAll("[data-size]")];
   const light = $("#atelier-light"), zoom = $("#atelier-zoom"), move = $("#atelier-move"), save = $("#atelier-save");
@@ -91,9 +93,22 @@ export function createAtelier(figure, { reduceMotion, coat, onLaid = () => {} })
     if (state.playing) frameId = requestAnimationFrame(transport);
   }
 
+  // A canvas whose context the browser has taken back draws no more, so the frame is laid on a
+  // fresh one in its place: at once when something is chosen, and on its own if the context
+  // is not restored soon.
+  let unwatch = whenLost(canvas, () => lay());
+  function fresh() {
+    unwatch();
+    const next = canvas.cloneNode(false);
+    canvas.replaceWith(next);
+    canvas = next;
+    unwatch = whenLost(canvas, () => lay());
+  }
+
   async function lay() {
     const mine = ++token;
     cancelAnimationFrame(frameId);
+    if (contextLost(canvas)) fresh();
     say(source.project ? (source.film ? "Cutting the film into stone." : "Laying the studio's mosaic.") : typeof source.image === "string" ? "Cutting the painting into stone." : "Cutting your image into stone, in this browser.");
     try {
       const r = frame.getBoundingClientRect(), aspect = r.width / r.height;
@@ -140,8 +155,10 @@ export function createAtelier(figure, { reduceMotion, coat, onLaid = () => {} })
   frame.addEventListener("pointerleave", settle);
   frame.addEventListener("pointercancel", settle);
   // The arrow keys move a point over the frame as the pointer would, and Escape lets it go.
+  // They are heard on the frame, since its canvas may be swapped for a fresh one.
   let key = { x: 0.5, y: 0.5 };
-  canvas.addEventListener("keydown", (event) => {
+  frame.addEventListener("keydown", (event) => {
+    if (event.target !== canvas) return;
     if (event.key === "Escape") return settle();
     const step = { ArrowLeft: [-0.06, 0], ArrowRight: [0.06, 0], ArrowUp: [0, -0.06], ArrowDown: [0, 0.06] }[event.key];
     if (!step || !mosaic || !moving || reduceMotion.matches) return;
@@ -149,7 +166,7 @@ export function createAtelier(figure, { reduceMotion, coat, onLaid = () => {} })
     key = { x: Math.min(1, Math.max(0, key.x + step[0])), y: Math.min(1, Math.max(0, key.y + step[1])) };
     mosaic.setPointer({ ...key, active: true });
   });
-  canvas.addEventListener("blur", settle);
+  frame.addEventListener("focusout", (event) => { if (event.target === canvas) settle(); });
 
   function choose(pick) {
     source = sourceOf(pick);

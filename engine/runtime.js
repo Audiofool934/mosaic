@@ -58,6 +58,14 @@ function buildInWorker(project, options, progress) {
   });
 }
 
+// The WebGL context each canvas was drawn with. A browser may take one back, as a phone short
+// of memory does, and never restore it, and a canvas that has lost its context draws no more:
+// a page can ask whether that has happened, so as to draw on a fresh canvas instead, and can
+// give a context back once it is done with its canvas, since a browser keeps only so many.
+const contexts = new WeakMap();
+export function contextLost(canvas) { return Boolean(contexts.get(canvas)?.isContextLost()); }
+export function releaseContext(canvas) { contexts.get(canvas)?.getExtension('WEBGL_lose_context')?.loseContext(); }
+
 export async function createMosaic(canvas, options = {}) {
   if (!canvas?.getContext) throw new Error('createMosaic requires a canvas.');
   const started = performance.now();
@@ -134,6 +142,8 @@ export async function createMosaic(canvas, options = {}) {
   let lampGoal = null, lampPos = null, lampOn = 0;
   const gl = canvas.getContext('webgl2', { alpha: false, antialias: false, depth: false, preserveDrawingBuffer: true, powerPreference: 'high-performance' });
   if (!gl) throw new Error('This artwork needs WebGL2. Try a browser with hardware acceleration enabled.');
+  contexts.set(canvas, gl);
+  if (gl.isContextLost()) throw new Error('The graphics context was lost. Draw on a fresh canvas.');
   let renderer, base;
   const info = { title: film.table.title || 'Untitled mosaic', width, height, aspect: film.aspect, duration, fps: film.fps, stoneCount: 0, stones: [], setupMs: 0 };
   const count = () => {
@@ -259,6 +269,8 @@ export async function createMosaic(canvas, options = {}) {
     return { ...c, eye: [x, y, dist], target: [x, y, 0], up: [0, 1, 0], dist, w, focus: dist };
   }
   function ensure() { if (disposed) throw new Error('This mosaic has been disposed.'); if (lost) throw new Error('The graphics context was lost.'); }
+  // Live input while the context is lost is let go, since nothing is drawn until it is restored.
+  function idle() { if (disposed) throw new Error('This mosaic has been disposed.'); return lost; }
   // A replay reads its own clock at the film time; live input passes the page clock.
   function render(t, source = frameInput, at) {
     ensure(); time = clamp(finite(t, 0), 0, Math.max(0, duration - 1 / film.fps));
@@ -397,8 +409,7 @@ export async function createMosaic(canvas, options = {}) {
       render(finite(t, time), live, clock());
     },
     setPointer(p) {
-      ensure();
-      if (options.interactive === false) return;
+      if (idle() || options.interactive === false) return;
       const from = input.length;
       addInput(input, { ...p, t: clock() });
       if (record) for (const s of input.slice(from)) record.push({ ...s, t: Math.max(0, s.t - recordStart) });
@@ -415,12 +426,11 @@ export async function createMosaic(canvas, options = {}) {
       redraw();
     },
     // Draws once on the next animation frame, for a view that reads its frame as it draws.
-    requestFrame() { ensure(); schedule(); },
+    requestFrame() { if (!idle()) schedule(); },
     // Holds the lamp, if the artwork has one, over a point on the canvas, x and y from 0 to 1,
     // or takes it away when active is false.
     setLamp(p = {}) {
-      ensure();
-      if (!lampLook) return;
+      if (idle() || !lampLook) return;
       lampGoal = p.active === false ? null : { x: clamp(finite(p.x, .5), 0, 1), y: clamp(finite(p.y, .5), 0, 1), strength: 1 };
       schedule();
     },

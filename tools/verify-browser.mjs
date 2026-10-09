@@ -526,6 +526,22 @@ try {
     require(await frameHash('second artwork') === hashes.baseline, 'A second artwork on the canvas drew a different frame.');
     again.dispose();
     checks.push('another artwork on the same canvas compiles no shaders and draws the same frame');
+
+    // A film cut in a worker is handed to another mosaic, which draws the same frame from it
+    // without cutting it again, and goes on drawing once the first is disposed.
+    const cutter = await createMosaic(document.createElement('canvas'), { project: '/examples/nocturne.json', width: 640, height: 360, samples: 1, shadowSize: 4096, worker: true });
+    require(cutter.cut, 'A film cut in a worker handed over no cut.');
+    const Born = window.Worker;
+    let born = 0;
+    window.Worker = class extends Born { constructor(...args) { super(...args); born++; } };
+    const fromCut = await createMosaic(canvas, { cut: cutter.cut, width: 640, height: 360, samples: 1, shadowSize: 4096 });
+    window.Worker = Born;
+    require(born === 0, 'A mosaic given a cut cut it again.');
+    cutter.dispose();
+    fromCut.seek(2);
+    require(await frameHash('drawn from a cut') === hashes.baseline, 'A mosaic drawn from a cut drew a different frame.');
+    fromCut.dispose();
+    checks.push('a film cut once is drawn by another mosaic, frame for frame the same');
     return { gpu, userAgent: navigator.userAgent, checks, hashes, pngBytes: png.size, animationAfterDispose: idle };
   });
   if (errors.length) throw new Error('Browser page errors: ' + errors.join('; '));

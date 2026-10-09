@@ -116,6 +116,7 @@ A browser may take back a canvas's WebGL context, as a phone short of memory doe
 `contextLost(canvas)` says whether that has happened to the context a mosaic drew with on that canvas, so a page can draw on a fresh canvas instead.
 `releaseContext(canvas)` gives the context back once a page is done with the canvas, since a browser keeps only so many.
 While the context is lost, `setPointer`, `setLamp`, and `requestFrame` do nothing.
+A film cut in a worker can be drawn again without cutting it again: `mosaic.cut` hands it over, `cutProject(project)` cuts one without drawing it, and `createMosaic(canvas, { cut })` draws it.
 
 The project page is such a wall.
 `home/wall.js` sets the name on the first screen, in white marble with its AI inlaid in gold, in front of four scenes from `examples/landscapes.js`: moonlit water, dunes at dusk, sweeping currents, and peaks at first light.
@@ -153,7 +154,8 @@ The glass round each line of stone type is laid on the type's own grid, a square
 The bar lays the glass round each of its names the same way.
 `home/slabs.js` sizes each line of stone type from its cell, so the page lays out around it, and sets it on more lines, from `data-type-narrow`, where it would not fit its slab; then it cuts and lights every slab at the screen's full resolution, the ones in view first, and keeps each as a still canvas behind the slab's words.
 The camera stands four metres from every slab with a lens just wide enough for it, so it looks almost straight down and the whole slab stays within its reach.
-The pointer holds the bar's lamp over the slab it is on, and so does a keyboard's focus: that slab is cut again on a canvas of its own, to the same stones, and drawn live over its still while the lamp is held.
+The pointer holds the bar's lamp over the slab it is on, and so does a keyboard's focus: that slab is drawn again from the stones its still was cut into, on a canvas of its own, live over its still while the lamp is held, so it lights at once, even when the pointer goes straight from one slab to the next.
+Where a pointer can hover, the slabs near the screen keep their cuts, and a slab further off lets its cut go and is cut again when it comes near.
 A finger lights no slab: it would hide the lamp, and the lamp takes a graphics context of its own, which a phone can ill spare.
 The gallery hangs every work at once in two rows, each in its frame with a slab under it for its plaque: each row's frames stand as high as each other and both rows reach the same width, so the hang's four outer edges are straight, and a work whose shape differs a little from its frame's is cropped to it; a film plays by itself while it is in view, unless motion is reduced, and any work opens whole, uncropped, as large as the screen allows, with its caption.
 On a phone the works hang without their plaques in one column, the four films and then the two pictures side by side, and the materials' eight samples hang two to a row, each named on a small tag under it.

@@ -49,7 +49,7 @@ function buildInWorker(project, options, progress) {
     const settle = (fn, value) => { worker.terminate(); fn(value); };
     worker.onmessage = ({ data }) => {
       if (data.log) progress(data.log);
-      else if (data.film) settle(resolve, unpackFilm(data.film));
+      else if (data.film) settle(resolve, Object.assign(unpackFilm(data.film), { cut: data.film }));
       else settle(reject, new Error(data.error));
     };
     worker.onerror = event => { event.preventDefault(); settle(reject, new Error(event.message || 'The worker could not start.')); };
@@ -66,6 +66,12 @@ const contexts = new WeakMap();
 export function contextLost(canvas) { return Boolean(contexts.get(canvas)?.isContextLost()); }
 export function releaseContext(canvas) { contexts.get(canvas)?.getExtension('WEBGL_lose_context')?.loseContext(); }
 
+// Cuts a project in a worker without drawing it, for createMosaic(canvas, { cut }) to draw at
+// once later. The project must be plain data, as for any film cut in a worker.
+export async function cutProject(project, options = {}) {
+  return (await buildInWorker(project, options, options.onProgress || (() => {}))).cut;
+}
+
 export async function createMosaic(canvas, options = {}) {
   if (!canvas?.getContext) throw new Error('createMosaic requires a canvas.');
   const started = performance.now();
@@ -78,7 +84,7 @@ export async function createMosaic(canvas, options = {}) {
       seed: pic.seed ?? 7, band: [1600, Math.max(2, Math.round(1600 * pic.H / pic.W))],
       scenes: [{ id: 'image', picture: pic, start: 0, end: 8, in: { type: 'settled' } }] };
   }
-  if (!project) throw new Error('Choose a project or an image.');
+  if (!project && !options.cut) throw new Error('Choose a project or an image.');
   // Allow a loading indicator to paint before CPU tessellation begins.
   await new Promise(resolve => setTimeout(resolve, 0));
   const build = async (scenes) => {
@@ -90,7 +96,7 @@ export async function createMosaic(canvas, options = {}) {
   };
   // A wall of pictures placed with at is built one worker for each picture. It is drawn from
   // the moment the first is ready, and the others join it as they finish.
-  const scenes = project.scenes;
+  const scenes = project?.scenes;
   // A wall of pictures is cut a picture at a time, each in its own worker, except that a
   // picture flowing in from the one before it is cut with it.
   const groups = [];
@@ -100,7 +106,8 @@ export async function createMosaic(canvas, options = {}) {
       else groups.push([s.id]);
     }
   }
-  const parts = groups.length > 1 ? groups.map(ids => build(ids)) : [build()];
+  // A film already cut in a worker, as another mosaic hands it over, is drawn as it is.
+  const parts = options.cut ? [Promise.resolve(Object.assign(unpackFilm(options.cut), { cut: options.cut }))] : groups.length > 1 ? groups.map(ids => build(ids)) : [build()];
   let film = await Promise.any(parts).catch(errors => { throw errors.errors[0]; });
   if (!film.layers.length || !film.layers.some(l => l.count)) throw new Error('The picture contains no visible stones.');
   const duration = film.table.frames / film.fps;
@@ -387,6 +394,9 @@ export async function createMosaic(canvas, options = {}) {
   info.setupMs = Math.round(performance.now() - started);
   const controller = {
     info,
+    // The film as cut in a worker, which another mosaic draws without cutting it again, given
+    // as createMosaic(canvas, { cut }); null for a film cut on the page or in several parts.
+    cut: parts.length === 1 ? film.cut ?? null : null,
     // Resolves once every picture of a wall has joined it.
     ready: Promise.allSettled(parts.map(p => p.then(join, error => progress(`A picture could not be built: ${error.message}`)))).then(() => controller),
     seek(t, state = {}) { ensure(); controller.pause(); input = []; looked = []; return render(t, replay(state)); },

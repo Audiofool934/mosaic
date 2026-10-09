@@ -638,8 +638,9 @@ export function packFilm(film) {
   return { film: film2, transfer: layers.flatMap((L) => [L.data.buffer, L.bed.own.buffer, L.bed.own2.buffer, L.bed.sin.buffer]) };
 }
 
+// Each film unpacked has scenes of its own, so one packed film can be drawn by several mosaics.
 export function unpackFilm(packed) {
-  const film = { ...packed, layers: [] };
+  const film = { ...packed, scenes: packed.scenes.map((scene) => ({ ...scene })), layers: [] };
   for (const L of packed.layers) {
     const scene = film.scenes[L.scene];
     const layer = { ...L, scene, pic: { cfg: L.cfg }, cam: cameraPath(L.cfg, L.W, L.H, packed.aspect) };

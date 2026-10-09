@@ -1,10 +1,10 @@
 // The slabs on the page. Each slab marked data-slab is cut and lit once, at the screen's full
 // resolution, into a canvas behind its words, the ones in view first. The pointer holds a lamp
-// over the slab it is on, as over the bar, and so does a keyboard's focus: that slab is cut
-// again on a canvas of its own, to the same stones, and drawn live over the still one while
-// the lamp is held, so the lamp is all that changes. A finger lights none: it would hide the
-// lamp, and the lamp takes a graphics context of its own, which a phone can ill spare.
-import { contextLost, createMosaic } from "../engine/runtime.js";
+// over the slab it is on, as over the bar, and so does a keyboard's focus: that slab is drawn
+// again from the stones its still was cut into, on a canvas of its own, live over the still
+// while the lamp is held, so the lamp is all that changes. A finger lights none: it would hide
+// the lamp, and the lamp takes a graphics context of its own, which a phone can ill spare.
+import { contextLost, createMosaic, cutProject } from "../engine/runtime.js";
 import { typeBlock } from "./slab.js";
 
 const MODULE = new URL("./slab.js", import.meta.url).href;
@@ -13,6 +13,12 @@ const MODULE = new URL("./slab.js", import.meta.url).href;
 const LAMP = { height: 90, cone: 80, power: 0.02, color: "#fff2df" };
 // How long a slab stays live once the lamp is taken from it, in milliseconds.
 const KEEP = 8000;
+// Where a pointer can hover, each slab in view or within NEAR of a screen of it keeps the
+// stones it was cut into, so the lamp lights it at once, even moving straight from one slab to
+// the next; a slab further off lets them go, since they take some megabytes, and is cut again
+// once it comes near and the page has been still for REST milliseconds.
+const NEAR = 0.5, REST = 400;
+const hover = matchMedia("(hover: hover)");
 
 const cellOf = (el) => parseFloat(getComputedStyle(el).getPropertyValue("--cell")) || 4;
 const lengthOf = (el, name, fallback) => parseFloat(getComputedStyle(el).getPropertyValue(name)) || fallback;
@@ -79,11 +85,12 @@ function slabFilm(lay, px) {
 // down at the whole slab, as at the bar, so the lamp's reflection lands under the pointer, and
 // the slab stays well within the reach of the camera's view.
 const DISTANCE = 4;
+// A slab already cut, with its `cut`, is drawn from it, not cut again.
 async function lay(canvas, state) {
-  const { lay: slab, px, dpr } = state;
+  const { lay: slab, px, dpr, cut } = state;
   const fov = (2 * Math.atan(slab.h / 2000 / DISTANCE) * 180) / Math.PI;
   const mosaic = await createMosaic(canvas, {
-    project: slabFilm(slab, px), width: px[0], height: px[1], samples: dpr < 1.5 ? 2 : 1,
+    project: slabFilm(slab, px), cut, width: px[0], height: px[1], samples: dpr < 1.5 ? 2 : 1,
     interactive: true, worker: true, lamp: LAMP, fov, fringes: false
   });
   // Setting the view draws the slab at rest, so it needs no other frame.
@@ -112,6 +119,33 @@ export function createSlabs(root = document) {
     const r = slab.getBoundingClientRect();
     return Math.max(0, r.left - innerWidth, -r.right) + Math.max(0, r.top - innerHeight, -r.bottom);
   };
+  const near = (slab) => hover.matches && distance(slab) <= NEAR * Math.max(innerWidth, innerHeight);
+
+  // The slabs near the screen keep their cuts, and the others let theirs go; then the nearest
+  // slab without one is cut again, one at a time, unless it could not be cut as it is laid.
+  let cutting = null, resting = 0;
+  function keepCuts() {
+    let next = null;
+    for (const [slab, state] of states) {
+      if (!near(slab)) state.cut = null;
+      else if (state.key && !state.cut && state.uncut !== state.key && (!next || distance(slab) < distance(next[0]))) next = [slab, state];
+    }
+    if (!next || cutting) return;
+    const [, state] = next, key = state.key;
+    cutting = cutProject(slabFilm(state.lay, state.px)).then((cut) => {
+      if (state.key === key) state.cut = cut;
+    }, (error) => {
+      state.uncut = key;
+      console.error("A slab could not be cut:", error);
+    }).finally(() => {
+      cutting = null;
+      keepCuts();
+    });
+  }
+  addEventListener("scroll", () => {
+    clearTimeout(resting);
+    resting = setTimeout(keepCuts, REST);
+  }, { passive: true });
 
   // An easel, or the live canvas, whose context the browser has taken back draws no more, so
   // a fresh canvas takes its place.
@@ -131,7 +165,7 @@ export function createSlabs(root = document) {
       }
       Object.assign(state.canvas, { width: job.px[0], height: job.px[1] });
       state.canvas.getContext("2d").drawImage(easel, 0, 0);
-      Object.assign(state, { key: job.key, lay: job.lay, px: job.px, dpr: job.dpr });
+      Object.assign(state, { key: job.key, lay: job.lay, px: job.px, dpr: job.dpr, cut: near(job.slab) ? mosaic.cut : null });
       job.slab.dataset.state = "laid";
     } finally {
       mosaic.dispose();
@@ -157,7 +191,7 @@ export function createSlabs(root = document) {
       }
       // An easel at rest keeps no picture.
       easels[i].width = easels[i].height = 1;
-    })));
+    })).then(keepCuts));
     return queue;
   }
 

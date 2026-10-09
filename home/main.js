@@ -278,7 +278,7 @@ async function build() {
   try {
     // The wall's bare bed is a deep slate, so a scene flowing into the next never flashes pale
     // between the two, and a stone lifted off its bed shows the same plain colour under it.
-    mosaic = await createMosaic(canvas, { project: film.project, width: view.px[0], height: view.px[1], samples: 1, interactive: true, worker: true, coat: COAT, onProgress: (line) => log.push(line) });
+    mosaic = await createMosaic(canvas, { project: film.project, width: view.px[0], height: view.px[1], samples: 1, interactive: true, worker: true, coat: COAT, lamp: LAMP, onProgress: (line) => log.push(line) });
     if (!first) await mosaic.ready;
   } catch (error) {
     if (!first) {
@@ -343,6 +343,47 @@ async function build() {
   advance();
   wall.dataset.state = "live";
 }
+
+// The method's last band, the stage named Light, shows its light: while the band is in view, a
+// lamp sweeps slowly across it, over SWEEP seconds, so its stones catch the light one at a
+// time, and rests at the far side for REST seconds, then sweeps back. Where motion is reduced it
+// rests over the middle of the band. The lamp shines in live frames only, and the wall draws
+// while it moves, so at rest it costs nothing. It is held this many millimetres over the wall,
+// its cone this many degrees across.
+const LAMP = { height: 300, cone: 80, power: 0.15, color: "#ffe4c0" };
+const SWEEP = 3.5, REST = 4;
+const bands = [...document.querySelectorAll('[data-wall="live"]')];
+let lit = null, lamping = 0, swept = 0, lampAt = null;
+function lamp(now) {
+  lamping = 0;
+  if (!lit || !live) return;
+  const t = (now - swept) / 1000, leg = Math.floor(t / (SWEEP + REST)), u = Math.min(1, (t % (SWEEP + REST)) / SWEEP);
+  const e = reduceMotion.matches ? 0.5 : 0.5 - 0.5 * Math.cos(Math.PI * u), p = leg % 2 ? 1 - e : e;
+  // Across the band, a little above its middle as it passes, as a hand would carry it.
+  const x = 0.2 + 0.6 * p, y = 0.55 - 0.16 * Math.sin(Math.PI * p);
+  const b = lit.getBoundingClientRect(), c = live.canvas.getBoundingClientRect();
+  const at = { x: (b.left + x * b.width - c.left) / c.width, y: (b.top + y * b.height - c.top) / c.height };
+  // The lamp is set again only when it has moved on the canvas, so a lamp at rest draws nothing.
+  if (!lampAt || lampAt.mosaic !== live.mosaic || Math.hypot((at.x - lampAt.x) * c.width, (at.y - lampAt.y) * c.height) > 0.5) {
+    live.mosaic.setLamp(at);
+    lampAt = { ...at, mosaic: live.mosaic };
+  }
+  lamping = requestAnimationFrame(lamp);
+}
+const seen = new IntersectionObserver((entries) => {
+  for (const entry of entries) {
+    if (entry.isIntersecting) lit = entry.target;
+    else if (lit === entry.target) lit = null;
+  }
+  if (lit && !lamping) {
+    swept = performance.now();
+    lamping = requestAnimationFrame(lamp);
+  } else if (!lit && lampAt) {
+    live?.mosaic.setLamp({ active: false });
+    lampAt = null;
+  }
+}, { threshold: 0.25 });
+bands.forEach((band) => seen.observe(band));
 
 // The stones are heard only once asked for, and only while sound is on: the wall's, and the
 // bar's.

@@ -137,6 +137,7 @@ On a phone the method's picture is a vine scroll, `examples/vine.js`, the runnin
 A gold stem winds down a panel of deep blue glass, and at each swing a tendril springs from it and spirals in to a rosette of marble, clay, and gold.
 Each band holds one swing and its rosette, so the bands are alike, and the stem runs on unbroken through the four stages: a flat drawing, courses, cut stones, and, live in the wall, finished stones.
 The bands end where the vine's `BANDS` say, so the images, the live band, and the page agree.
+On both, the live band shows the light its stage is named for: while it is in view, the wall's lamp sweeps slowly across it and rests at its far side, so its stones catch the light one at a time, and the wall draws only while the lamp moves.
 The wall is laid outward from behind the name, or from the middle of the screen the page opens on, and then every few seconds one scene flows into the next on every screen at once, the stones of each screen flying within it, out from its middle, as the first screen's run out from behind the name.
 A flow waits while the page is being scrolled, so the wall never moves two ways at once, and a button pauses the scenes where they are.
 The bare bed is a deep slate, on the wide wall, in the column, and in the studio's frame, so a flow never flashes pale, and a stone the pointer lifts shows the same plain slate under it.

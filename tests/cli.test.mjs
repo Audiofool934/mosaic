@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { captureOptions, initProject, inspectProject, parseArgs } from '../tools/cli.mjs';
+import { HELP, captureOptions, initProject, inspectProject, parseArgs, shellPath } from '../tools/cli.mjs';
 import { fingerprintProject } from '../tools/capture.mjs';
 
 const cli = fileURLToPath(new URL('../tools/cli.mjs', import.meta.url));
@@ -133,4 +133,24 @@ test('CLI entry runs through a filesystem symlink', async () => {
     assert.equal(result.status, 0, result.stderr);
     assert.equal(JSON.parse(result.stdout).title, 'Moon over still water');
   } finally { await rm(directory, { recursive: true, force: true }); }
+});
+
+test('help shows that render draws every frame unless --to is given', () => {
+  assert.match(HELP, /--to <all frames>/);
+  assert.doesNotMatch(HELP, /--to 120/);
+  const all = captureOptions({ command: 'render' }, project);
+  assert.equal(all.from, 0); assert.equal(all.to, project.frames);
+});
+
+test('printed paths are quoted for a shell only where they need it', async () => {
+  assert.equal(shellPath('/home/me/art/project.json'), '/home/me/art/project.json');
+  assert.equal(shellPath('/home/me/my art/project.json'), '"/home/me/my art/project.json"');
+  assert.equal(shellPath('/tmp/a"b$c/x'), '"/tmp/a\\"b\\$c/x"');
+  const parent = await mkdtemp(path.join(os.tmpdir(), 'mosaic hint test '));
+  try {
+    const directory = path.join(parent, 'my art');
+    const result = spawnSync(process.execPath, [cli, 'init', directory], { encoding: 'utf8' });
+    assert.equal(result.status, 0, result.stderr);
+    assert.ok(result.stdout.includes(`preview "${path.join(directory, 'project.json')}"`), result.stdout);
+  } finally { await rm(parent, { recursive: true, force: true }); }
 });

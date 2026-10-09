@@ -146,6 +146,9 @@ On a phone, with motion reduced, or on a short screen, the page scrolls down as 
 Unless motion is reduced, the column's first screen then flows from scene to scene in the wide wall's chain, but only while the first screen is in view.
 On a phone the column scrolls freely, one long wall with no room to stop at, and its words are few: the bar stands in two rows at the foot of the screen, the first screen says the page is better viewed on a desktop, there is no intro slab and no sound, and each room shows its work with no more than a name.
 Under the first screen each room is as tall as its work, a short way below the one above it, and a room's pages run on as one.
+A screen's height, which the first screen and the rooms take, is read from the window as `--screen-h` rather than left to `100svh`, which Safari on a phone gives too short just after a reload and corrects only while the page is open.
+Every new height is taken until the reader first touches the page, while the browser may still be settling its bars; after that, where no pointer hovers, only a new width brings a new height, so the bars coming and going as the page scrolls move nothing.
+The studio cuts its picture again whenever its frame changes size.
 `home/rooms.js` makes sure a deliberate turn of the wheel always reaches the next room in the column where a browser would snap a short scroll back, and leaves scrolling itself to the browser.
 The name's letters are drawn as shapes in `examples/letters.js` rather than set in a typeface, so the word is cut the same in every browser; `examples/inscription.json` sets the name in front of all four scenes, flowing into one another in turn, as a film of its own.
 `home/bar.js` and `home/nav.js` set a bar of black glass over the top of the page, naming its sections in marble stone type, in a small canvas of its own at the screen's full resolution, with a link over each name.

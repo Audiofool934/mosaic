@@ -18,6 +18,28 @@ const pauseButton = $("wall-pause");
 const hero = $("hero");
 const heroLabel = { still: hero.getAttribute("aria-label"), wide: hero.dataset.wideLabel };
 const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)");
+// A screen's height, which the first screen and every room take as --screen-h, read from the
+// window rather than left to 100svh. Just after a reload, Safari on a phone lays the page out
+// for a shorter screen, settles on the true height a moment later, and leaves 100svh short
+// until much later, which would move the rooms under the wall and stretch the studio's picture
+// while the page is in use. A phone's bars also come and go as the page scrolls, which must move
+// nothing. So every new height is taken until the reader first touches the page, while the
+// browser may still be settling; after that, where no pointer hovers, only a new width brings a
+// new height, as when the phone turns, and elsewhere every new size of the window does. It is
+// not read while the page is zoomed in and the window shows only a part of it.
+const hovers = matchMedia("(hover: hover)");
+let screenAt = -1, touched = false;
+function measureScreen() {
+  if ((window.visualViewport?.scale ?? 1) > 1.01) return;
+  const width = root.clientWidth;
+  if (touched && width === screenAt && !hovers.matches) return;
+  screenAt = width;
+  root.style.setProperty("--screen-h", `${innerHeight}px`);
+}
+measureScreen();
+addEventListener("resize", measureScreen);
+window.visualViewport?.addEventListener("resize", measureScreen);
+for (const type of ["pointerdown", "wheel", "keydown"]) addEventListener(type, () => { touched = true; }, { capture: true, passive: true, once: true });
 // The canvas reaches this share of the viewport past it, above and below on a column of
 // rooms and on either side on the wide wall, so a fast scroll never outruns the stones
 // between two frames.

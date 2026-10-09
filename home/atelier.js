@@ -4,7 +4,7 @@
 // balanced, or bold; and it changes the light, looks closer, lets the stones move under the
 // pointer or holds them, plays and scrubs the film, and saves what is in the frame as a PNG.
 // An image never leaves the browser: it is read here, fitted to the frame, and cut in a worker.
-// The frame is first laid when it comes near the screen.
+// The frame is first laid when it comes near the screen, and cut again when its size changes.
 import { contextLost, createMosaic } from "../engine/runtime.js";
 import { whenLost } from "./context.js";
 
@@ -65,6 +65,12 @@ export function createAtelier(figure, { reduceMotion, coat, onLaid = () => {} })
   const sourceOf = (pick) => pick.dataset.project ? { project: pick.dataset.project, film: "film" in pick.dataset } : { image: pick.dataset.image, focus: Number(pick.dataset.focus ?? 0.5) };
   let source = sourceOf(chosen);
   let material = "glass", size = 22, moving = !reduceMotion.matches, mosaic = null, token = 0, started = false, frameId = 0;
+  // The frame's size in device pixels when it was last cut, and the wait for a new size to settle.
+  let laidAt = "", resizing = 0;
+  const pixelsOf = (r) => {
+    const dpr = Math.min(devicePixelRatio || 1, 2);
+    return [Math.max(2, Math.round(r.width * dpr)), Math.max(2, Math.round(r.height * dpr))];
+  };
 
   const say = (text) => {
     note.textContent = text;
@@ -111,8 +117,8 @@ export function createAtelier(figure, { reduceMotion, coat, onLaid = () => {} })
     if (contextLost(canvas)) fresh();
     say(source.project ? (source.film ? "Cutting the film into stone." : "Laying the studio's mosaic.") : typeof source.image === "string" ? "Cutting the painting into stone." : "Cutting your image into stone, in this browser.");
     try {
-      const r = frame.getBoundingClientRect(), aspect = r.width / r.height;
-      const dpr = Math.min(devicePixelRatio || 1, 2), px = [Math.max(2, Math.round(r.width * dpr)), Math.max(2, Math.round(r.height * dpr))];
+      const r = frame.getBoundingClientRect(), aspect = r.width / r.height, px = pixelsOf(r);
+      laidAt = px.join("x");
       let project = source.project && new URL(source.project, document.baseURI).href;
       if (!project) {
         const image = await pixels(source.image, aspect, source.focus);
@@ -265,7 +271,19 @@ export function createAtelier(figure, { reduceMotion, coat, onLaid = () => {} })
     lay();
   }, { rootMargin: "100%" }).observe(figure);
 
+  // A frame that changes size, as when a phone turns, is cut again for its new size once the size
+  // has held for a moment, so its picture is never stretched to fit.
+  function refit() {
+    const r = frame.getBoundingClientRect();
+    if (started && r.width >= 2 && r.height >= 2 && pixelsOf(r).join("x") !== laidAt) lay();
+  }
+  new ResizeObserver(() => {
+    clearTimeout(resizing);
+    resizing = setTimeout(refit, 250);
+  }).observe(frame);
+
   addEventListener("pagehide", () => {
+    clearTimeout(resizing);
     token++;
     cancelAnimationFrame(frameId);
     mosaic?.dispose();

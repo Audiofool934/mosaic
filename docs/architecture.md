@@ -167,6 +167,7 @@ The studio's room holds the whole studio in a frame on the page, with `home/atel
 The slab under the frame also changes the light, looks closer, lets the stones move under the pointer or holds them, saves what is in the frame as a PNG, and plays and scrubs the film; the gallery's link to scrub its film opens it there.
 The slab keeps one layout whatever is laid, so the wall cut round it never moves: the material and the stone size are dimmed for the artwork and the film, which bring their own, and the film's transport shows only in the status line.
 `site/` stays the standalone studio that ships with the skill.
+The project page itself does not ship with the skill; `examples/page-wall/` is the small, general version that does, a wall cut around the blocks of any page that marks them with `data-wall`.
 The studio takes its whole room, its frame as large as the screen allows; an image of one's own whose shape is far from the frame's, as a portrait, is laid whole on a surround of dark glass rather than cut to fit, while the page's own paintings always fill the frame, cropped round a focus.
 The frame's gold reaches out as far as the slab under it on either side, as the gallery's frames reach as far as their plaques and the method's as far as the slab naming its bands.
 On a phone the frame stands as tall as 4 by 5, so a photo taken upright fills it, or less where the screen is short, and the slab keeps only the paintings, the upload, the material, the stone size, and saving.

@@ -1,8 +1,9 @@
 // An original drawing for mosAIc: currents of glass, marble, clay, and a thread of gold
-// sweeping across a tall panel, as in the page's abstract of currents, set the same way in every
-// stretch of it. The project page shows it on a phone as the method's picture, in four bands
-// down it: a flat drawing, courses, cut stones, and the wall's own stones. Every band holds the
-// same run of currents, so from one band to the next only the stage changes.
+// running down a tall panel, as in the page's abstract of currents turned upright. The project
+// page shows it on a phone as the method's picture, in four bands down it: a flat drawing,
+// courses, cut stones, and the wall's own stones. The currents run on unbroken from the top
+// band to the bottom one, so each band holds every current, and each current can be followed
+// down through all four stages.
 import { poly } from "../engine/paint.js";
 import { config as house } from "./nocturne.js";
 
@@ -30,29 +31,27 @@ export function regions() {
   ];
 }
 
-// One run of currents, a band high, and how thick each is, in millimetres. Each band's edge
-// cuts across the middle of its teal, the broadest current, never along the edge between two.
-const RUN = [["teal", 50], ["cream", 30], ["ochre", 40], ["gilt", 9], ["rust", 33], ["sea", 38]];
+// The currents across the panel, left to right, and how wide each is where it starts, in
+// millimetres; the last runs on past the right edge.
+const ACROSS = [["teal", 80], ["cream", 42], ["ochre", 58], ["gilt", 16], ["rust", 50], ["sea", 62], ["cream", 36], ["ochre", 46], ["teal", 120]];
 
-// The edge between two currents, the j-th of band n: a long, slow wave across the panel, every
-// 10 mm, each a little further along its swing than the one above it.
-function edge(y, n, j) {
+// The edge between two currents, the j-th from the left, from above the panel to below it,
+// every 10 mm: the whole flow sways one way and back as it runs down, and each edge swings a
+// little on its own, a little further along its swing than the one before it.
+function edge(x, j) {
   const pts = [];
-  for (let x = -20; x <= W + 20; x += 10) {
-    const u = (x / 430) * 6.2832 + 0.6 + j * 0.42 + n * 0.9;
-    pts.push([x, y + 13 * Math.sin(u) + 4.5 * Math.sin(u * 2.3 + 1.7)]);
+  for (let y = -20; y <= H + 20; y += 10) {
+    const u = (y / 560) * 6.2832 + 0.6 + j * 0.3;
+    pts.push([x + 24 * Math.sin((y / H) * 6.2832 * 0.55 + 0.4) + 11 * Math.sin(u) + 4 * Math.sin(u * 2.3 + 1.7), y]);
   }
   return pts;
 }
 
 export function draw(g, mode, D) {
-  D.fill(poly([[-20, -20], [W + 20, -20], [W + 20, H + 20], [-20, H + 20]]), "teal", null);
-  for (let n = 0; n * BANDS[0] < H; n++) {
-    let y = n * BANDS[0] + RUN[0][1] / 2, top = edge(y, n, 0);
-    RUN.slice(1).forEach(([name, thick], j) => {
-      const bottom = edge((y += thick), n, j + 1);
-      D.fill(poly([...top, ...[...bottom].reverse()]), name, null);
-      top = bottom;
-    });
-  }
+  let x = -20, left = edge(x, 0);
+  ACROSS.forEach(([name, wide], j) => {
+    const right = j < ACROSS.length - 1 ? edge((x += wide), j + 1) : [[W + 60, -20], [W + 60, H + 20]];
+    D.fill(poly([...left, ...[...right].reverse()]), name, null);
+    left = right;
+  });
 }

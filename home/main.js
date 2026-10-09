@@ -121,14 +121,14 @@ function framing(canvas, scale, view) {
   };
 }
 
-// The wall's film. A column of rooms is laid once: the name, then the scene and the page
-// around it, waiting at the gate until every picture has joined, so none appears half laid,
-// and then it rests. The wide wall is laid the same way, waiting at the gate for the name,
-// the blocks, and the first scene, and at the end of the laying for every scene; then it
-// holds each scene for HOLD seconds, the first for FIRST, before it flows into the next, on
-// and on. A flow waits while the page has been scrolled in the last STILL seconds, so the
-// wall never moves two ways at once, and none starts while motion is reduced or the scenes
-// are paused.
+// The wall's film. It is laid first: the name, waiting at the gate until the pictures laid
+// next have joined, so none appears half laid, then the scene and the page around it. Where
+// motion is reduced, a column of rooms then rests. Otherwise the scenes behind the name flow
+// on: the wall waits at the end of the laying for every scene, then holds each scene for HOLD
+// seconds, the first for FIRST, before it flows into the next, on and on, on every screen of
+// the wide wall, or on a column's first screen while it is in view. A flow waits while the
+// page has been scrolled in the last STILL seconds, so the wall never moves two ways at once,
+// and none starts while the scenes are paused.
 const HOLD = 6, FIRST = 2.5, STILL = 1.2;
 const COAT = "#1e2b33";
 let holding = 0, held = false, watching = 0, scrolled = -Infinity, paused = false;
@@ -167,6 +167,8 @@ function advance() {
       if (i < 0) to = rests.find((r) => r > time);
       else {
         if (performance.now() - scrolled < STILL * 1000) return hold(STILL);
+        // A column's scenes flow only while its first screen is in view.
+        if (!live.wide && hero.getBoundingClientRect().bottom < innerHeight / 2) return hold(STILL);
         // From the last scene, a copy of the first, on from the first again.
         if (i === rests.length - 1) {
           time = rests[0];
@@ -270,7 +272,8 @@ async function build() {
   // is laid as soon as it is ready.
   const module = new URL("./wall.js", import.meta.url).href;
   const laid = first && !reduceMotion.matches;
-  const film = wide ? wideFilm(layout, { module, laid, band: view.px, at: current }) : wallFilm(layout, { module, laid, band: view.px });
+  // A column's first screen flows from scene to scene too, unless motion is reduced.
+  const film = wide ? wideFilm(layout, { module, laid, band: view.px, at: current }) : wallFilm(layout, { module, laid, band: view.px, flow: !reduceMotion.matches });
   let mosaic;
   try {
     // The wall's bare bed is a deep slate, so a scene flowing into the next never flashes pale
@@ -305,7 +308,7 @@ async function build() {
   // A wall cut again has every picture before it is shown; the first joins them as they come.
   live = {
     mosaic, canvas, scale: layout.scale, view, width: layout.width, height: layout.height, wide, joined: !first,
-    gate: film.gate, rest: film.rest, cycle: wide ? { gate: film.gate, laid: film.laid, rests: film.rests, first: film.first, ids: film.cycle } : null, cycled: false,
+    gate: film.gate, rest: film.rest, cycle: film.rests ? { gate: film.gate, laid: film.laid, rests: film.rests, first: film.first, ids: film.cycle } : null, cycled: false,
     // A wall whose context is taken back and not restored is cut again on a fresh canvas.
     unwatch: whenLost(canvas, () => { if (live?.canvas === canvas) building = building.then(build); })
   };

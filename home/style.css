@@ -21,6 +21,11 @@
   /* The first screen fills the screen, like every room under it. */
   --hero: 100svh;
   --lift: 0 1px 2px rgb(8 18 24 / 0.55), 0 0 18px rgb(8 18 24 / 0.35);
+  /* How far the gold the wall lays round a frame reaches past its picture: 10 mm of wall, at
+     1.11 mm a pixel (home/wall.js). */
+  --gold: 9px;
+  /* A chosen picture or button glows in a ring of gold. */
+  --chosen: 0 0 12px rgb(217 182 116 / 0.4);
   /* The bar floats this far below the top of the screen; home/nav.js sets its height. */
   --bar-top: clamp(10px, 1.6vw, 22px);
   font: 400 18px / 1.6 var(--serif);
@@ -92,9 +97,11 @@ main { position: relative; }
 .slab[data-state="laid"] .stone-button { background: none; box-shadow: none; }
 .stone-button .type { --cell: 2.6px; }
 .stone-button:focus-visible { outline: 1px solid rgb(217 182 116 / 0.8); outline-offset: 3px; }
-/* A chosen one is marked by a gold line under it. */
-.stone-button[aria-checked="true"], .stone-button[aria-selected="true"] { box-shadow: inset 0 0 0 1.6px var(--rim), 0 4px 0 -2px var(--gilt); }
-.slab[data-state="laid"] .stone-button[aria-checked="true"], .slab[data-state="laid"] .stone-button[aria-selected="true"] { box-shadow: 0 4px 0 -2px var(--gilt); }
+/* A chosen one glows: its rim is lit gold all the way round, as a chosen picture's is. */
+.stone-button[aria-checked="true"], .stone-button[aria-selected="true"], .stone-button[aria-pressed="true"],
+.slab[data-state="laid"] .stone-button[aria-checked="true"], .slab[data-state="laid"] .stone-button[aria-selected="true"], .slab[data-state="laid"] .stone-button[aria-pressed="true"] {
+  box-shadow: inset 0 0 0 2px var(--gilt), var(--chosen);
+}
 
 /* A frame: a picture or film set into the wall, which lays a gold frame round it. */
 .frame { display: block; margin: 0; padding: 0; border: 0; background: #0e1d24; }
@@ -242,16 +249,18 @@ h2, h3 { margin: 0; font-weight: 400; }
    16:9 and the pictures square. --gw is as wide as the hang can be and still fit the room's
    height. */
 .gallery {
-  --gap: 20px; --plaque: 86px;
-  --gw: min(var(--content), (var(--room-h) - 2 * var(--plaque) - 40px) / 0.4523 + 4 * var(--gap));
+  /* The gold round each frame reaches --gold past its picture, so frames stand 14 pixels apart
+     and a plaque 10 pixels under its frame's gold. */
+  --gap: calc(2 * var(--gold) + 14px); --row: calc(var(--gold) + 10px); --plaque: 86px;
+  --gw: min(var(--content), (var(--room-h) - 2 * var(--plaque) - 3 * var(--row) - 16px) / 0.4523 + 4 * var(--gap));
   width: var(--gw);
   grid-template-columns: minmax(0, 1.412fr) minmax(0, 0.366fr) minmax(0, 1.778fr) minmax(0, 0.366fr) minmax(0, 1.412fr);
   grid-template-rows: calc((var(--gw) - 4 * var(--gap)) / 5.333) auto calc((var(--gw) - 4 * var(--gap)) * 1.412 / 5.333) auto;
-  column-gap: var(--gap); row-gap: 12px;
+  column-gap: var(--gap); row-gap: var(--row);
 }
 html.wide .gallery { padding-inline: max(var(--gutter), (100vw - var(--gw)) / 2); }
 .gallery .salon { display: contents; }
-.work { display: grid; grid-row: span 2; grid-template-rows: subgrid; row-gap: 12px; min-width: 0; margin: 0; }
+.work { display: grid; grid-row: span 2; grid-template-rows: subgrid; row-gap: var(--row); min-width: 0; margin: 0; }
 .work.lantern { grid-column: 1 / span 2; grid-row: 1 / span 2; }
 .work.arrakis { grid-column: 3; grid-row: 1 / span 2; }
 .work.road { grid-column: 4 / span 2; grid-row: 1 / span 2; }
@@ -288,8 +297,9 @@ html.wide .gallery { padding-inline: max(var(--gutter), (100vw - var(--gw)) / 2)
    material; the stone size, the light, and a closer look; then moving, saving, and the status. The slab keeps one layout
    whatever is laid, so the wall cut round it never moves: tools an image needs and a project
    does not are dimmed, and the film's transport shares the status at the end of the second row. */
-.atelier { grid-column: 1 / -1; justify-self: center; display: grid; gap: 14px; width: min(100%, (var(--room-h) - 190px) * 16 / 9); margin: 0; }
-.atelier .frame { position: relative; width: 100%; aspect-ratio: 16 / 9; }
+.atelier { grid-column: 1 / -1; justify-self: center; display: grid; gap: calc(var(--gold) + 14px); width: min(100%, (var(--room-h) - 190px) * 16 / 9); margin: 0; }
+/* The frame's gold reaches out as far as the slab under it, on either side. */
+.atelier .frame { position: relative; width: calc(100% - 2 * var(--gold)); justify-self: center; aspect-ratio: 16 / 9; }
 .atelier .frame canvas { position: absolute; inset: 0; }
 .atelier .frame canvas:focus-visible { outline: 1px solid rgb(217 182 116 / 0.8); outline-offset: 4px; }
 .atelier .frame.over { box-shadow: 0 0 0 3px var(--gilt); }
@@ -307,7 +317,8 @@ html.wide .gallery { padding-inline: max(var(--gutter), (100vw - var(--gw)) / 2)
 .choice, .ways { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .pick { width: 48px; aspect-ratio: 16 / 9; padding: 0; border: 0; border-radius: 4px; overflow: hidden; background: #0e1d24; opacity: 0.55; cursor: pointer; }
 .pick img { display: block; width: 100%; height: 100%; object-fit: cover; }
-.pick[aria-pressed="true"], .pick:hover { opacity: 1; box-shadow: 0 0 0 1.5px var(--gilt); }
+.pick:hover { opacity: 1; box-shadow: 0 0 0 1.5px var(--gilt); }
+.pick[aria-pressed="true"] { opacity: 1; box-shadow: 0 0 0 2px var(--gilt), var(--chosen); }
 .slide { display: flex; align-items: center; gap: 10px; }
 .slide .type { --cell: 2.2px; }
 .slide input, .transport input { width: 120px; margin: 0; accent-color: var(--gilt); }
@@ -324,8 +335,6 @@ html.wide .gallery { padding-inline: max(var(--gutter), (100vw - var(--gw)) / 2)
 .stone-button { position: relative; }
 .stone-button:disabled { cursor: default; }
 .stone-button:disabled::after { content: ""; position: absolute; inset: 0; border-radius: inherit; background: rgb(6 9 12 / 0.6); }
-.stone-button[aria-pressed="true"] { box-shadow: inset 0 0 0 1.6px var(--rim), 0 4px 0 -2px var(--gilt); }
-.slab[data-state="laid"] .stone-button[aria-pressed="true"] { box-shadow: 0 4px 0 -2px var(--gilt); }
 .file input { position: absolute; width: 1px; height: 1px; opacity: 0; }
 .file:focus-within { outline: 1px solid rgb(217 182 116 / 0.8); outline-offset: 3px; }
 .agent { grid-column: 1 / -1; grid-row: 1; display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-content: start; padding: 26px 28px; }
@@ -399,7 +408,7 @@ html.wide .gallery { padding-inline: max(var(--gutter), (100vw - var(--gw)) / 2)
     text-align: center; font: italic 400 15px / 1.4 var(--serif); color: var(--light-muted); text-shadow: var(--lift);
   }
   .slab { padding: 18px 16px; }
-  /* --between parts works within a room, and rooms lie twice as far apart. --room-h is a
+  /* --between parts works within a room, and rooms lie nearly three times as far apart. --room-h is a
      screen from under its top to over the bar, for a room that must fit on one, as the studio
      does. The last room clears the bar. */
   .room {
@@ -409,7 +418,7 @@ html.wide .gallery { padding-inline: max(var(--gutter), (100vw - var(--gw)) / 2)
     --pad-foot: calc(var(--bar-foot) + var(--bar-h, 62px) + 20px);
     --room-h: calc(100svh - var(--pad-top) - var(--pad-foot));
     grid-template-columns: minmax(0, 1fr); column-gap: 0; row-gap: var(--between); align-content: start;
-    min-height: 0; padding-block: var(--between);
+    min-height: 0; padding-block: 30px;
   }
   .room > *, .page > * { grid-column: 1 / -1; grid-row: auto; }
   .page { display: grid; grid-template-columns: minmax(0, 1fr); row-gap: var(--between); align-items: start; }
@@ -442,8 +451,8 @@ html.wide .gallery { padding-inline: max(var(--gutter), (100vw - var(--gw)) / 2)
   /* On a phone the works hang without their plaques, in one column as wide as the room: the
      four films one under another, then the two pictures side by side. A work opened whole
      still shows its caption. */
-  .gallery { width: var(--content); grid-template-rows: none; row-gap: var(--between); }
-  .gallery .page.salon { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--between); }
+  .gallery { width: var(--content); grid-template-rows: none; row-gap: var(--gap); }
+  .gallery .page.salon { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--gap); }
   .gallery .plaque, .studio-link { display: none; }
   .work.morning { order: -1; }
   .work { grid-row: auto; grid-template-rows: none; row-gap: 12px; margin-bottom: 0; }
@@ -452,11 +461,12 @@ html.wide .gallery { padding-inline: max(var(--gutter), (100vw - var(--gw)) / 2)
   .work.lantern .frame, .work.arrakis .frame, .work.road .frame, .work.morning .frame { height: auto; aspect-ratio: 16 / 9; }
   .work.leaf .frame, .work.crescent .frame { height: auto; aspect-ratio: 1; }
 
-  /* The studio on a phone: a tall frame, as tall as the screen allows with its tools under it,
-     so a photo taken upright fills it, and only the tools a phone needs: the paintings or an
+  /* The studio on a phone: a frame as wide as the room, less its gold, and as tall as 4 by 5,
+     so a photo taken upright fills it, but no taller than leaves room for its tools on one
+     screen, nor less tall than 5 by 4; and only the tools a phone needs: the paintings or an
      image of one's own, the material, the stone size, and saving. */
-  .atelier { width: 100%; }
-  .atelier .frame { width: min(100%, (var(--room-h) - 224px) * 0.8); aspect-ratio: 4 / 5; justify-self: center; }
+  .atelier { --fw: calc(var(--content) - 2 * var(--gold)); width: 100%; }
+  .atelier .frame { aspect-ratio: auto; height: min(var(--fw) * 1.25, max(var(--room-h) - 230px, var(--fw) * 0.8)); }
   .tools .tool-row { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
   .tools .picks { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) auto; gap: 6px; align-items: center; }
   .tools .pick { width: auto; }

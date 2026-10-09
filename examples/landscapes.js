@@ -47,7 +47,8 @@ function* onward(W, end, seed) {
 
 // Each scene is drawn on a stage W by H, down to its foot, where the panel ends below the
 // first screen, and is cut around its focus, a share of the stage's width or else its middle,
-// on a narrow panel.
+// on a narrow panel. Its moon or sun is `orb` times its size on a wide screen, so a narrow one,
+// which shows the stage scaled up, does not fill with it.
 const SCENES = {
   // The moon over still water, with no heron: a headland, currents and foam, and the moon's
   // broken reflection.
@@ -68,8 +69,8 @@ const SCENES = {
         { name: "reed", size: 6, mode: "contour", mat: "limestone", tray: ["#51645d", "#788374", "#a1a084"] }
       ];
     },
-    draw(D, W, H, foot, end = W) {
-      const horizon = 0.665 * H, [mx, my] = [0.8 * W, 0.16 * H], r = 0.065 * W;
+    draw(D, W, H, foot, end = W, orb = 1) {
+      const horizon = 0.665 * H, [mx, my] = [0.8 * W, 0.16 * H], r = 0.065 * W * orb;
       D.fill(box(-10, -10, end + 20, horizon + 20), "sky", D.linear(0, 0, 0, horizon, [[0, "#142835"], [0.62, "#2c4a5a"], [1, "#6c8890"]]));
       stars(D, W, H, 11, 28, (x, y) => Math.hypot(x - mx, y - my) > r * 1.8 && (y < 0.27 * H || x < 0.07 * W || x > 0.93 * W));
       for (const [x0, , R] of onward(W, end, 11)) {
@@ -136,8 +137,8 @@ const SCENES = {
         { name: "crest", size: 7, mode: "contour", mat: "limestone", tray: ["#e3b88c", "#efcda2", "#f6dfba"] }
       ];
     },
-    draw(D, W, H, foot, end = W) {
-      const horizon = 0.76 * H, [sx, sy] = [0.6 * W, horizon], r = 0.055 * W;
+    draw(D, W, H, foot, end = W, orb = 1) {
+      const horizon = 0.76 * H, [sx, sy] = [0.6 * W, horizon], r = 0.055 * W * orb;
       D.fill(box(-10, -10, end + 20, horizon + 40), "sky", D.linear(0, 0, 0, horizon, [[0, "#1d2442"], [0.4, "#3c3460"], [0.75, "#8a5468"], [1, "#d08a5a"]]));
       for (const [u, v, a, b, color] of [[0.22, 0.11, 0.17, 15, "#9c6f6c"], [0.34, 0.15, 0.1, 11, "#9c6f6c"], [0.76, 0.2, 0.18, 17, "#bf8a78"], [0.62, 0.24, 0.1, 11, "#9c6f6c"]]) {
         D.fill(ellipse(u * W, v * H, a * W, b), "haze", color);
@@ -292,6 +293,9 @@ export function scene({ name, w, h, screen = h, total = w, k = 1, res = 1, hole 
   if (!s) throw new Error(`No scene ${name}.`);
   const { scale, h: band } = stageOn(w, screen), sx = scale, sy = scale;
   const tx = clamp(w / 2 - (s.focus ?? 0.5) * STAGE.w * sx, w - STAGE.w * sx, 0);
+  // How much of the stage's width the screen shows: all of it on a wide screen, a quarter on a
+  // phone. The moon and sun shrink with it, to about half their size on a phone.
+  const orb = clamp(w / (STAGE.w * sx) / 0.5, 0.55, 1);
   const regions = () => s.regions(STAGE.w, STAGE.h).map((r) => ({ ...r, size: r.size * k, ...(r.center && { center: [tx + r.center[0] * sx, r.center[1] * sy] }) }));
   const set = nameAt(w, band);
   return {
@@ -301,7 +305,7 @@ export function scene({ name, w, h, screen = h, total = w, k = 1, res = 1, hole 
       g.save();
       g.transform(sx, 0, 0, sy, tx, 0);
       // Where the panel ends, on the stage.
-      s.draw(D, STAGE.w, STAGE.h, h / sy, (total - tx) / sx);
+      s.draw(D, STAGE.w, STAGE.h, h / sy, (total - tx) / sx, orb);
       g.restore();
       if (hole) nameHole(D, set);
     }

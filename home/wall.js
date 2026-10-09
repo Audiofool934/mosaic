@@ -63,20 +63,47 @@ const GATE = 2.4, WORLD = GATE + 0.6, LAID = 6.4;
 
 // The column's film for a layout: its project, whose pictures this module, at `module`, draws
 // by name, so workers can cut them; the time by which every picture must have joined it; and
-// the time it rests at.
-export function wallFilm(layout, { module, laid = true, band }) {
+// the time it rests at. Where `flow` is set, as on a phone where motion is welcome, the scenes
+// behind the name then flow into one another on the first screen, in the wide wall's chain,
+// and the film also gives the times the scenes rest at, the pictures the page waits for
+// before it lays the wall past the gate, and those it waits for before the scenes flow.
+export function wallFilm(layout, { module, laid = true, band, flow = false }) {
   const arrive = laid ? { type: "laid", bed: 0 } : { type: "settled" };
-  const end = LAID + 0.1;
+  const picture = (name, first) => ({ module, export: "scenePicture", args: { ...layout, scene: name, first } });
+  if (!flow) {
+    const end = LAID + 0.1;
+    const project = {
+      version: 1, title: "mosAIc", seed: 42, fps: [60, 1], frames: Math.ceil(end * 60) + 1, band, look: [[0, 1], [end, 1]],
+      scenes: [
+        { id: "name", picture: { module, export: "namePicture", args: layout }, start: 0, end, at: [0, 0], in: arrive },
+        { id: "page", picture: { module, export: "wallPicture", args: layout }, start: 0, end, at: [0, 0], in: arrive },
+        { id: SCENE, picture: picture(SCENE, true), start: 0, end, at: [0, 0], in: arrive },
+        ...liveScenes(layout, { module, arrive, end })
+      ]
+    };
+    return { project, gate: GATE, rest: LAID };
+  }
+  const { W, middle } = firstScreen(layout);
+  const { names, ids, from, rest, end } = chain();
   const project = {
     version: 1, title: "mosAIc", seed: 42, fps: [60, 1], frames: Math.ceil(end * 60) + 1, band, look: [[0, 1], [end, 1]],
     scenes: [
       { id: "name", picture: { module, export: "namePicture", args: layout }, start: 0, end, at: [0, 0], in: arrive },
       { id: "page", picture: { module, export: "wallPicture", args: layout }, start: 0, end, at: [0, 0], in: arrive },
-      { id: SCENE, picture: { module, export: "scenePicture", args: { ...layout, scene: SCENE } }, start: 0, end, at: [0, 0], in: arrive },
-      ...liveScenes(layout, { module, arrive, end })
+      { id: "laying", picture: picture(names[0], true), start: 0, end: SWAP, at: [0, 0], in: arrive },
+      ...liveScenes(layout, { module, arrive, end }),
+      ...names.map((name, i) => ({
+        id: ids[i],
+        picture: picture(name, false),
+        start: i ? from(i) : SWAP,
+        end: i < names.length - 1 ? rest(i + 1) : end,
+        at: [0, 0],
+        in: i ? { type: "flow", launch: [from(i), from(i) + 0.8], land: [from(i) + 1, from(i) + FLOW], focus: [[W / 2, middle]], reach: 0.75 * W } : { type: "settled" }
+      }))
     ]
   };
-  return { project, gate: GATE, rest: LAID };
+  const first = ["name", "page", "laying", ...project.scenes.filter((x) => x.id === "method").map((x) => x.id)];
+  return { project, gate: GATE, laid: LAID, rest: rest(0), rests: names.map((_, i) => rest(i)), first, cycle: ids };
 }
 
 // The method's live band, where the page has one: the rest of its picture in the wall's own
@@ -153,10 +180,10 @@ export function namePicture(layout) {
 }
 
 // The scene behind the name, on the first screen and on down to the shoreline, laid outward
-// from behind the name once the name is laid.
-export function scenePicture({ scene: name, ...layout }) {
+// from behind the name once the name is laid, if it is the `first`; any other flows in.
+export function scenePicture({ scene: name, first = true, ...layout }) {
   const { W, screen, middle, k } = firstScreen(layout);
-  const p = scene({ name, w: W, h: screen + TAIL, screen, k, build: { origin: [W / 2, middle], start: WORLD, end: LAID - 0.4 } });
+  const p = scene({ name, w: W, h: screen + TAIL, screen, k, build: first ? { origin: [W / 2, middle], start: WORLD, end: LAID - 0.4 } : undefined });
   return {
     config: { ...p.config, rows: true },
     regions: p.regions,
@@ -179,19 +206,27 @@ export function scenePicture({ scene: name, ...layout }) {
 // flow pairs its stones within each screen and runs its wave out from each screen's middle,
 // the name's on the first, so every screen sees the whole flow as the first screen used to.
 const LEAD = 0.1, FLOW = 2.4, SETTLE = 0.3, SWAP = LAID + 0.1;
+
+// The chain of scenes, on the wide wall and on a column's first screen alike: the scenes in
+// turn and the first again, their ids, when the i-th starts to flow in, when it rests, and
+// when the film ends.
+function chain() {
+  const names = [...SCENE_NAMES, SCENE_NAMES[0]];
+  const ids = names.map((name, i) => (i < names.length - 1 ? name : `${name}-again`));
+  const from = (i) => SWAP + LEAD + (i - 1) * (FLOW + SETTLE + LEAD);
+  const rest = (i) => (i ? from(i) + FLOW + SETTLE : SWAP + 0.05);
+  return { names, ids, from, rest, end: rest(names.length - 1) };
+}
+
 export function wideFilm(layout, { module, laid = true, band, at = 0 }) {
   const { W, screen, middle } = firstScreen(layout);
   const n = layout.screens, total = W * n;
   const arrive = laid ? { type: "laid", bed: 0 } : { type: "settled" };
   const origin = at > 0 ? [W * (at + 0.5), screen / 2] : [W / 2, middle];
   const around = laid ? { ...arrive, build: { origin } } : arrive;
-  const names = [...SCENE_NAMES, SCENE_NAMES[0]];
-  const from = (i) => SWAP + LEAD + (i - 1) * (FLOW + SETTLE + LEAD);
-  const rest = (i) => (i ? from(i) + FLOW + SETTLE : SWAP + 0.05);
-  const end = rest(names.length - 1);
+  const { names, ids, from, rest, end } = chain();
   const focus = [[W / 2, middle], ...Array.from({ length: n - 1 }, (_, i) => [W * (i + 1.5), screen / 2])];
   const picture = (name, first) => ({ module, export: "panoramaPicture", args: { ...layout, scene: name, ...(first && { first }) } });
-  const ids = names.map((name, i) => (i < names.length - 1 ? name : `${name}-again`));
   const project = {
     version: 1, title: "mosAIc", seed: 42, fps: [60, 1], frames: Math.ceil(end * 60) + 1, band, look: [[0, 1], [end, 1]],
     scenes: [

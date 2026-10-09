@@ -121,6 +121,7 @@ A film cut in a worker can be drawn again without cutting it again: `mosaic.cut`
 The project page is such a wall.
 `home/wall.js` sets the name on the first screen, in white marble with its AI inlaid in gold, in front of four scenes from `examples/landscapes.js`: moonlit water, dunes at dusk, sweeping currents, and peaks at first light.
 Each scene is drawn on a stage 1600 by 900 millimetres, scaled evenly until it covers the first screen, the way a cover image fills a frame: a narrow screen cuts its sides around the scene's focus, while a wide one cuts its foot.
+A narrow screen shows the stage scaled up, so the moon and the sun shrink with how little of the stage it shows, to about half their size on a phone.
 The name is set on one line on every screen, a phone's included, so the word reads whole, with its AI in gold in the middle of it.
 Given a `total` width, a scene is drawn as a panorama that keeps the first screen as it is and runs on to the right with more of the same: more stars and reeds by the water, more rows of dunes, the currents carried on, and more peaks.
 Where motion is welcome and the screen is tall enough, the page's screens stand side by side along one wide wall that scrolls sideways: the first screen, then each room.
@@ -133,13 +134,14 @@ The gold of every frame and rim is a region set `still`, whose stones never answ
 The method, materials, and gallery rooms have no slab naming them: each shows its picture, samples, or works across the middle of the room, and names them only in the slabs under them.
 The method's picture is the heron by the moon in four bands, each a stage of it, in one gold frame: the flat drawing, its courses, and its cut stones are images that `tools/media.mjs` renders from `examples/nocturne.js`, and the fourth band is live, an opening the wall fills with the rest of the same picture in its own stones, which lift under the pointer like the rest of the wall.
 On a phone the method's picture is the abstract of currents set upright, `examples/currents.js`: glass, marble, clay, and a thread of gold, in four bands down the room, each as wide as the room and named on a small tag in its top left corner.
-Every band holds the same run of currents, so from one band to the next only the stage changes: a flat drawing, courses, cut stones, and, live in the wall, finished stones.
+The currents run on unbroken from the top band to the bottom one, so each band holds every current, and each current can be followed down through the four stages: a flat drawing, courses, cut stones, and, live in the wall, finished stones.
 The bands end where the currents' `BANDS` say, so the images, the live band, and the page agree.
 The wall is laid outward from behind the name, or from the middle of the screen the page opens on, and then every few seconds one scene flows into the next on every screen at once, the stones of each screen flying within it, out from its middle, as the first screen's run out from behind the name.
 A flow waits while the page is being scrolled, so the wall never moves two ways at once, and a button pauses the scenes where they are.
 The bare bed is a deep slate, on the wide wall, in the column, and in the studio's frame, so a flow never flashes pale, and a stone the pointer lifts shows the same plain slate under it.
 The wall's canvas is a screen wide, with a margin either side, and follows the scroll, and each scene draws only the screens near the one in view.
-On a phone, with motion reduced, or on a short screen, the page scrolls down as a column of rooms instead, each a screen high, which the browser settles on one at a time; it is laid over the first scene alone, which runs on below the first screen to a long wave, where a second picture painted from the page's layout takes over.
+On a phone, with motion reduced, or on a short screen, the page scrolls down as a column of rooms instead, each a screen high, which the browser settles on one at a time; it is laid over the first scene, which runs on below the first screen to a long wave, where a second picture painted from the page's layout takes over.
+Unless motion is reduced, the column's first screen then flows from scene to scene in the wide wall's chain, but only while the first screen is in view.
 On a phone the column scrolls freely, one long wall with no room to stop at, and its words are few: the bar stands in two rows at the foot of the screen, the first screen says the page is better viewed on a desktop, there is no intro slab and no sound, and each room shows its work with no more than a name.
 Under the first screen each room is as tall as its work, a short way below the one above it, and a room's pages run on as one.
 `home/rooms.js` makes sure a deliberate turn of the wheel always reaches the next room in the column where a browser would snap a short scroll back, and leaves scrolling itself to the browser.
@@ -164,7 +166,9 @@ The slab under the frame also changes the light, looks closer, lets the stones m
 The slab keeps one layout whatever is laid, so the wall cut round it never moves: the material and the stone size are dimmed for the artwork and the film, which bring their own, and the film's transport shows only in the status line.
 `site/` stays the standalone studio that ships with the skill.
 The studio takes its whole room, its frame as large as the screen allows; an image of one's own whose shape is far from the frame's, as a portrait, is laid whole on a surround of dark glass rather than cut to fit, while the page's own paintings always fill the frame, cropped round a focus.
-On a phone the frame stands tall, 4 by 5, so a photo taken upright fills it, and the slab keeps only the paintings, the upload, the material, the stone size, and saving.
+The frame's gold reaches out as far as the slab under it on either side.
+On a phone the frame stands as tall as 4 by 5, so a photo taken upright fills it, or less where the screen is short, and the slab keeps only the paintings, the upload, the material, the stone size, and saving.
+A chosen button, like a chosen picture, glows in a ring of gold.
 The last room sets the skill for a coding agent, with the command line, across the room, its words beside its code, and the colophon under it as a band of four columns; on a phone one stands under the other, with only their names, the commands, and the licence.
 The image is read on the page, cropped to the frame, and analysed and cut in a worker by `home/image.js`, so the page stays responsive, and it never leaves the browser.
 `home/main.js` measures the layout, has the pictures cut in workers, keeps the canvas moving with the scroll, and cuts the wall again when a new size reflows the page, on the screen that was in view.

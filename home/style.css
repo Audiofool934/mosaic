@@ -427,9 +427,9 @@ html.wide .gallery { padding-inline: max(var(--gutter), (100vw - var(--gw)) / 2)
   .room.end { padding-bottom: var(--pad-foot); }
   .head .type { --cell: 4px; }
 
-  /* The method on a phone: the upright currents of examples/currents.js in four bands down the
-     room, as wide as it, each a stage of them, named on a small tag in its top left corner. The
-     bands are equal shares of the panel and keep their shape, so none is cropped. */
+  /* The method on a phone: the vine scroll of examples/vine.js in four bands down the room, as
+     wide as it, each a stage of it, named on a small tag in its top left corner. The bands are
+     equal shares of the panel and keep their shape, so none is cropped. */
   .method .polyptych, .method .predella { display: none; }
   /* The first room under the name starts clear of the name's water, which runs on past the
      first screen to a wavy shore up to 100 mm of wall below it (home/wall.js), where the wall
@@ -437,7 +437,7 @@ html.wide .gallery { padding-inline: max(var(--gutter), (100vw - var(--gw)) / 2)
      a frame's gold reaches 9 pixels past its picture. */
   .method { padding-top: calc(11.4vw + 20px); }
   .upright { --mullion: 6px; display: grid; row-gap: var(--mullion); margin: 0; }
-  .upright .stage { position: relative; aspect-ratio: 450 / 200; }
+  .upright .stage { position: relative; aspect-ratio: 450 / 240; }
   .upright .tag { position: absolute; top: 8px; left: 8px; z-index: 1; padding: 5px 8px; border-radius: 6px; }
   .upright .tag .type { --cell: 2px; }
 

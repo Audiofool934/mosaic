@@ -133,9 +133,10 @@ Each sample is an inset of the wall, so the pointer moves only the stones of the
 The gold of every frame and rim is a region set `still`, whose stones never answer the pointer, so a frame holds still from whichever side the pointer comes.
 The method, materials, and gallery rooms have no slab naming them: each shows its picture, samples, or works across the middle of the room, and names them only in the slabs under them.
 The method's picture is the heron by the moon in four bands, each a stage of it, in one gold frame: the flat drawing, its courses, and its cut stones are images that `tools/media.mjs` renders from `examples/nocturne.js`, and the fourth band is live, an opening the wall fills with the rest of the same picture in its own stones, which lift under the pointer like the rest of the wall.
-On a phone the method's picture is the abstract of currents set upright, `examples/currents.js`: glass, marble, clay, and a thread of gold, in four bands down the room, each as wide as the room and named on a small tag in its top left corner.
-The currents run on unbroken from the top band to the bottom one, so each band holds every current, and each current can be followed down through the four stages: a flat drawing, courses, cut stones, and, live in the wall, finished stones.
-The bands end where the currents' `BANDS` say, so the images, the live band, and the page agree.
+On a phone the method's picture is a vine scroll, `examples/vine.js`, the running ornament of Roman and Byzantine mosaic, in four bands down the room, each as wide as the room and named on a small tag in its top left corner.
+A gold stem winds down a panel of deep blue glass, and at each swing a tendril springs from it and spirals in to a rosette of marble, clay, and gold.
+Each band holds one swing and its rosette, so the bands are alike, and the stem runs on unbroken through the four stages: a flat drawing, courses, cut stones, and, live in the wall, finished stones.
+The bands end where the vine's `BANDS` say, so the images, the live band, and the page agree.
 The wall is laid outward from behind the name, or from the middle of the screen the page opens on, and then every few seconds one scene flows into the next on every screen at once, the stones of each screen flying within it, out from its middle, as the first screen's run out from behind the name.
 A flow waits while the page is being scrolled, so the wall never moves two ways at once, and a button pauses the scenes where they are.
 The bare bed is a deep slate, on the wide wall, in the column, and in the studio's frame, so a flow never flashes pale, and a stone the pointer lifts shows the same plain slate under it.

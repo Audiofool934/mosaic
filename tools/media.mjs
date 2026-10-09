@@ -3,10 +3,10 @@
 // through the same engine: the name in stone over the night, wide and tall, which stands in
 // for the wall without WebGL2 and makes the share image; the method's first three bands, the
 // heron by the moon as a flat drawing, as courses, and as cut stones, and the same of the
-// upright currents for a phone, in bands down them; the flat paintings the studio in the wall
-// offers to lay; and the short film. Run it after a visual change to the engine or the
-// examples, with the names of the parts to render, or none for all of them: stills, method,
-// currents, paintings, film.
+// vine scroll for a phone, in bands down it; the flat paintings the studio in the wall offers
+// to lay; and the short film. Run it after a visual change to the engine or the examples, with
+// the names of the parts to render, or none for all of them: stills, method, vine, paintings,
+// film.
 import { spawnSync } from 'node:child_process';
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
@@ -25,10 +25,10 @@ const OUT = path.join(ROOT, 'home/media');
 const EDGES = [430, 800, 1110];
 // Pixels to the millimetre in the bands.
 const BAND_SCALE = 2;
-// The currents' bands run down their panel, ending where examples/currents.js says, and are
-// drawn finer, since their panel is smaller and a phone shows it close, with courses bold
-// enough to stay clear once the band is shrunk to a phone's width.
-const CURRENTS_SCALE = 3, CURRENTS_LINE = 2.6;
+// The vine's bands run down its panel, ending where examples/vine.js says, and are drawn
+// finer, since its panel is smaller and a phone shows it close, with courses bold enough to
+// stay clear once the band is shrunk to a phone's width.
+const VINE_SCALE = 3, VINE_LINE = 2.6;
 
 function ffmpeg(args) {
   const result = spawnSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', ...args], { stdio: ['ignore', 'ignore', 'pipe'] });
@@ -191,15 +191,15 @@ const PARTS = {
     });
     console.log(`Drew the method's bands: ${edges.slice(1).map((e, i) => e - edges[i]).join(', ')} px wide`);
   },
-  async currents(work) {
-    const { BANDS } = await import(pathToFileURL(path.join(ROOT, 'examples/currents.js')).href);
-    const plates = await inPage(work, drawPlates, { scale: CURRENTS_SCALE, line: CURRENTS_LINE, module: '/examples/currents.js' });
-    const rows = [0, ...BANDS].map((mm) => mm * CURRENTS_SCALE);
+  async vine(work) {
+    const { BANDS } = await import(pathToFileURL(path.join(ROOT, 'examples/vine.js')).href);
+    const plates = await inPage(work, drawPlates, { scale: VINE_SCALE, line: VINE_LINE, module: '/examples/vine.js' });
+    const rows = [0, ...BANDS].map((mm) => mm * VINE_SCALE);
     ['draw', 'flow', 'cut'].forEach((name, i) => {
       const source = plates[{ draw: 'drawing', flow: 'flow', cut: 'cut' }[name]];
-      webp(source, path.join(OUT, `currents-${name}.webp`), { crop: `crop=iw:${rows[i + 1] - rows[i]}:0:${rows[i]}` });
+      webp(source, path.join(OUT, `vine-${name}.webp`), { crop: `crop=iw:${rows[i + 1] - rows[i]}:0:${rows[i]}` });
     });
-    console.log(`Drew the currents' bands: ${rows.slice(1).map((e, i) => e - rows[i]).join(', ')} px high`);
+    console.log(`Drew the vine's bands: ${rows.slice(1).map((e, i) => e - rows[i]).join(', ')} px high`);
   },
   async paintings(work) {
     const files = await inPage(work, drawPaintings, { width: 1280 });

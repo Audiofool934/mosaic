@@ -2,8 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { loadPicture } from "../engine/picture.js";
 import { INSETS, INSET_REACH, TRAIL, insetRadius, insetsNear, markTrail, wallInsets } from "../engine/renderer.js";
-import { currentsPicture, methodPicture, wallPicture } from "../home/wall.js";
-import { BANDS, config as currents } from "../examples/currents.js";
+import { methodPicture, vinePicture, wallPicture } from "../home/wall.js";
+import { BANDS, config as vine } from "../examples/vine.js";
 
 const close = (actual, expected, message) => {
   assert.equal(actual.length, expected.length, message);
@@ -64,11 +64,14 @@ test("the page's gold frames hold still under the pointer, and the method's live
   assert.deepEqual(methodPicture({ w: 400, h: 600 }).config.insets, [[0, 0, 400, 600]]);
 });
 
-test("the currents' bands run down their panel in order, and their live band is their foot, an inset of its own", () => {
-  assert.ok(BANDS.every((y, i) => y > (BANDS[i - 1] ?? 0) && y < currents.panel.h), `bands ${BANDS} within ${currents.panel.h} mm`);
+test("the vine's bands run down its panel in order, and its live band is its foot, an inset of its own", () => {
+  assert.ok(BANDS.every((y, i) => y > (BANDS[i - 1] ?? 0) && y < vine.panel.h), `bands ${BANDS} within ${vine.panel.h} mm`);
   // A band as tall as the foot's own shape is scaled, not cropped, and moves on its own.
-  const w = 300, h = (300 * (currents.panel.h - BANDS[2])) / currents.panel.w;
-  const band = currentsPicture({ w, h });
+  const w = 300, h = (300 * (vine.panel.h - BANDS[2])) / vine.panel.w;
+  const band = vinePicture({ w, h });
   assert.deepEqual(band.config.insets, [[0, 0, w, h]]);
-  assert.ok(Math.abs(band.config.res - currents.res / (w / currents.panel.w)) < 1e-9, "the band keeps the currents' raster density");
+  assert.ok(Math.abs(band.config.res - vine.res / (w / vine.panel.w)) < 1e-9, "the band keeps the vine's raster density");
+  // Its rosette's heart is centred where the rosette is, in the band.
+  const heart = band.regions().find((r) => r.name === "heart-3");
+  assert.ok(heart.center[0] > 0 && heart.center[0] < w && heart.center[1] > 0 && heart.center[1] < h, `the last rosette's heart ${heart.center} lies in the band`);
 });

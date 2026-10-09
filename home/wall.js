@@ -9,7 +9,7 @@ import { nameAlone, nameAt } from "../examples/inscription.js";
 import { SCENE_NAMES, scene, stageOn } from "../examples/landscapes.js";
 import { config as house, draw as drawNocturne, regions as nocturneRegions } from "../examples/nocturne.js";
 import { SAMPLES } from "../examples/materials.js";
-import { BANDS as CURRENT_BANDS, config as currents, draw as drawCurrents, regions as currentRegions } from "../examples/currents.js";
+import { BANDS as VINE_BANDS, config as vine, draw as drawVine, regions as vineRegions } from "../examples/vine.js";
 import { circle, poly } from "../engine/paint.js";
 import { clamp, rng } from "../engine/util.js";
 
@@ -108,13 +108,13 @@ export function wallFilm(layout, { module, laid = true, band, flow = false }) {
 
 // The method's live band, where the page has one: the rest of its picture in the wall's own
 // stones, set in front of the scenes, laid from `origin` on the wall when it is laid. The band
-// names its picture: the heron by the moon, across a wide screen, or the currents, down a phone.
+// names its picture: the heron by the moon, across a wide screen, or the vine scroll, down a phone.
 function liveScenes(layout, { module, arrive, end, origin }) {
   const b = layout.blocks.find((block) => block.kind === "live");
   if (!b) return [];
   const m = layout.scale ?? wallScale(layout.width), at = [b.x * m, b.y * m];
   const arrival = origin && arrive.type === "laid" ? { ...arrive, build: { origin: [origin[0] - at[0], origin[1] - at[1]] } } : arrive;
-  const picture = b.picture === "currents" ? "currentsPicture" : "methodPicture";
+  const picture = b.picture === "vine" ? "vinePicture" : "methodPicture";
   return [{ id: "method", picture: { module, export: picture, args: { w: b.w * m, h: b.h * m } }, start: 0, end, at, in: arrival, front: true }];
 }
 
@@ -146,27 +146,27 @@ export function methodPicture({ w, h, x0 = 1110 }) {
   };
 }
 
-// The last band of the currents, the method's picture on a phone: the currents from y0
-// millimetres down their panel to its foot, where the other bands leave off, scaled to cover w
-// by h millimetres of wall and cropped from its middle across.
-export function currentsPicture({ w, h, y0 = CURRENT_BANDS[2] }) {
-  const { w: W, h: H } = currents.panel;
+// The last band of the vine scroll, the method's picture on a phone: the vine from y0
+// millimetres down its panel to its foot, where the other bands leave off, scaled to cover w by
+// h millimetres of wall and cropped from its middle across.
+export function vinePicture({ w, h, y0 = VINE_BANDS[2] }) {
+  const { w: W, h: H } = vine.panel;
   const s = Math.max(w / W, h / (H - y0));
   const left = (W - w / s) / 2, top = y0;
   return {
     config: {
-      panel: { w, h }, res: (currents.res ?? 1) / s, background: currents.background,
+      panel: { w, h }, res: (vine.res ?? 1) / s, background: vine.background,
       camera: { keys: [[0, w / 2, h / 2, w]], tilt: 0, yaw: 0, aperture: 0.004, drift: 0 },
-      light: currents.light, sinopia: false,
+      light: vine.light, sinopia: false,
       // The band moves on its own under the pointer, inside its frame, as a sample does.
       insets: [[0, 0, w, h]],
       build: { origin: [w / 2, h / 2], start: WORLD, end: LAID - 0.3, rise: 0.08 }
     },
-    regions: () => currentRegions().map((r) => ({ ...r, size: r.size * s })),
+    regions: () => vineRegions().map((r) => ({ ...r, size: r.size * s, ...(r.center && { center: [(r.center[0] - left) * s, (r.center[1] - top) * s] }) })),
     draw(g, mode, D) {
       g.save();
       g.transform(s, 0, 0, s, -left * s, -top * s);
-      drawCurrents(g, mode, D);
+      drawVine(g, mode, D);
       g.restore();
     }
   };

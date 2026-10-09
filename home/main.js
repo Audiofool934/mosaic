@@ -603,7 +603,9 @@ for (const button of document.querySelectorAll(".copy")) {
   button.addEventListener("click", async () => {
     const code = button.parentElement.querySelector("pre:not([hidden]) code");
     try {
-      await navigator.clipboard.writeText(code.textContent);
+      // A line that starts with # is a note to the reader and is not copied: zsh, the shell a
+      // Mac opens, runs a pasted note as a command unless set to allow comments.
+      await navigator.clipboard.writeText(code.textContent.replace(/^#.*\n?/gm, "").trimEnd());
       button.textContent = "Copied";
     } catch {
       getSelection().selectAllChildren(code);

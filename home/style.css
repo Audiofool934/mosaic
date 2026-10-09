@@ -332,13 +332,17 @@ html.wide .gallery { padding-inline: max(var(--gutter), (100vw - var(--gw)) / 2)
 .agent > .type { --cell: 4px; }
 .agent > p { font-size: 15.5px; line-height: 1.55; color: var(--marble-muted); }
 .ways { display: flex; gap: 8px; }
-/* The copy button sits on its own row so it never covers a long first line. */
-.code { display: flex; flex-direction: column; border-radius: 9px; background: var(--well); box-shadow: inset 0 0 0 1.6px var(--rim); }
+/* The copy button sits on its own row so it never covers a long first line. The ways to run it
+   share the row under it, the one not chosen held in its place unseen, so the box is as tall as
+   the longer and keeps its size as the tabs change: the well laid round it, and on a phone the
+   whole wall, are never cut again for a tab. */
+.code { display: grid; grid-template-columns: minmax(0, 1fr); border-radius: 9px; background: var(--well); box-shadow: inset 0 0 0 1.6px var(--rim); }
 .slab[data-state="laid"] .code { background: none; box-shadow: none; }
-.code pre { order: 2; margin: 0; padding: 2px 18px 18px; overflow-x: auto; font: 400 12.5px / 1.75 var(--mono); color: var(--marble); }
+.code pre { grid-area: 2 / 1; margin: 0; padding: 2px 18px 18px; overflow-x: auto; font: 400 12.5px / 1.75 var(--mono); color: var(--marble); }
+.code pre[hidden] { display: block !important; visibility: hidden; }
 .code pre code { font: inherit; }
 .copy {
-  order: 1; align-self: flex-end; margin: 8px 8px 0 0; padding: 5px 9px; border: 1px solid rgb(217 182 116 / 0.45); border-radius: 12px;
+  grid-area: 1 / 1; justify-self: end; margin: 8px 8px 0 0; padding: 5px 9px; border: 1px solid rgb(217 182 116 / 0.45); border-radius: 12px;
   background: none; font: 500 12px / 1 var(--sans); color: var(--marble-muted);
 }
 .copy:hover { color: var(--gilt); border-color: var(--gilt); }

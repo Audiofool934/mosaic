@@ -275,7 +275,8 @@
           <pre id="code-skill" role="tabpanel" aria-labelledby="way-skill"><code>git clone https://github.com/Audiofool934/mosaic
 cd mosaic &amp;&amp; npm run build
 mkdir -p ~/.claude/skills
-rm -rf ~/.claude/skills/mosaic &amp;&amp; cp -R dist/mosaic ~/.claude/skills/
+rm -rf ~/.claude/skills/mosaic
+cp -R dist/mosaic ~/.claude/skills/
 cd ~/.claude/skills/mosaic/assets/runtime
 npm ci &amp;&amp; npx playwright-core install chromium
 # MP4 films also need FFmpeg on your PATH.</code></pre>
@@ -285,7 +286,8 @@ npx playwright-core install chromium
 node tools/cli.mjs init art
 node tools/cli.mjs preview art/project.json
 # MP4 films need FFmpeg on your PATH.
-node tools/cli.mjs render art/project.json --width 1280 --samples 2 --to 120 --out output/art.mp4</code></pre>
+node tools/cli.mjs render art/project.json \
+  --width 1280 --samples 2 --to 120</code></pre>
           <button class="copy" type="button">Copy</button>
         </div>
         <p class="ask">Then ask for one:</p>

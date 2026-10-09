@@ -32,6 +32,9 @@ On macOS, capture defaults to ANGLE Metal; other systems default to SwiftShader 
 An `ANGLE` environment override selects another installed backend.
 A missing WebGL2 or floating-point framebuffer error usually indicates an unsupported graphics configuration.
 Do not use `--disable-gpu` as a fix for an empty canvas.
+Software rendering takes seconds per frame at 1920 pixels wide, so a full film can take half an hour or more.
+Without a GPU, check a film with a short `--to` range, a smaller `--width`, and two samples before the full render.
+`render` draws every frame of the project unless `--to` is given.
 
 The common SKILL.md and Node entry point work in skill-aware coding agents.
 Codex can install the bundle under `~/.codex/skills/mosaic`; Claude Code can use `~/.claude/skills/mosaic` or a project's `.claude/skills` directory.

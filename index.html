@@ -266,7 +266,7 @@
     <div class="page">
       <article class="slab agent" data-slab>
         <h3 class="type" data-type="GIVE IT TO|YOUR AGENT">Give it to your agent</h3>
-        <p>Build the skill and copy it into Claude Code, then install the capture browser once. For Codex, copy it into <code>~/.codex/skills/</code> instead.</p>
+        <p>Build the skill and copy it into Claude Code, then install the capture browser once. For Codex, copy it into <code>~/.codex/skills/</code> instead. Without a GPU, each frame of a film takes seconds to render in software.</p>
         <div class="ways" role="tablist" aria-label="How to run it">
           <button class="stone-button" type="button" role="tab" id="way-skill" aria-controls="code-skill" aria-selected="true" data-well><span class="type" data-type="THE SKILL">The skill</span></button>
           <button class="stone-button" type="button" role="tab" id="way-cli" aria-controls="code-cli" aria-selected="false" tabindex="-1" data-well><span class="type" data-type="COMMAND LINE" data-type-narrow="COMMAND|LINE">Command line</span></button>
@@ -275,15 +275,17 @@
           <pre id="code-skill" role="tabpanel" aria-labelledby="way-skill"><code>git clone https://github.com/Audiofool934/mosaic
 cd mosaic &amp;&amp; npm run build
 mkdir -p ~/.claude/skills
-cp -R dist/mosaic ~/.claude/skills/
+rm -rf ~/.claude/skills/mosaic &amp;&amp; cp -R dist/mosaic ~/.claude/skills/
 cd ~/.claude/skills/mosaic/assets/runtime
-npm ci &amp;&amp; npx playwright-core install chromium</code></pre>
+npm ci &amp;&amp; npx playwright-core install chromium
+# MP4 films also need FFmpeg on your PATH.</code></pre>
           <pre id="code-cli" role="tabpanel" aria-labelledby="way-cli" hidden><code>git clone https://github.com/Audiofool934/mosaic
 cd mosaic &amp;&amp; npm ci
 npx playwright-core install chromium
 node tools/cli.mjs init art
 node tools/cli.mjs preview art/project.json
-node tools/cli.mjs render art/project.json</code></pre>
+# MP4 films need FFmpeg on your PATH.
+node tools/cli.mjs render art/project.json --width 1280 --samples 2 --to 120 --out output/art.mp4</code></pre>
           <button class="copy" type="button">Copy</button>
         </div>
         <p class="ask">Then ask for one:</p>

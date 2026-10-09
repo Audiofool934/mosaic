@@ -50,8 +50,11 @@ node tools/cli.mjs still ./my-mosaic/project.json --time 2 --width 1920 --sample
 For a silent MP4, install FFmpeg on your system and make it available on `PATH`:
 
 ```bash
-node tools/cli.mjs render ./my-mosaic/project.json --width 1920 --samples 4 --from 0 --to 120 --out ./output/art.mp4
+node tools/cli.mjs render ./my-mosaic/project.json --width 1280 --samples 2 --to 120 --out ./output/art.mp4
 ```
+
+Without `--to`, `render` draws every frame of the project.
+Without a GPU, capture uses software WebGL and takes seconds per frame, so try a short range and a smaller width before a full film.
 
 Preview the included two-scene film with `node tools/cli.mjs preview examples/film.json`.
 The studio shows playback and scrubbing controls for a project manifest.
@@ -73,6 +76,16 @@ Copy the complete `dist/mosaic/` directory into your agent's skills directory.
 For example, Codex uses `~/.codex/skills/mosaic/` and Claude Code supports `~/.claude/skills/mosaic/`.
 Keep the directory intact: it includes the instructions, references, command wrapper, and a self-contained runtime under `assets/runtime/`.
 For capture, run `npm ci` and `npx playwright-core install chromium` inside that runtime directory.
+MP4 films also need FFmpeg on your `PATH`.
+
+```bash
+mkdir -p ~/.claude/skills
+rm -rf ~/.claude/skills/mosaic && cp -R dist/mosaic ~/.claude/skills/
+cd ~/.claude/skills/mosaic/assets/runtime
+npm ci && npx playwright-core install chromium
+```
+
+Remove the old copy before installing a new one, as above, so no file from an earlier version stays behind.
 
 Ask your agent to use **mosAIc**, describe the image you want to make, and specify a still, interactive artwork, or film.
 The skill guides scene authoring, preview, rendering, and visual inspection without requiring a specific model or paid service.

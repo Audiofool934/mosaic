@@ -56,6 +56,13 @@ node tools/cli.mjs render ./my-mosaic/project.json --width 1280 --samples 2 --to
 Without `--to`, `render` draws every frame of the project.
 Without a GPU, capture uses software WebGL and takes seconds per frame, so try a short range and a smaller width before a full film.
 
+Lay an image of your own as a project, then capture it the same way:
+
+```bash
+node tools/cli.mjs import ./photo.jpg ./my-photo --material glass --stone-size 12
+node tools/cli.mjs still ./my-photo/project.json --width 1600 --samples 4 --out ./output/photo.png
+```
+
 Preview the included two-scene film with `node tools/cli.mjs preview examples/film.json`.
 The studio shows playback and scrubbing controls for a project manifest.
 

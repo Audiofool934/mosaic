@@ -78,9 +78,9 @@ test('web and skill distributions retain canonical bytes, notices, and source ma
   const skillFiles = await filesIn(built.skill);
   assert.equal(skillFiles.includes('assets/runtime/index.html'), false);
   assert.equal(skillFiles.some(name => name.startsWith('assets/runtime/home/')), false);
-  // The skill and the website both carry the page-wall example the references name.
+  // The skill and the website both carry the page-wall and photo examples the references name.
   const siteFiles = await filesIn(built.site);
-  for (const name of ['page-wall/index.html', 'page-wall/wall.js', 'page-wall/project.json']) {
+  for (const name of ['page-wall/index.html', 'page-wall/wall.js', 'page-wall/project.json', 'photo/photo.js', 'photo/project.json', 'photo/heron.webp']) {
     assert.ok(skillFiles.includes(`assets/runtime/examples/${name}`), `the skill must carry examples/${name}`);
     assert.ok(siteFiles.includes(`examples/${name}`), `the website must carry examples/${name}`);
   }
@@ -96,7 +96,7 @@ test('web and skill distributions retain canonical bytes, notices, and source ma
     assert.equal(info.title, 'Moon over still water');
     assert.deepEqual(info.band, [1920, 1080]);
     assert.equal(existsSync(path.join(runtime, 'node_modules')), false);
-    for (const example of ['page-wall']) {
+    for (const example of ['page-wall', 'photo']) {
       const shipped = await exec(process.execPath, [path.join(built.skill, 'scripts/mosaic.mjs'), 'inspect', path.join(runtime, `examples/${example}/project.json`)], { cwd: temporary, timeout: 10_000 });
       assert.deepEqual(JSON.parse(shipped.stdout).band, [1600, 900]);
     }

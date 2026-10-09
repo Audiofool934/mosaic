@@ -1,0 +1,17 @@
+{
+  "title": "The heron, from an image",
+  "version": 1,
+  "seed": 7,
+  "fps": [60, 1],
+  "frames": 480,
+  "band": [1600, 900],
+  "scenes": [
+    {
+      "id": "photo",
+      "picture": { "module": "./photo.js", "export": "photo", "args": { "src": "./heron.webp", "material": "glass", "stoneSize": 12 } },
+      "start": 0,
+      "end": 8,
+      "in": { "type": "settled" }
+    }
+  ]
+}

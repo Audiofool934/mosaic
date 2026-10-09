@@ -64,4 +64,14 @@ For a control or plaque set in stone, `createMosaic(canvas, { lamp: { height, po
 `coat` sets the colour of the bare bed, which shows, in that one plain colour, wherever a stone is not yet set or has come off its bed, lifted by the pointer or a flow, or gone; a dark coat keeps a page that flows between screens from flashing pale between them, and a page's lifted stones from opening pale holes.
 Give a picture `insets` in its config, `[x, y, w, h]` in its millimetres, for squares that should move on their own, such as material samples: the pointer then moves only the stones of the inset it is on, and the wall round the insets stays still.
 A page that turns between pictures with gestures can move one film's clock from the hand with `setTime(t)`, which keeps live input, easing it toward where the hand is, so the stones follow it both ways and a turn can be rewound.
-The project page in the mosAIc source repository, `home/main.js` and `home/wall.js`, is a complete example: the page measures its own layout and has a picture painted around it.
+
+## A wall around an existing page
+
+`examples/page-wall/` cuts a wall around the words of an existing page.
+Its `index.html` marks blocks with `data-wall`, measures them in CSS pixels, and passes them as plain arguments to `pageWall()` in `wall.js`, which paints a plate of dark glass in a gold rim for each block so the courses flow around them.
+The canvas stays a screen high behind the page, and `setView({ frame })` follows the page's scroll across a wall as long as the page.
+A resize that moves the blocks cuts the wall again; otherwise the canvas only takes the new size.
+A very long page is laid with a coarser working raster and larger stones, so it stays within the engine's limits.
+Preview it with `preview` and open `/examples/page-wall/index.html` on the printed server, or capture its sample layout with `still <skill-directory>/assets/runtime/examples/page-wall/project.json`.
+To use it on another page, copy `wall.js`, the page's script, and the `engine/` directory next to the page, mark its blocks with `data-wall`, and change the two import paths to match.
+`wall.js` has no imports of its own; change its `field`, `rim`, and `plate` colours or its stone size through the arguments.

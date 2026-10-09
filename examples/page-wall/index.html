@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>A page cut into a mosaic wall</title>
+  <link rel="icon" href="data:,">
+  <style>
+    html, body { margin: 0; background: #14171c; color: #f2ede2; font: 18px/1.55 system-ui, sans-serif; }
+    /* The wall stays a screen high behind the page and follows its scroll. */
+    .wall { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
+    .wall canvas { display: block; width: 100%; height: 100%; }
+    main { position: relative; z-index: 1; max-width: 1000px; margin: 0 auto; padding: 96px 24px 160px; }
+    /* Each block marked data-wall is a hole in the wall, set on a plate in a gold rim. */
+    [data-wall] { padding: 24px 28px; margin: 0 0 56px; }
+    h1 { font-size: clamp(36px, 6vw, 60px); line-height: 1.1; margin: 0 0 12px; }
+    .row { display: flex; flex-wrap: wrap; gap: 0 48px; }
+    .row > [data-wall] { flex: 1 1 260px; }
+    .status { position: fixed; left: 16px; bottom: 12px; z-index: 1; margin: 0; font-size: 13px; opacity: 0.7; }
+  </style>
+</head>
+<body>
+  <div class="wall" aria-hidden="true"><canvas></canvas></div>
+  <main>
+    <section data-wall>
+      <h1>Your page, set in stone</h1>
+      <p>Mark the blocks of a page with <code>data-wall</code>. The page measures them, and the wall is cut around them in your browser.</p>
+    </section>
+    <div class="row">
+      <section data-wall>
+        <h2>Measured</h2>
+        <p>Each block's box becomes a plate of dark glass in a gold rim.</p>
+      </section>
+      <section data-wall>
+        <h2>Cut again</h2>
+        <p>When the page reflows to a new width, the wall is cut again around its new layout.</p>
+      </section>
+    </div>
+    <section data-wall>
+      <h2>Copy it</h2>
+      <p>Copy <code>wall.js</code> and this script next to your page, with the <code>engine/</code> directory, and change the import paths to match.</p>
+    </section>
+  </main>
+  <p class="status" id="status" role="status">Cutting the stones in your browser.</p>
+  <script type="module">
+    import { createMosaic } from "../../engine/runtime.js";
+
+    const canvas = document.querySelector(".wall canvas");
+    const status = document.getElementById("status");
+    const still = matchMedia("(prefers-reduced-motion: reduce)");
+    const wallModule = new URL("./wall.js", import.meta.url).href;
+    let mosaic = null, layout = null, building = 0;
+
+    // The page's own layout in CSS pixels: its width, its full height, and each block's box.
+    function measure() {
+      const w = document.documentElement.clientWidth;
+      const h = Math.max(document.documentElement.scrollHeight, innerHeight);
+      const holes = [...document.querySelectorAll("[data-wall]")]
+        .filter((el) => el.getClientRects().length)
+        .map((el) => {
+          const r = el.getBoundingClientRect();
+          return [r.left + scrollX, r.top + scrollY, r.width, r.height].map(Math.round);
+        });
+      return { w, h, holes };
+    }
+
+    const pixels = () => {
+      const ratio = Math.min(devicePixelRatio || 1, 2);
+      return [Math.round(innerWidth * ratio), Math.round(innerHeight * ratio)];
+    };
+
+    async function lay() {
+      const ticket = ++building;
+      const next = measure();
+      const project = {
+        version: 1, title: "Page wall", seed: 3, fps: [60, 1], frames: 480, band: [next.w, next.h],
+        scenes: [{ id: "page", picture: { module: wallModule, export: "pageWall", args: next }, start: 0, end: 8, in: { type: "settled" } }]
+      };
+      mosaic?.dispose();
+      mosaic = null;
+      try {
+        const [width, height] = pixels();
+        const created = await createMosaic(canvas, { project, width, height, samples: 1, worker: true, coat: "#14171c" });
+        if (ticket !== building) { created.dispose(); return; }
+        mosaic = created;
+        layout = next;
+        // The canvas is a screen high; the view looks at the stretch of the wall in sight.
+        mosaic.setView({ frame: () => ({ x: layout.w / 2, y: scrollY + innerHeight / 2, w: innerWidth }) });
+        mosaic.requestFrame();
+        status.hidden = true;
+      } catch (error) {
+        if (ticket === building) status.textContent = error.message;
+      }
+    }
+
+    addEventListener("scroll", () => mosaic?.requestFrame(), { passive: true });
+    addEventListener("pointermove", (event) => {
+      if (!mosaic || still.matches) return;
+      mosaic.setPointer({ x: event.clientX / innerWidth, y: event.clientY / innerHeight, active: true });
+    });
+    document.addEventListener("pointerleave", () => mosaic?.setPointer({ active: false }));
+
+    // A resize that moves the page's blocks cuts the wall again; otherwise the canvas only takes the new size.
+    let timer = 0;
+    addEventListener("resize", () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        const next = measure();
+        if (!layout || next.w !== layout.w || next.h !== layout.h || JSON.stringify(next.holes) !== JSON.stringify(layout.holes)) lay();
+        else mosaic?.resize(...pixels());
+      }, 250);
+    });
+    addEventListener("pagehide", () => mosaic?.dispose(), { once: true });
+
+    await document.fonts?.ready;
+    lay();
+  </script>
+</body>
+</html>

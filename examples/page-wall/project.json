@@ -1,0 +1,21 @@
+{
+  "title": "A page cut into a wall",
+  "version": 1,
+  "seed": 3,
+  "fps": [60, 1],
+  "frames": 480,
+  "band": [1600, 900],
+  "scenes": [
+    {
+      "id": "page",
+      "picture": {
+        "module": "./wall.js",
+        "export": "pageWall",
+        "args": { "w": 1600, "h": 900, "holes": [[240, 120, 1120, 260], [240, 470, 520, 280], [840, 470, 520, 280]] }
+      },
+      "start": 0,
+      "end": 8,
+      "in": { "type": "settled" }
+    }
+  ]
+}

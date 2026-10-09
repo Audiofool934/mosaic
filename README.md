@@ -109,6 +109,7 @@ For example, after serving the build at `/mosaic/`, embed the complete studio wi
 ```
 
 For a custom interface, import `createMosaic` from `engine/runtime.js` and attach it to your own canvas.
+To cut a wall around the words of an existing page, start from `examples/page-wall/`: its page marks blocks with `data-wall`, and `wall.js` lays the stones around them.
 The [architecture guide](docs/architecture.md) explains the controller and how to keep the stones, lighting, pointer response, and exports in sync.
 It also covers cutting stones in a worker and walls of several pictures that a page scrolls across, as the project page does.
 

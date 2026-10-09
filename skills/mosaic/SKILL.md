@@ -25,7 +25,8 @@ Use a clear silhouette, a controlled palette, and stone courses that explain the
 Show macro and full-frame views during iteration; a beautiful close-up does not guarantee a legible composition.
 
 For a supplied image, use the browser studio's import control or the `imageToPicture()` API.
-Read [image-and-web.md](references/image-and-web.md) for import options and website embedding.
+For an existing web page, start from `assets/runtime/examples/page-wall/`, which cuts a wall around the page's own blocks.
+Read [image-and-web.md](references/image-and-web.md) for import options, the page wall, and website embedding.
 Image conversion is a bounded colour analysis followed by contour tessellation.
 It does not infer semantic objects or turn an arbitrary video into coherent animation.
 Treat material choice as an artistic decision; gold is opt-in.

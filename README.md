@@ -2,7 +2,7 @@
 
 ![Moon over still water, an original mosaic made with the shared engine](site/preview.jpg)
 
-Make gorgeous physical mosaic art, together with your agent.
+An old craft in a new hand: make physical mosaic art together with your agent.
 Thousands of individually cut stones follow the contours of a picture, catch the light, cast shadows, and move beneath your pointer.
 Glass, marble, gold, and mortar share one WebGL2 engine across the browser studio, still images, and animated films.
 

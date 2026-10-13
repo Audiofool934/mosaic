@@ -7,12 +7,12 @@ import { ROOT, startServer } from './server.mjs';
 
 export const HELP = `mosAIc - physical mosaic artwork for people and agents
 
-  mosaic init <directory>
-  mosaic import <image> <directory> [--material glass] [--stone-size 12]
-  mosaic preview [project.json] [--port 0]
-  mosaic inspect [project.json]
-  mosaic still [project.json] [--time 2] [--width 1920] [--samples 4] [--out output/still.png]
-  mosaic render [project.json] [--from 0] [--to <all frames>] [--width 1920] [--samples 4] [--out output/video.mp4]
+  node tools/cli.mjs init <directory>
+  node tools/cli.mjs import <image> <directory> [--material glass] [--stone-size 12]
+  node tools/cli.mjs preview [project.json] [--port 0]
+  node tools/cli.mjs inspect [project.json]
+  node tools/cli.mjs still [project.json] [--time 2] [--width 1920] [--samples 4] [--out output/still.png]
+  node tools/cli.mjs render [project.json] [--from 0] [--to <all frames>] [--width 1920] [--samples 4] [--out output/video.mp4]
 
 The default project is examples/nocturne.json.
 import makes a project of a PNG, JPEG, WebP, or GIF; --material is glass, stone, or gold.
@@ -28,7 +28,7 @@ const OPTIONS = { init: [], import: ['material', 'stone-size'], preview: ['port'
 export function parseArgs(argv) {
   if (!argv.length || argv[0] === '--help' || argv[0] === '-h' || argv[0] === 'help') return { command: 'help' };
   const command = argv[0];
-  if (!Object.hasOwn(OPTIONS, command)) throw new Error(`Unknown command: ${command}. Run mosaic --help.`);
+  if (!Object.hasOwn(OPTIONS, command)) throw new Error(`Unknown command: ${command}. Run node tools/cli.mjs --help.`);
   const result = { command };
   for (let i = 1; i < argv.length; i++) {
     const value = argv[i];
@@ -62,7 +62,7 @@ export async function inspectProject(projectFile) {
   const file = path.resolve(projectFile || path.join(ROOT, 'examples/nocturne.json'));
   let source;
   try { source = JSON.parse(await readFile(file, 'utf8')); }
-  catch (error) { throw new Error(`Cannot read project ${path.basename(file)}: ${error.message}`); }
+  catch (error) { throw new Error(`Cannot read project ${file}: ${error.message}`); }
   const project = validateProject(source);
   for (const scene of project.scenes) {
     // A scene module by path, or a picture function in one, called with plain arguments.
@@ -113,7 +113,10 @@ try {
   const mosaic=await createMosaic(canvas,{project:new URL('./project.json',location.href),width:1600,samples:1});
   status.textContent=mosaic.info.title+' - move over the picture to lift its stones.';
   canvas.addEventListener('pointermove',event=>{const r=canvas.getBoundingClientRect();mosaic.setPointer({x:(event.clientX-r.left)/r.width,y:(event.clientY-r.top)/r.height,active:true,strength:1});});
-  canvas.addEventListener('pointerleave',()=>mosaic.setPointer({active:false}));
+  const settle=()=>mosaic.setPointer({active:false});
+  canvas.addEventListener('pointerleave',settle);
+  canvas.addEventListener('pointercancel',settle);
+  canvas.addEventListener('pointerup',event=>{if(event.pointerType!=='mouse')settle();});
   window.addEventListener('pagehide',()=>mosaic.dispose(),{once:true});
 } catch(error) {status.textContent=error.message;}
 </script></html>
@@ -197,11 +200,12 @@ const IMPORT_TYPES = { png: '.png', gif: '.gif', jpeg: '.jpg', webp: '.webp' };
 export async function importProject(image, directory, { material = 'glass', stoneSize = 12 } = {}) {
   if (!IMPORT_MATERIALS.includes(material)) throw new Error('--material must be glass, stone, or gold.');
   const size = numeric(stoneSize, 12, '--stone-size', 3, 100);
+  const imageFile = path.resolve(image);
   let data;
-  try { data = await readFile(image); }
-  catch (error) { throw new Error(`Cannot read image ${path.basename(image)}: ${error.message}`); }
+  try { data = await readFile(imageFile); }
+  catch (error) { throw new Error(`Cannot read image ${imageFile}: ${error.message}`); }
   const info = imageSize(data);
-  if (!info || !(info.width > 0 && info.height > 0)) throw new Error(`Cannot read the size of ${path.basename(image)}. Use a PNG, JPEG, WebP, or GIF image.`);
+  if (!info || !(info.width > 0 && info.height > 0)) throw new Error(`Cannot read the size of ${imageFile}. Use a PNG, JPEG, WebP, or GIF image.`);
   const destination = await scaffold(directory);
   const name = 'image' + IMPORT_TYPES[info.type];
   await writeFile(path.join(destination, name), data);

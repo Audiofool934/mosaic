@@ -17,6 +17,7 @@ test('CLI parses explicit commands and rejects ambiguous or misspelled input', (
   assert.deepEqual(parseArgs(['import', 'my photo.jpg', 'my art', '--material', 'gold', '--stone-size', '8']), { command: 'import', image: 'my photo.jpg', project: 'my art', material: 'gold', 'stone-size': '8' });
   for (const args of [['import'], ['import', 'photo.jpg'], ['import', 'a.jpg', 'b', 'c'], ['import', 'a.jpg', 'b', '--time', '2']]) assert.throws(() => parseArgs(args));
   for (const args of [['init'], ['unknown'], ['still', '--sample', '2'], ['still', '--width'], ['inspect', 'one', 'two'], ['still', '--width', '200', '--width', '400']]) assert.throws(() => parseArgs(args));
+  assert.throws(() => parseArgs(['unknown']), /node tools\/cli\.mjs --help/);
 });
 
 test('numeric controls enforce finite bounds and exact integer frame ranges', () => {
@@ -40,6 +41,9 @@ test('init produces a portable project and protects existing files', async () =>
     assert.doesNotMatch(scene, /\.\.\/engine\/paint\.js/);
     const html = await readFile(path.join(directory, 'index.html'), 'utf8');
     assert.match(html, /createMosaic/); assert.match(html, /project\.json/);
+    assert.match(html, /pointercancel/);
+    assert.match(html, /pointerup/);
+    assert.match(html, /pointerType!=='mouse'/);
     assert.match(await readFile(path.join(directory, 'engine/runtime.js'), 'utf8'), /export async function createMosaic/);
     assert.match(await readFile(path.join(directory, 'LICENSE'), 'utf8'), /MIT License/);
     assert.match(await readFile(path.join(directory, 'THIRD_PARTY_NOTICES.md'), 'utf8'), /Copyright|license/i);
@@ -69,6 +73,13 @@ test('inspect validates local manifests without executing a scene module', async
     await assert.rejects(inspectProject(path.join(directory, 'project.json')), /inside the project/);
     await writeFile(path.join(directory, 'project.json'), JSON.stringify({ ...project, scenes: [{ ...project.scenes[0], picture: { export: 'scene' } }] }));
     await assert.rejects(inspectProject(path.join(directory, 'project.json')), /by path/);
+    const broken = path.join(directory, 'project.json');
+    await writeFile(broken, '{');
+    await assert.rejects(inspectProject(broken), (error) => {
+      assert.match(error.message, /Cannot read project/);
+      assert.ok(error.message.includes(broken), error.message);
+      return true;
+    });
   } finally { await rm(directory, { recursive: true, force: true }); }
 });
 
@@ -138,6 +149,13 @@ test('CLI entry runs through a filesystem symlink', async () => {
 });
 
 test('help shows that render draws every frame unless --to is given', () => {
+  assert.match(HELP, /node tools\/cli\.mjs init <directory>/);
+  assert.match(HELP, /node tools\/cli\.mjs import /);
+  assert.match(HELP, /node tools\/cli\.mjs preview /);
+  assert.match(HELP, /node tools\/cli\.mjs inspect /);
+  assert.match(HELP, /node tools\/cli\.mjs still /);
+  assert.match(HELP, /node tools\/cli\.mjs render /);
+  assert.doesNotMatch(HELP, /\n {2}mosaic /);
   assert.match(HELP, /--to <all frames>/);
   assert.doesNotMatch(HELP, /--to 120/);
   const all = captureOptions({ command: 'render' }, project);
@@ -213,7 +231,17 @@ test('import makes a portable project whose band follows the image', async () =>
     await assert.rejects(importProject(portrait, path.join(parent, 'other'), { stoneSize: '1' }), /stone-size/);
     const svg = path.join(parent, 'mark.svg');
     await writeFile(svg, '<svg xmlns="http://www.w3.org/2000/svg"/>');
-    await assert.rejects(importProject(svg, path.join(parent, 'other')), /PNG, JPEG, WebP, or GIF/);
+    await assert.rejects(importProject(svg, path.join(parent, 'other')), (error) => {
+      assert.match(error.message, /PNG, JPEG, WebP, or GIF/);
+      assert.ok(error.message.includes(svg), error.message);
+      return true;
+    });
+    const missing = path.join(parent, 'no-such-photo.jpg');
+    await assert.rejects(importProject(missing, path.join(parent, 'other')), (error) => {
+      assert.match(error.message, /Cannot read image/);
+      assert.ok(error.message.includes(missing), error.message);
+      return true;
+    });
     const result = spawnSync(process.execPath, [cli, 'import', portrait, path.join(parent, 'from cli')], { encoding: 'utf8' });
     assert.equal(result.status, 0, result.stderr);
     assert.match(result.stdout, /3024×4032 image/);

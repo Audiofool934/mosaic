@@ -1,5 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
 import { pageWall, wallScale } from '../examples/page-wall/wall.js';
 
 test('a page wall stays within the working raster and the stone budget of one layer', () => {
@@ -8,6 +10,13 @@ test('a page wall stays within the working raster and the stone budget of one la
   assert.ok(long.res < 1);
   assert.ok(12000 * long.res <= 8192 && 1440 * 12000 * long.res ** 2 <= 33554432);
   assert.ok((1440 * 12000) / long.stone ** 2 <= 40000 + 1);
+});
+
+test('a page wall lets a touch go on pointerup and pointercancel', async () => {
+  const page = await readFile(fileURLToPath(new URL('../examples/page-wall/index.html', import.meta.url)), 'utf8');
+  assert.match(page, /pointercancel/);
+  assert.match(page, /pointerup/);
+  assert.match(page, /pointerType !== "mouse"/);
 });
 
 test('a page wall frames each measured block and ignores malformed ones', () => {

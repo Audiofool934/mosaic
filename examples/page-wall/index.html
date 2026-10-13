@@ -94,11 +94,14 @@
     }
 
     addEventListener("scroll", () => mosaic?.requestFrame(), { passive: true });
+    const settle = () => mosaic?.setPointer({ active: false });
     addEventListener("pointermove", (event) => {
       if (!mosaic || still.matches) return;
       mosaic.setPointer({ x: event.clientX / innerWidth, y: event.clientY / innerHeight, active: true });
     });
-    document.addEventListener("pointerleave", () => mosaic?.setPointer({ active: false }));
+    document.addEventListener("pointerleave", settle);
+    addEventListener("pointercancel", settle);
+    addEventListener("pointerup", (event) => { if (event.pointerType !== "mouse") settle(); });
 
     // A resize that moves the page's blocks cuts the wall again; otherwise the canvas only takes the new size.
     let timer = 0;

@@ -3,6 +3,7 @@ import { access, link, mkdir, mkdtemp, readFile, readdir, realpath, rm, stat, wr
 import { createReadStream } from 'node:fs';
 import { createHash, randomUUID } from 'node:crypto';
 import path from 'node:path';
+import { renderScore, wavOf } from '../engine/sound.js';
 import { ROOT, startServer } from './server.mjs';
 
 const digest = data => createHash('sha256').update(data).digest('hex');
@@ -74,8 +75,10 @@ async function fingerprints(projectFile, out) {
   return inputs;
 }
 
-function encoder(out, width, height, fps, total) {
-  const process = spawn('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-n', '-f', 'rawvideo', '-pixel_format', 'rgba', '-video_size', `${width}x${height}`, '-framerate', `${fps[0]}/${fps[1]}`, '-i', 'pipe:0', '-an', '-vf', 'vflip,scale=out_color_matrix=bt709:out_range=tv', '-c:v', 'libx264', '-preset', 'medium', '-crf', '16', '-pix_fmt', 'yuv420p', '-colorspace', 'bt709', '-color_primaries', 'bt709', '-color_trc', 'bt709', '-frames:v', String(total), '-movflags', '+faststart', out], { stdio: ['pipe', 'ignore', 'pipe'] });
+function encoder(out, width, height, fps, total, sound) {
+  const process = spawn('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-n', '-f', 'rawvideo', '-pixel_format', 'rgba', '-video_size', `${width}x${height}`, '-framerate', `${fps[0]}/${fps[1]}`, '-i', 'pipe:0',
+    ...(sound ? ['-i', sound, '-map', '0:v', '-map', '1:a', '-c:a', 'aac', '-b:a', '192k'] : ['-an']),
+    '-vf', 'vflip,scale=out_color_matrix=bt709:out_range=tv', '-c:v', 'libx264', '-preset', 'medium', '-crf', '16', '-pix_fmt', 'yuv420p', '-colorspace', 'bt709', '-color_primaries', 'bt709', '-color_trc', 'bt709', '-frames:v', String(total), '-movflags', '+faststart', out], { stdio: ['pipe', 'ignore', 'pipe'] });
   let stderr = '', failure = null;
   process.stderr.on('data', data => { stderr = (stderr + data.toString()).slice(-16000); });
   process.stdin.on('error', error => { failure ||= error; });
@@ -108,7 +111,7 @@ function encoder(out, width, height, fps, total) {
 }
 
 /** Fresh deterministic capture. A receipt is committed only with a complete output. */
-export async function capture({ kind, projectFile, project, width, samples, from = 0, to = project.frames, time = 0, out, signal, onProgress = () => {} }) {
+export async function capture({ kind, projectFile, project, width, samples, from = 0, to = project.frames, time = 0, sound = false, out, signal, onProgress = () => {} }) {
   checkAbort(signal);
   const extension = kind === 'still' ? '.png' : '.mp4';
   if (path.extname(out).toLowerCase() !== extension) throw new Error(`${kind} output must end in ${extension}.`);
@@ -198,10 +201,26 @@ export async function capture({ kind, projectFile, project, width, samples, from
         return bytes;
       } catch (error) { failPending(error); throw error; }
     }
+    // The film's sound: the page tells which stones are heard landing, and they are mixed here
+    // into a 16-bit stereo WAV file of exactly the film's length. A stretch in which no stone
+    // lands has no sound track.
+    let audio = false, soundFile = null;
+    if (kind === 'render' && sound) {
+      const seconds = n => n * project.fps[1] / project.fps[0], rate = 48000;
+      const landings = await page.evaluate(range => window.mosaic.score(range), { from: seconds(from), to: seconds(to) });
+      checkAbort(signal);
+      if (landings.length) {
+        const wav = wavOf(renderScore(landings, { from: seconds(from), duration: seconds(to) - seconds(from), rate }), rate);
+        soundFile = path.join(temporary, 'sound.wav');
+        await writeFile(soundFile, wav);
+        audio = { codec: 'aac', bitrate: '192k', sampleRate: rate, channels: 2, landings: landings.length, sourceHash: digest(wav) };
+        onProgress(`${landings.length} stones heard landing.`);
+      } else onProgress('No stone lands in these frames, so the film has no sound.');
+    }
     if (kind === 'still') {
       await writeFile(temporaryOut, await frameBytes(time, true));
     } else {
-      ffmpeg = encoder(temporaryOut, width, height, project.fps, to - from);
+      ffmpeg = encoder(temporaryOut, width, height, project.fps, to - from, soundFile);
       for (let n = from; n < to; n++) {
         const bytes = await frameBytes(n * project.fps[1] / project.fps[0], false);
         await ffmpeg.write(bytes);
@@ -216,7 +235,7 @@ export async function capture({ kind, projectFile, project, width, samples, from
       createdAt: new Date().toISOString(), title: project.title || 'Untitled mosaic',
       width, height, fps: project.fps, seed: project.seed,
       ...(kind === 'render' ? { from, to, frames: to - from, duration: (to - from) * project.fps[1] / project.fps[0] } : { time }),
-      settings: { samples, shadowSize: 4096, interaction: 'none', angle: process.env.ANGLE || (process.platform === 'darwin' ? 'metal' : 'swiftshader'), ...(kind === 'render' ? { codec: 'libx264', crf: 16, pixelFormat: 'yuv420p', audio: false } : {}) },
+      settings: { samples, shadowSize: 4096, interaction: 'none', angle: process.env.ANGLE || (process.platform === 'darwin' ? 'metal' : 'swiftshader'), ...(kind === 'render' ? { codec: 'libx264', crf: 16, pixelFormat: 'yuv420p', audio } : {}) },
       inputHashes: inputs, outputHash: await fileHash(temporaryOut),
       stones: info.stones, setupMs: info.setupMs, elapsedMs: Date.now() - started
     };

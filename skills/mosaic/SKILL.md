@@ -34,7 +34,8 @@ Treat material choice as an artistic decision; gold is opt-in.
 
 For a film, compose the key pictures and their camera/light/stone transitions.
 Let the user's brief determine aspect, duration, pacing, and sound.
-The renderer exports silent video; add licensed or user-supplied sound separately only when requested.
+The renderer exports silent video; `render --sound` adds the film's own sound, its stones heard as they land, when the brief asks for sound.
+Add licensed or user-supplied music or speech separately only when requested.
 Do not assume one genre, franchise, aspect ratio, or duration from the example.
 
 ## Work and verify

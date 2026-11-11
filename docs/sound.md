@@ -17,6 +17,24 @@ A soft fall sets mostly the lowest mode ringing, so the higher ones are excited 
 Under the tile, the table gives its own low knock, and a moment of grit marks the contact.
 Every stone is given the same energy, so no material is louder than another.
 
+## How a film is heard
+
+A film seats thousands of stones a second, far more than can be told apart, so it is heard as a pour is.
+`engine/score.js` divides the film into moments a sixtieth of a second long and hears one stone of each, drawn by a lot that follows from the film's seed.
+Each is a real stone of the film: it is heard when it lands, in its own material and size, from its side of the frame.
+The more stones land in its moment, the louder it is: a single stone is heard at 0.35 of full strength, and a pour of 1,800 stones a second or more at full strength.
+Only a stone that falls onto the wall in view and stays there is heard; a stone set in place, as the stones outside a flow's view are, makes no sound.
+A stone that leaves the wall is not heard either.
+
+The score follows from the film's stones, the range asked for and the seed, so the stones heard in a part of a film are those heard there in the whole.
+`controller.onLanding()` gives the landings of a film as it plays forward, for `createStoneSound().play()`, and `controller.score()` gives those of a stretch of it.
+
+`render --sound` mixes a score with `renderScore()`, which casts and voices each stone exactly as the live sound does but adds the voices up itself, in the order they land.
+A browser adds its voices up in no fixed order, which moves a sample by a rounding step from one render to the next, and an export must come out the same every time.
+The browser check compares the two mixes: on Chromium they differ by less than a ten-thousandth of the loudest sample.
+The mix is 48 kHz stereo at twice the live volume, written as 16-bit WAV, and encoded as AAC at 192 kbit/s in the MP4.
+The receipt records how many stones were heard and the hash of the WAV.
+
 ## From measurements to sound
 
 Three measured properties of a material set its voice, each relative to glass.

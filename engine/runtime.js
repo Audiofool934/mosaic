@@ -2,6 +2,7 @@ import { loadFilm, makeTimeline, unpackFilm, FOVY } from './timeline.js';
 import { createRenderer, TRAIL, TRAIL_STEP } from './renderer.js';
 import { imageToPicture } from './image.js';
 import { createContacts } from './contact.js';
+import { scoreLandings } from './score.js';
 import { clamp, hexRgb, toLinear, invert, lookAt, mat4Mul, perspective, xform } from './util.js';
 
 const finite = (n, fallback) => Number.isFinite(Number(n)) ? Number(n) : fallback;
@@ -224,6 +225,7 @@ export async function createMosaic(canvas, options = {}) {
   }
   function setup() {
     looked = [];
+    landings = null;
     renderer?.dispose();
     canvas.width = width; canvas.height = height;
     base = makeTimeline(film, width, height);
@@ -258,6 +260,7 @@ export async function createMosaic(canvas, options = {}) {
       L.tiles = null; L.owners = null; L.pic.label = null; L.pic.color = null;
       film.layers.sort((a, b) => a.scene.index - b.scene.index);
       base = makeTimeline(film, width, height);
+      landings = null;
       count();
     } catch (error) {
       progress(`A picture could not join the wall: ${error.message}`);
@@ -303,6 +306,27 @@ export async function createMosaic(canvas, options = {}) {
     let old = 0;
     while (old < looked.length - 1 && looked[old + 1].at < frameClock - settleTime) old++;
     looked.splice(0, old);
+  }
+  // The film's score: the stones heard as they land, from `from` to `to` seconds, through the
+  // scene's own camera. The whole film's is kept for playing, until the wall changes.
+  let landings = null;
+  const landingListeners = new Set();
+  function score(from = 0, to = duration) {
+    const aspect = width / height;
+    return scoreLandings(film.layers, { from, to, seed: film.table.seed ?? 0, viewAt: t => {
+      const c = framed(base.cameraAt(t), t), w = c.w / 1000;
+      return { x: c.target[0], y: c.target[1], w, h: w / aspect };
+    } });
+  }
+  // The landings between two moments of a film playing forward, each with the seconds after
+  // now it is heard.
+  function landed(before, now, speed) {
+    landings ??= score();
+    let lo = 0, hi = landings.length;
+    while (lo < hi) { const mid = (lo + hi) >> 1; if (landings[mid].time <= before) lo = mid + 1; else hi = mid; }
+    const events = [];
+    for (; lo < landings.length && landings[lo].time <= now; lo++) events.push({ ...landings[lo], delay: (landings[lo].time - before) / speed });
+    if (events.length) for (const listener of landingListeners) listener(events);
   }
   function schedule() { asked = true; if (!raf && !disposed && !lost) raf = requestAnimationFrame(tick); }
   // Listeners hear the stones the pointer touches as it slides over them, in each live frame.
@@ -360,7 +384,7 @@ export async function createMosaic(canvas, options = {}) {
     }
     const dt = lastNow ? Math.min(.1, (now - lastNow) / 1000) : 1 / 60;
     lastNow = now;
-    const lamping = stepLamp(dt), moved = playing;
+    const lamping = stepLamp(dt), moved = playing, before = time;
     if (playing && goal !== null) {
       const left = goal - time;
       if (Math.abs(left) <= dt * rate) { time = goal; goal = null; playing = false; }
@@ -370,6 +394,8 @@ export async function createMosaic(canvas, options = {}) {
       if (loop && time >= loop[1]) time = loop[0] + (time - loop[1]) % (loop[1] - loop[0]);
       else if (time >= duration - 1 / film.fps) playing = false;
     }
+    // A film playing forward is heard; one played backward, or back at a loop's start, is not.
+    if (moved && landingListeners.size && time > before) landed(before, time, rate);
     const c = clock();
     // The stones keep moving until the newest input, and the wall's last move under the
     // pointer, have passed through the whole trail.
@@ -449,6 +475,14 @@ export async function createMosaic(canvas, options = {}) {
     // material, size in millimetres, a strength from 0 to 1, the seconds after now it is
     // heard, and x and y on the canvas.
     onContact(listener) { listeners.add(listener); return () => listeners.delete(listener); },
+    // listener(events) hears the stones that land as the film plays forward ('land'), a few of
+    // every moment, each with its material, size in millimetres, a strength from 0 to 1 that
+    // grows with how many land with it, the seconds after now it is heard, and x and y on the
+    // canvas.
+    onLanding(listener) { landingListeners.add(listener); return () => landingListeners.delete(listener); },
+    // The same landings for a stretch of the film, from `from` to `to` seconds, each with its
+    // time in the film: what an export renders as the film's sound.
+    score({ from = 0, to = duration } = {}) { ensure(); return score(finite(from, 0), finite(to, duration)); },
     getState() { return { time, view: { ...view }, pointer: normalized(input.at(-1)), playing }; },
     startRecording() { ensure(); record = []; recordStart = clock(); if (input.length) record.push({ ...input.at(-1), t: 0 }); },
     stopRecording() { const result = record || []; record = null; return { version: 2, points: result }; },
@@ -462,7 +496,7 @@ export async function createMosaic(canvas, options = {}) {
       finally { if (!disposed && !lost) { render(previousTime, ...previous); if (wasPlaying) controller.play(); } }
     },
     // Pictures still waiting to join are let go, so ready still resolves.
-    dispose() { if (disposed) return; for (const { joined } of waiting.splice(0)) joined?.(); controller.pause(); disposed = true; record = null; listeners.clear(); renderer?.dispose(); canvas.removeEventListener('webglcontextlost', contextLost); canvas.removeEventListener('webglcontextrestored', contextRestored); }
+    dispose() { if (disposed) return; for (const { joined } of waiting.splice(0)) joined?.(); controller.pause(); disposed = true; record = null; listeners.clear(); landingListeners.clear(); renderer?.dispose(); canvas.removeEventListener('webglcontextlost', contextLost); canvas.removeEventListener('webglcontextrestored', contextRestored); }
   };
   progress('Ready');
   return controller;

@@ -267,6 +267,42 @@ try {
     });
     checks.push('every material is heard, softly and without clipping');
 
+    // A film's sound is mixed without the browser, so that it is the same every time. It is the
+    // live sound all the same: the browser's own mix of the same landings is no further from it
+    // than a ten-thousandth of its loudest sample.
+    const { renderScore } = await import('/engine/sound.js');
+    const landings = materials.flatMap((material, k) => Array.from({ length: 12 }, (_, j) => ({ kind: 'land', time: k * 0.4 + j * 0.03, material, size: 6 + j, strength: 0.5 + j / 24, x: j / 11, y: 0.5 })));
+    const twin = new OfflineAudioContext(2, 48000 * 4, 48000);
+    const twinSound = createStoneSound({ context: twin, volume: 1 });
+    await twinSound.start();
+    for (const e of landings) twinSound.play([e], e.time);
+    const mixed = await twin.startRendering(), own = renderScore(landings, { duration: 4 });
+    let apart = 0, loudest = 0;
+    for (let c = 0; c < 2; c++) {
+      const a = mixed.getChannelData(c);
+      // The film's mix alone fades its last fiftieth of a second.
+      for (let i = 0; i < a.length - 960; i++) { apart = Math.max(apart, Math.abs(a[i] - own[c][i])); loudest = Math.max(loudest, Math.abs(a[i])); }
+    }
+    require(loudest > 0.05 && loudest < 0.9 && apart < loudest * 1e-4, `The film's mix is ${apart} from the live sound, which peaks at ${loudest}.`);
+    checks.push('a film is mixed as the live sound is');
+
+    // A film whose stones are laid is heard as they land: the same landings each time it is
+    // asked, and those of each stretch as it plays through it.
+    const laidCanvas = document.createElement('canvas');
+    const laid = await createMosaic(laidCanvas, { project: '/examples/laid.json', width: 320, height: 180, samples: 1, interactive: false });
+    const score = laid.score();
+    require(score.length > 100 && JSON.stringify(laid.score()) === JSON.stringify(score), `A laid film had ${score.length} landings, or not the same ones twice.`);
+    require(JSON.stringify(laid.score({ from: 1, to: 2 })) === JSON.stringify(score.filter(e => e.time >= 1 && e.time < 2)), 'A part of the film was not heard as it is in the whole.');
+    const landed = [], unland = laid.onLanding(events => landed.push(...events));
+    laid.seek(1);
+    laid.play({ to: 2 });
+    for (let waited = 0; laid.getState().playing && waited < 5000; waited += 50) await new Promise(resolve => setTimeout(resolve, 50));
+    unland();
+    const due = score.filter(e => e.time > 1 && e.time <= 2);
+    require(!laid.getState().playing && landed.length === due.length && landed.every((e, i) => e.time === due[i].time && e.delay >= 0 && e.delay <= 0.1), `A second of the film played ${landed.length} of its ${due.length} landings.`);
+    laid.dispose();
+    checks.push('a film is heard as its stones land, the same each time, and as it plays');
+
     // A wall of two pictures side by side, each cut in its own worker: the wall is drawn
     // once the first is ready, the second joins it, and a frame can look at either.
     const pairCanvas = document.createElement('canvas');

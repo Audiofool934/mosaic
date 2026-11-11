@@ -82,7 +82,13 @@ So gold and silver ring longest and lowest, glass and the dense stones ring for 
 [Sound](sound.md) gives the method, the measurements and their sources, and how to add a material.
 The sounds are short and kept below the sharp range, with no hiss, and they are synthesised, with nothing recorded or downloaded.
 Browsers start audio only from a click or a key, so pages keep it off until asked for and call `start()` from that click.
-Contacts come only from live input; seeks, replays, and exports are silent.
+Contacts come only from live input; seeks, replays, and exports never produce them.
+
+A film has a sound of its own: its stones heard as they land.
+`engine/score.js` reads the landings from the film's stones: a few real stones of every moment, at most sixty a second, each with its time, material, size, place in the frame, and a strength that grows with how many stones land with it.
+`controller.onLanding(listener)` hears them as the film plays forward, and `controller.score({ from, to })` returns them for a stretch of the film.
+`renderScore()` in `engine/sound.js` mixes a score into two channels without a browser, and `render --sound` puts that mix into the MP4.
+A stone that is set in place, that never arrives, or that lands out of view is not heard, so a film of settled stones is silent.
 
 ## Walls of pictures
 

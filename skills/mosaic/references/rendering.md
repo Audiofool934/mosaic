@@ -18,6 +18,11 @@ node <skill-directory>/scripts/mosaic.mjs still ./my-mosaic/project.json --time 
 node <skill-directory>/scripts/mosaic.mjs render ./my-mosaic/project.json --width 1920 --samples 4 --from 0 --to 120 --out ./output/art.mp4
 ```
 
+Add `--sound` to `render` to hear the film's stones as they land, each in the voice of its material; it takes no value.
+The sound follows from the film and its seed, so it is the same in every render, and the receipt records it.
+A film whose stones are settled from the start has no landings and stays silent; lay the stones (`"in": { "type": "laid" }`), bring figures in, or flow between scenes to give it a sound.
+The engine makes no music or speech.
+
 `--from` is inclusive and `--to` is exclusive in project frame numbers.
 The manifest's rational FPS owns the output timing.
 Preview uses fewer samples for responsiveness; four temporal samples are a useful movie export default.

@@ -47,11 +47,21 @@ npx playwright-core install chromium
 node tools/cli.mjs still ./my-mosaic/project.json --time 2 --width 1920 --samples 4 --out ./output/art.png
 ```
 
-For a silent MP4, install FFmpeg on your system and make it available on `PATH`:
+For an MP4, install FFmpeg on your system and make it available on `PATH`:
 
 ```bash
 node tools/cli.mjs render ./my-mosaic/project.json --width 1280 --samples 2 --to 120 --out ./output/art.mp4
 ```
+
+A film is silent unless you add `--sound`.
+With it, the film's stones are heard as they land, each in the voice of its material and from its side of the frame:
+
+```bash
+node tools/cli.mjs render examples/laid.json --width 1280 --samples 2 --sound --out ./output/laid.mp4
+```
+
+A film whose stones are already seated when it begins, such as a new project, has no landings and stays silent.
+In the studio, turn on **Hear the stones** and play a film to hear the same landings.
 
 Without `--to`, `render` draws every frame of the project.
 Without a GPU, capture uses software WebGL and takes seconds per frame, so try a short range and a smaller width before a full film.
@@ -127,11 +137,12 @@ It also covers cutting stones in a worker and walls of several pictures that a p
 - Pointer-responsive websites, deterministic still capture, and scene-based film rendering.
 - Pages laid as one live wall, cut around their own layout in background workers.
 - The stones heard under the pointer like small stones poured onto a table, each material in its own voice, synthesised in the browser and off until asked for.
+- Films heard as their stones land, in the same voices, mixed to the same samples every time.
 - A shared portable skill and reproducible distributions with source hashes and license notices.
 
 Continuous video stylization is deferred.
 The importer uses image analysis rather than semantic object recognition, so a clear composition and good source image matter.
-Movies are silent unless you add sound separately.
+A film's own sound is its stones landing; music, speech, and other sound are yours to add separately.
 
 The initial GPU visual check uses Chromium on macOS Apple Silicon.
 Windows, Linux, Safari, and Firefox have not yet completed visual acceptance.

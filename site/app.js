@@ -182,7 +182,10 @@ const sound = createStoneSound();
 let unhear = null;
 function listen() {
   unhear?.();
-  unhear = controller && $("sound").getAttribute("aria-checked") === "true" ? controller.onContact((events) => sound.play(events)) : null;
+  if (!controller || $("sound").getAttribute("aria-checked") !== "true") { unhear = null; return; }
+  // The stones under the pointer, and those of a film that land as it plays.
+  const offs = [controller.onContact((events) => sound.play(events)), controller.onLanding((events) => sound.play(events))];
+  unhear = () => offs.forEach((off) => off());
 }
 $("sound").addEventListener("click", async () => {
   const on = $("sound").getAttribute("aria-checked") !== "true";

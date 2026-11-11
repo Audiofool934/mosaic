@@ -5,9 +5,9 @@ They describe the 0.1.0 local release candidate; other platforms have not been v
 
 ## Automated checks
 
-`npm test` passes 58 tests covering manifest validation, image analysis, distance transforms, command input, project generation and image import, the page-wall example, local preview isolation, and distribution integrity.
-`npm run check` checks the syntax of all 55 JavaScript modules.
-These two counts were last taken on 8 October 2026 on Linux with Node 20.
+`npm test` passes 63 tests covering manifest validation, image analysis, distance transforms, command input, project generation and image import, the page-wall example, a film's score and its mix, local preview isolation, and distribution integrity.
+`npm run check` checks the syntax of all 57 JavaScript modules.
+These two counts were last taken on 11 November 2026 on macOS with Node 24.
 `npm run test:browser` passes seven GPU lifecycle and rendering checks using Chromium 153 with ANGLE Metal and 9,340 stones at 640 by 360 pixels.
 
 - Seeking frames in different orders produces identical pixels.
@@ -36,6 +36,24 @@ The image importer was inspected with an Earth photograph, a wide landscape, and
 These local test images came from NASA's [Apollo 17 Blue Marble](https://www.nasa.gov/image-article/apollo-17-blue-marble/), [Mount Sharp panorama](https://science.nasa.gov/photojournal/mount-sharp-panorama-in-white-balanced-colors/), and [Mae Jemison portrait S92-40463](https://images.nasa.gov/details/S92-40463).
 They are excluded from the public distributions.
 The portrait remains recognizable, but small facial features can merge at coarse stone sizes because the importer has no semantic model.
+
+## Film sound
+
+These results were observed on 11 November 2026 on macOS with an Apple M6, using Chromium 156 with ANGLE Metal.
+That Chromium is newer than the one Playwright Core 1.63.0 installs, and was selected with `MOSAIC_BROWSER`.
+
+`npm run test:browser` passed all 27 of its checks, two of them new.
+The film's own mix differed from the browser's mix of the same landings by less than a ten-thousandth of the loudest sample.
+A laid film gave the same landings each time, a part of it gave those of the whole, and a second of it played exactly its landings.
+
+`render --sound` was run twice on `examples/laid.json` at 640 by 360 pixels.
+Both MP4 files had the same hash, with 540 video frames and nine seconds of 48 kHz stereo AAC.
+395 stones were heard over the 6.9 seconds in which the stones are laid, peaking at -10.7 dBFS.
+`examples/film.json` gave 46 landings as its flow lands, and its first second, where no stone lands, was written without a sound track.
+The studio played the laid film with no voices while **Hear the stones** was off, and about sixty a second once it was on.
+
+The sound was checked by measurement and as a spectrogram, not by ear.
+Its level and its density of sixty stones a second follow the pointer's sound and have not been tuned for films by listening.
 
 ## Agent portability
 

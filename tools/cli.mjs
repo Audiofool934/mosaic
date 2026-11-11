@@ -12,11 +12,12 @@ export const HELP = `mosAIc - physical mosaic artwork for people and agents
   mosaic preview [project.json] [--port 0]
   mosaic inspect [project.json]
   mosaic still [project.json] [--time 2] [--width 1920] [--samples 4] [--out output/still.png]
-  mosaic render [project.json] [--from 0] [--to <all frames>] [--width 1920] [--samples 4] [--out output/video.mp4]
+  mosaic render [project.json] [--from 0] [--to <all frames>] [--width 1920] [--samples 4] [--sound] [--out output/video.mp4]
 
 The default project is examples/nocturne.json.
 import makes a project of a PNG, JPEG, WebP, or GIF; --material is glass, stone, or gold.
 Video frame ranges are inclusive at --from and exclusive at --to; render draws every frame unless --to is given.
+A film is silent unless --sound is given: then its stones are heard as they land, each in the voice of its material.
 Exports are always fresh and refuse to overwrite existing files.
 Preview, init, import, and inspect need only Node 20+.
 Capture also needs npm ci, Chromium, and ffmpeg for video.
@@ -24,6 +25,8 @@ Set MOSAIC_BROWSER to an installed Chromium executable, or run npx playwright-co
 `;
 
 const OPTIONS = { init: [], import: ['material', 'stone-size'], preview: ['port'], inspect: [], still: ['time', 'width', 'samples', 'out'], render: ['from', 'to', 'width', 'samples', 'out'] };
+// Options that take no value.
+const FLAGS = { render: ['sound'] };
 
 export function parseArgs(argv) {
   if (!argv.length || argv[0] === '--help' || argv[0] === '-h' || argv[0] === 'help') return { command: 'help' };
@@ -35,6 +38,11 @@ export function parseArgs(argv) {
     if (value === '--help' || value === '-h') return { command: 'help' };
     if (value.startsWith('--')) {
       const key = value.slice(2);
+      if (FLAGS[command]?.includes(key)) {
+        if (result[key]) throw new Error(`Option ${value} was provided twice.`);
+        result[key] = true;
+        continue;
+      }
       if (!OPTIONS[command].includes(key)) throw new Error(`Unknown option for ${command}: ${value}`);
       if (result[key] !== undefined) throw new Error(`Option ${value} was provided twice.`);
       if (!argv[i + 1] || argv[i + 1].startsWith('--')) throw new Error(`Option ${value} needs a value.`);
@@ -93,7 +101,7 @@ export function captureOptions(args, project) {
   if (width % 2) throw new Error('Video width must be even for H.264.');
   const from = numeric(args.from, 0, 'from', 0, project.frames - 1, true);
   const to = numeric(args.to, project.frames, 'to', from + 1, project.frames, true);
-  return { kind: 'render', width, samples, from, to, out: path.resolve(args.out || 'output/video.mp4') };
+  return { kind: 'render', width, samples, from, to, sound: Boolean(args.sound), out: path.resolve(args.out || 'output/video.mp4') };
 }
 
 // Quotes a path for a shell only where it needs it, so a printed command can be pasted.

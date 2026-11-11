@@ -69,11 +69,11 @@ function lowpass(f, q, rate) {
 // One stone landing on a table: the tile's modes, each ringing less long the higher it is, as
 // damping in a solid makes them; the table's own low knock, harder under a heavier stone; and a
 // moment of grit where they meet. It opens over a fraction of a millisecond so nothing snaps
-// and is rounded off below the sharp range.
-function strike(ctx, { pitch, ring, thud }, R) {
-  const rate = ctx.sampleRate, f = pitch * (0.96 + 0.08 * R()), tau = ring * (0.85 + 0.3 * R());
+// and is rounded off below the sharp range. Returns its samples at `rate` a second.
+function strike(rate, { pitch, ring, thud }, R) {
+  const f = pitch * (0.96 + 0.08 * R()), tau = ring * (0.85 + 0.3 * R());
   const n = Math.ceil(rate * (tau * 7 + 0.03));
-  const buffer = ctx.createBuffer(1, n, rate), out = buffer.getChannelData(0);
+  const out = new Float32Array(n);
   const mode = (hz, level, decay) => {
     const w = (2 * Math.PI * hz) / rate, fall = Math.exp(-1 / (decay * rate));
     let env = level;
@@ -91,47 +91,80 @@ function strike(ctx, { pitch, ring, thud }, R) {
   }
   const scale = Math.sqrt((ENERGY * rate) / energy);
   for (let i = 0; i < n; i++) out[i] *= scale;
-  return buffer;
+  return out;
 }
+
+// Every material's sounds at `rate` samples a second, seeded, so they are the same each time.
+function strikes(rate) {
+  const R = rng(7001);
+  return Object.fromEntries(Object.keys(MEASURED).map((name) => [name, Array.from({ length: VARIANTS }, () => strike(rate, voiceOf(name), R))]));
+}
+
+// Casts each stone heard as one of its material's sounds. Seeded, as everywhere in the engine:
+// the small variations between sounds. It counts the sounds still playing on the clock of its
+// events, so voices are counted the same live and rendered ahead.
+function caster() {
+  const vary = rng(4242);
+  let ends = [];
+  // events: the stones heard from `now` on; seconds(material, variant): how long that sound
+  // lasts; voice(material, variant, rate, gain, pan, at): plays it.
+  return (events, now, seconds, voice) => {
+    ends = ends.filter((end) => end > now);
+    for (const e of events) {
+      if ((e.kind !== 'touch' && e.kind !== 'land') || !(e.strength > 0) || ends.length >= VOICES) continue;
+      // A smaller stone sounds higher, as its modes are, within a quarter either way; most
+      // stones in a pour land softly and a few land hard.
+      const size = clamp(Math.sqrt(REFERENCE / Math.max(1, e.size || REFERENCE)), 0.8, 1.25);
+      const loud = LEVEL * clamp(e.strength, 0, 1) * (0.25 + 0.75 * vary() ** 2);
+      const material = nameOf(e.material), variant = Math.floor(vary() * VARIANTS), rate = size * (0.97 + 0.06 * vary());
+      const pan = clamp((e.x * 2 - 1) * 0.5 + (vary() - 0.5) * 0.2, -1, 1), at = now + (e.delay || 0);
+      voice(material, variant, rate, loud, pan, at);
+      ends.push(at + seconds(material, variant) / rate);
+    }
+  };
+}
+
+// The whole mix is rounded off above SOFT hertz, so nothing reaches the sharp range, and cut
+// below LOW, so there is no thump under the stones.
+const SOFT = { type: 'lowpass', frequency: 4500, Q: 0.5 };
+const LOW = { type: 'highpass', frequency: 150, Q: 1 };
 
 // context: an AudioContext to share, or an OfflineAudioContext to render sounds ahead.
 export function createStoneSound({ volume = 0.5, context = null } = {}) {
-  // Seeded, as everywhere in the engine: the small variations between sounds.
-  const vary = rng(4242);
-  // When each playing sound ends, on the audio clock, so voices are counted the same live and
-  // offline.
-  let ctx = null, bus = null, sounds = null, ends = [];
+  let ctx = null, bus = null, sounds = null, cast = null;
   const offline = () => typeof OfflineAudioContext === 'function' && ctx instanceof OfflineAudioContext;
   function build() {
     ctx = context || new AudioContext({ latencyHint: 'interactive' });
-    // Nothing above the presence range and no thump below the stones.
     const low = ctx.createBiquadFilter();
-    low.type = 'highpass';
-    low.frequency.value = 150;
+    low.type = LOW.type;
+    low.frequency.value = LOW.frequency;
     low.connect(ctx.destination);
     const soft = ctx.createBiquadFilter();
-    soft.type = 'lowpass';
-    soft.frequency.value = 4500;
-    soft.Q.value = 0.5;
+    soft.type = SOFT.type;
+    soft.frequency.value = SOFT.frequency;
+    soft.Q.value = SOFT.Q;
     soft.connect(low);
     bus = ctx.createGain();
     bus.gain.value = volume;
     bus.connect(soft);
-    const R = rng(7001);
-    sounds = Object.fromEntries(Object.keys(MEASURED).map((name) => [name, Array.from({ length: VARIANTS }, () => strike(ctx, voiceOf(name), R))]));
+    sounds = Object.fromEntries(Object.entries(strikes(ctx.sampleRate)).map(([name, list]) => [name, list.map((samples) => {
+      const buffer = ctx.createBuffer(1, samples.length, ctx.sampleRate);
+      buffer.getChannelData(0).set(samples);
+      return buffer;
+    })]));
+    cast = caster();
   }
-  function voice(buffer, rate, gain, pan, at) {
+  function voice(material, variant, rate, gain, pan, at) {
     const source = ctx.createBufferSource();
-    source.buffer = buffer;
+    source.buffer = sounds[material][variant];
     source.playbackRate.value = rate;
     const amp = ctx.createGain();
     amp.gain.value = gain;
     const panner = ctx.createStereoPanner();
-    panner.pan.value = clamp(pan, -1, 1);
+    panner.pan.value = pan;
     source.connect(amp).connect(panner).connect(bus);
     source.onended = () => { source.disconnect(); amp.disconnect(); panner.disconnect(); };
     source.start(at);
-    ends.push(at + buffer.duration / rate);
   }
   return {
     get on() { return ctx?.state === 'running'; },
@@ -141,24 +174,76 @@ export function createStoneSound({ volume = 0.5, context = null } = {}) {
       if (!offline()) await ctx.resume();
     },
     async stop() { if (!offline()) await ctx?.suspend(); },
-    // events: contacts from controller.onContact, heard `after` seconds from now.
+    // events: contacts from controller.onContact or landings from controller.onLanding, heard
+    // `after` seconds from now.
     play(events, after = 0) {
       if (!ctx || (ctx.state !== 'running' && !offline())) return;
-      const now = ctx.currentTime + after;
-      ends = ends.filter((end) => end > now);
-      for (const e of events) {
-        if (e.kind !== 'touch' || !(e.strength > 0) || ends.length >= VOICES) continue;
-        // A smaller stone sounds higher, as its modes are, within a quarter either way; most
-        // stones in a pour land softly and a few land hard.
-        const size = clamp(Math.sqrt(REFERENCE / Math.max(1, e.size || REFERENCE)), 0.8, 1.25);
-        const loud = LEVEL * clamp(e.strength, 0, 1) * (0.25 + 0.75 * vary() ** 2);
-        voice(sounds[nameOf(e.material)][Math.floor(vary() * VARIANTS)], size * (0.97 + 0.06 * vary()), loud, (e.x * 2 - 1) * 0.5 + (vary() - 0.5) * 0.2, now + (e.delay || 0));
-      }
+      cast(events, ctx.currentTime + after, (material, variant) => sounds[material][variant].duration, voice);
     },
     close() {
       if (!context) ctx?.close();
       ctx = null;
-      ends = [];
+      cast = null;
     }
   };
+}
+
+// A browser's own low-pass or high-pass filter, as the Web Audio specification defines it, with
+// its Q in decibels, so a film is rounded off as the live sound is.
+function biquad({ type, frequency, Q }, rate) {
+  const w = (2 * Math.PI * frequency) / rate, cos = Math.cos(w), alpha = Math.sin(w) / (2 * 10 ** (Q / 20));
+  const high = type === 'highpass', b1 = high ? -(1 + cos) : 1 - cos, b0 = Math.abs(b1) / 2, a0 = 1 + alpha, a1 = -2 * cos, a2 = 1 - alpha;
+  return (samples) => {
+    let x1 = 0, x2 = 0, y1 = 0, y2 = 0;
+    for (let i = 0; i < samples.length; i++) {
+      const x = samples[i], y = (b0 * x + b1 * x1 + b0 * x2 - a1 * y1 - a2 * y2) / a0;
+      x2 = x1; x1 = x; y2 = y1; y1 = y;
+      samples[i] = y;
+    }
+  };
+}
+
+// A film's score as sound: the landings of scoreLandings, heard from `from` seconds into the
+// film for `duration` seconds, at `rate` samples a second. Returns the left and right
+// channels. It casts and voices the stones as the live sound does, but mixes them itself, one
+// after another in the order they land: a browser mixes its voices in no fixed order, which
+// moves a sample by a rounding step from one render to the next, and a film must come out the
+// same every time. It needs no browser. The last stones are faded over the final fiftieth of a
+// second, so a film that ends on a landing does not click.
+export function renderScore(events, { from = 0, duration, rate = 48000, volume = 1 } = {}) {
+  const frames = Math.max(1, Math.round(duration * rate));
+  const channels = [new Float32Array(frames), new Float32Array(frames)], sounds = strikes(rate), cast = caster();
+  const voice = (material, variant, speed, gain, pan, at) => {
+    // A sound played faster or slower is read between its samples, and set across the two
+    // channels at equal power.
+    const samples = sounds[material][variant], start = at * rate, across = ((pan + 1) / 2) * (Math.PI / 2);
+    const left = volume * gain * Math.cos(across), right = volume * gain * Math.sin(across);
+    for (let i = Math.max(0, Math.ceil(start)); i < frames; i++) {
+      const p = (i - start) * speed, k = Math.floor(p);
+      if (k >= samples.length) break;
+      const s = samples[k] + ((k + 1 < samples.length ? samples[k + 1] : 0) - samples[k]) * (p - k);
+      channels[0][i] += left * s;
+      channels[1][i] += right * s;
+    }
+  };
+  for (const e of events) cast([e], e.time - from, (material, variant) => sounds[material][variant].length / rate, voice);
+  const fade = Math.min(frames, Math.round(rate / 50));
+  for (const c of channels) {
+    biquad(SOFT, rate)(c);
+    biquad(LOW, rate)(c);
+    for (let i = 1; i <= fade; i++) c[frames - i] *= (i - 1) / fade;
+  }
+  return channels;
+}
+
+// Channels of samples from -1 to 1 as a 16-bit WAV file's bytes.
+export function wavOf(channels, rate = 48000) {
+  const n = channels[0].length, k = channels.length, bytes = new DataView(new ArrayBuffer(44 + n * k * 2));
+  const text = (at, s) => { for (let i = 0; i < s.length; i++) bytes.setUint8(at + i, s.charCodeAt(i)); };
+  text(0, 'RIFF'); bytes.setUint32(4, 36 + n * k * 2, true); text(8, 'WAVEfmt ');
+  bytes.setUint32(16, 16, true); bytes.setUint16(20, 1, true); bytes.setUint16(22, k, true);
+  bytes.setUint32(24, rate, true); bytes.setUint32(28, rate * k * 2, true); bytes.setUint16(32, k * 2, true); bytes.setUint16(34, 16, true);
+  text(36, 'data'); bytes.setUint32(40, n * k * 2, true);
+  for (let i = 0, at = 44; i < n; i++) for (let c = 0; c < k; c++, at += 2) bytes.setInt16(at, Math.round(clamp(channels[c][i], -1, 1) * 32767), true);
+  return new Uint8Array(bytes.buffer);
 }

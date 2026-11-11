@@ -42,6 +42,7 @@ export function validateProject(input) {
     if (m.steady !== undefined && !(Number.isFinite(m.steady) && m.steady >= 0 && m.steady <= 1)) throw new Error('music: steady must be a share from 0 to 1.');
     if (m.ring !== undefined && !(Number.isFinite(m.ring) && m.ring > 0)) throw new Error('music: ring must be a time in seconds.');
     if (m.contrast !== undefined && !(Number.isFinite(m.contrast) && m.contrast >= 0 && m.contrast <= 8)) throw new Error('music: contrast must be a number from 0 to 8.');
+    if (m.kick !== undefined && !(Number.isFinite(m.kick) && m.kick >= 0 && m.kick <= 0.3)) throw new Error('music: kick must be a share of the view from 0 to 0.3.');
     for (const key of ['gain', 'stones']) {
       if (m[key] !== undefined && !(Number.isFinite(m[key]) && m[key] >= 0 && m[key] <= 4)) throw new Error(`music: ${key} must be a level from 0 to 4.`);
     }

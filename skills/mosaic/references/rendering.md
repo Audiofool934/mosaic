@@ -28,6 +28,8 @@ The project lays the bundled nocturne over the track's length; replace its `scen
 A WAV track needs no extra tool; MP3, Ogg, M4A, AAC, FLAC, AIFF, and Opus need FFmpeg.
 Render it with `--sound` to hear the track with the stones; without `--sound` the film is silent but its stones still land on the onsets.
 
+`import <image> <directory> --direct` gives the imported image a directed camera, which tours its subjects over the project's eight seconds; render it as a film.
+
 `--from` is inclusive and `--to` is exclusive in project frame numbers.
 The manifest's rational FPS owns the output timing.
 Preview uses fewer samples for responsiveness; four temporal samples are a useful movie export default.

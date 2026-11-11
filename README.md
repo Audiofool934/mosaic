@@ -81,11 +81,15 @@ node tools/cli.mjs render ./my-film/project.json --width 1280 --samples 2 --soun
 ```
 
 `music` listens to the track, finds its onsets, the moments a note or a beat begins, and writes them into a new project.
-Each onset drops a handful of stones that land on it, more of them the stronger it is, and the render mixes the track with the stones.
+Each onset drops a handful of stones that land on it, more of them the stronger it is, and the camera leans in a little with them.
+The camera is directed: it follows the laying shot by shot, moves to each new shot on a strong onset, and pulls back at the end to the whole picture.
+The render mixes the track with the stones.
 The new project lays the nocturne; edit its `scene.js` to lay a picture of your own.
 A WAV file needs nothing more, and any other format needs FFmpeg.
 
 Preview the included two-scene film with `node tools/cli.mjs preview examples/film.json`.
+`examples/directed.json` is the same pair of pictures with a directed camera: the engine finds each picture's subjects and tours them, with no camera move written by hand.
+Add `--direct` to `import` to give a photo of your own the same treatment.
 The studio shows playback and scrubbing controls for a project manifest.
 
 The frame range includes `--from` and excludes `--to`.
@@ -151,6 +155,7 @@ It also covers cutting stones in a worker and walls of several pictures that a p
 - The stones heard under the pointer like small stones poured onto a table, each material in its own voice, synthesised in the browser and off until asked for.
 - Films heard as their stones land, in the same voices, mixed to the same samples every time.
 - Films laid to music: a track's onsets decide when the stones land, and the track plays with them.
+- A directed camera that follows a laying and tours a finished picture's subjects, for drawn scenes and imported images.
 - A shared portable skill and reproducible distributions with source hashes and license notices.
 
 Continuous video stylization is deferred.

@@ -5,8 +5,8 @@ They describe the 0.1.0 local release candidate; other platforms have not been v
 
 ## Automated checks
 
-`npm test` passes 68 tests covering manifest validation, image analysis, distance transforms, command input, project generation and image import, the page-wall example, a film's score and its mix, a track's onsets and the stones laid on them, local preview isolation, and distribution integrity.
-`npm run check` checks the syntax of all 60 JavaScript modules.
+`npm test` passes 74 tests covering manifest validation, image analysis, distance transforms, command input, project generation and image import, the page-wall example, a film's score and its mix, a track's onsets and the stones laid on them, local preview isolation, and distribution integrity.
+`npm run check` checks the syntax of all 64 JavaScript modules.
 These two counts were last taken on 11 November 2026 on macOS with Node 24.
 `npm run test:browser` passes seven GPU lifecycle and rendering checks using Chromium 153 with ANGLE Metal and 9,340 stones at 640 by 360 pixels.
 
@@ -65,6 +65,17 @@ The test track was twenty seconds of kalimba and hand percussion made locally wi
 In the rendered frames, the picture changed 2.7 times as much in the frames around an onset as in the others, and more at the strong onsets than at the weak ones.
 Two renders of the film's first 300 frames had the same hash.
 In the studio, the track started at the film's own time once **Hear the stones** was on, played on without starting again, and stopped when the film was paused.
+
+With the camera's kick of 0.035 that `music` now writes, the same track gave 542 stones heard, as the view at each landing is a little narrower.
+The kick itself is checked by the automated tests: the view narrows by the whole kick on the strongest onset, by a quarter of it on one half as strong, and returns between onsets.
+
+With the directed camera that the `music` project now uses, one frame a second of the same film was inspected.
+The camera held the moon for the first four seconds, widened to the moon and the water, moved left to the heron as it was laid, and showed the whole panel from the fifteenth second; 604 stones were heard.
+
+The director's tour was inspected the same way, one frame a second at 640 by 360 pixels.
+In `examples/directed.json` the camera showed the whole heron, moved to the moon, drew back to the whole nocturne before the flock left, showed the dawn whole as the flock landed, then the headland, then the sun, and the whole dawn at the end.
+An import of the shipped heron photo with `--direct` showed its moon, then its heron, then the whole image.
+A subject that touches the panel's edge is not centred in its shot, since the view never leaves the panel: the dawn's headland sits at the left of its frame.
 
 The film was checked by these measurements and by its frames, not by ear or by eye in motion.
 Whether the stones feel on the beat, and how the track and the stones balance, still need a listener.

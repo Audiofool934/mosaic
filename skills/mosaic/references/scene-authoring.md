@@ -61,6 +61,12 @@ The working raster has a 32-megapixel limit; increasing `res` is not the same as
 Camera keys are `[time, centreX, centreY, visibleWidth]`.
 A visible width equal to the panel width gives a full composition when panel and output aspects match.
 `tilt`, `yaw`, `roll`, `aperture`, and `drift` shape the physical view.
+`camera: { direct: true }` in place of `keys` lets the engine direct the camera.
+It follows a `laid` scene where the stones land, shot by shot, and tours a finished picture's subjects, close on each in turn with the most striking last; it changes shot on a strong onset of the film's music, and it always ends on the whole panel.
+A scene that flows in is shown whole during the flight and toured after it lands.
+Give each subject a region of its own, smaller than about a seventh of the panel, so the director can tell it from the ground.
+Allow about three seconds for each subject and three more for the pull-back, and leave a laying a couple of seconds short of the scene's end.
+The bundled `examples/directed.json` directs both scenes of the two-scene film; write `keys` yourself when the film needs a particular move.
 Set drift to zero for a still or repeatable design inspection.
 Lighting supports a directional key and fill, ambient sky/ground, point lights, and keyframed exposure.
 
@@ -71,6 +77,7 @@ The sinopia outlines every region, or the groups of regions listed in the config
 With `"music": { "src": "./track.wav", "onsets": [[seconds, strength], ...] }` in the project, a laid scene's stones land on the onsets instead of at a smooth pace, in the same order, between the build's `start` and `end`.
 Strength runs from 0 to 1, and an onset's share of the stones follows it raised to `"contrast"` (2): raise the contrast to give the accents more of the stones, or set it to 1 for an even hand.
 `"steady"` (0.03) is the share laid evenly, `"ring"` (0.05) the seconds over which an onset's stones die away, and `"at"` the seconds into the film at which the track starts.
+`"kick"` leans the camera in on each onset, by that share of the view's width on the strongest one; the `music` command writes 0.035, 0 or no `kick` keeps the camera still, and above about 0.08 it reads as a jolt.
 `"gain"` (0.7) and `"stones"` (0.5) set the levels of the track and of the stones in a render with `--sound`.
 The `music` command writes the onsets from a track, and they can be edited or written by hand, for example to keep only the downbeats.
 `"flow"` pairs outgoing stones with an incoming picture; its `launch` and `land` intervals are on the project clock.

@@ -15,6 +15,7 @@ test('CLI parses explicit commands and rejects ambiguous or misspelled input', (
   assert.deepEqual(parseArgs(['render', 'my art/project.json', '--from', '12', '--to', '24']), { command: 'render', project: 'my art/project.json', from: '12', to: '24' });
   assert.equal(parseArgs([]).command, 'help');
   assert.deepEqual(parseArgs(['import', 'my photo.jpg', 'my art', '--material', 'gold', '--stone-size', '8']), { command: 'import', image: 'my photo.jpg', project: 'my art', material: 'gold', 'stone-size': '8' });
+  assert.deepEqual(parseArgs(['import', 'a.jpg', 'b', '--direct']), { command: 'import', image: 'a.jpg', project: 'b', direct: true });
   for (const args of [['import'], ['import', 'photo.jpg'], ['import', 'a.jpg', 'b', 'c'], ['import', 'a.jpg', 'b', '--time', '2']]) assert.throws(() => parseArgs(args));
   for (const args of [['init'], ['unknown'], ['still', '--sample', '2'], ['still', '--width'], ['inspect', 'one', 'two'], ['still', '--width', '200', '--width', '400']]) assert.throws(() => parseArgs(args));
 });
@@ -221,7 +222,9 @@ test('import makes a portable project whose band follows the image', async () =>
   } finally { await rm(parent, { recursive: true, force: true }); }
 });
 
-test('the shipped photo and page-wall examples are valid projects', async () => {
+test('the shipped photo, page-wall, and directed examples are valid projects', async () => {
+  const directed = await inspectProject(fileURLToPath(new URL('../examples/directed.json', import.meta.url)));
+  assert.deepEqual(directed.metadata.scenes.map(s => s.picture), ['./nocturne-directed.js', './dawn-directed.js']);
   const photo = await inspectProject(fileURLToPath(new URL('../examples/photo/project.json', import.meta.url)));
   assert.deepEqual(photo.project.band, [1600, 900]);
   const wall = await inspectProject(fileURLToPath(new URL('../examples/page-wall/project.json', import.meta.url)));

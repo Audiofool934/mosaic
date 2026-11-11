@@ -6,7 +6,7 @@ import path from 'node:path';
 import { analyzeImage } from '../engine/image.js';
 import { validateProject } from '../engine/project.js';
 import { wavOf } from '../engine/sound.js';
-import { loadFilm } from '../engine/timeline.js';
+import { loadFilm, makeTimeline } from '../engine/timeline.js';
 import { inspectProject, musicProject, parseArgs } from '../tools/cli.mjs';
 import { findOnsets, readTrack, readWav } from '../tools/music.mjs';
 
@@ -54,7 +54,7 @@ test('a project names its track and onsets as plain data', () => {
   const project = { version: 1, fps: [60, 1], frames: 240, band: [320, 120], scenes: [{ id: 'one', picture: './scene.js', start: 0, end: 4, in: { type: 'laid' } }] };
   const music = { src: './track.wav', at: 0.5, onsets: [[0.5, 1], [1, 0.4]], steady: 0.2, ring: 0.05, contrast: 1.5, gain: 0.6, stones: 1.2 };
   assert.deepEqual(validateProject({ ...project, music }).music, music);
-  for (const bad of [{}, { src: '' }, { src: './t.wav', at: -1 }, { src: './t.wav', onsets: [[1, 1], [0.5, 1]] }, { src: './t.wav', onsets: [[1, 2]] }, { src: './t.wav', onsets: [[1]] }, { src: './t.wav', steady: 2 }, { src: './t.wav', ring: 0 }, { src: './t.wav', gain: 9 }, { src: './t.wav', contrast: -1 }, 'track.wav']) {
+  for (const bad of [{}, { src: '' }, { src: './t.wav', at: -1 }, { src: './t.wav', onsets: [[1, 1], [0.5, 1]] }, { src: './t.wav', onsets: [[1, 2]] }, { src: './t.wav', onsets: [[1]] }, { src: './t.wav', steady: 2 }, { src: './t.wav', ring: 0 }, { src: './t.wav', gain: 9 }, { src: './t.wav', contrast: -1 }, { src: './t.wav', kick: 0.5 }, 'track.wav']) {
     assert.throws(() => validateProject({ ...project, music: bad }), /music/);
   }
   assert.throws(() => validateProject({ ...project, scenes: [{ ...project.scenes[0], in: { type: 'laid', music: 'no' } }] }), /music/);
@@ -96,6 +96,32 @@ test('with music, laid stones land on the onsets and just after, more of them on
   assert.deepEqual(await landings({ src: './track.wav', onsets, steady: 0 }, { ...scene.in, music: false }), plain);
 });
 
+test('with a kick, the camera leans in on each onset, more on the stronger, and eases back out', async () => {
+  const picture = analyzeImage({ width: 96, height: 36, data: Uint8ClampedArray.from({ length: 96 * 36 * 4 }, (_, i) => [(i >> 2) % 96 * 2.5, 120, 200, 255][i % 4]) }, { maxDimension: 96, width: 320, stoneSize: 6, paletteSize: 6, seed: 3 });
+  const widths = async (music) => {
+    const film = await loadFilm({ version: 1, fps: [60, 1], frames: 240, band: [320, 120], ...(music && { music }), scenes: [{ id: 'one', picture, start: 0, end: 4, in: { type: 'settled' } }] });
+    const timeline = makeTimeline(film, 320, 120);
+    return (t) => timeline.cameraAt(t).w;
+  };
+  const onsets = [[1, 1], [2.5, 0.5]], plain = await widths(null), w = await widths({ src: './track.wav', onsets, kick: 0.04 });
+  // Away from the onsets the view is the scene's own, and without a kick it always is.
+  const still = await widths({ src: './track.wav', onsets });
+  for (const t of [0, 0.5, 0.94, 1, 1.2, 2.5, 3.9]) assert.equal(still(t), plain(t));
+  assert.equal(w(0.5), plain(0.5));
+  assert.equal(w(0.94), plain(0.94));
+  // On the strongest onset it has leaned in by the whole kick, and it is already on its way a moment before.
+  assert.ok(Math.abs(w(1) / plain(1) - 0.96) < 1e-9);
+  assert.ok(w(0.98) < plain(0.98) && w(0.98) > w(1));
+  // It eases back out: most of the way after half a second, and all but there before the next onset.
+  assert.ok(w(1.5) > w(1.25) && w(1.25) > w(1) && w(1.5) / plain(1.5) > 0.994 && w(2.4) / plain(2.4) > 0.9998);
+  // An onset half as strong moves it a quarter as far.
+  assert.ok(Math.abs((1 - w(2.5) / plain(2.5)) - 0.01) < 2e-4);
+  // A track that starts later kicks later.
+  const late = await widths({ src: './track.wav', at: 1, onsets, kick: 0.04 });
+  assert.equal(late(1), plain(1));
+  assert.ok(Math.abs(late(2) / plain(2) - 0.96) < 1e-9);
+});
+
 test('music makes a portable film of a track, with its onsets in the manifest', async () => {
   assert.deepEqual(parseArgs(['music', 'my track.wav', 'my film']), { command: 'music', track: 'my track.wav', project: 'my film' });
   for (const args of [['music'], ['music', 'a.wav'], ['music', 'a.wav', 'b', 'c'], ['music', 'a.wav', 'b', '--sound']]) assert.throws(() => parseArgs(args));
@@ -109,6 +135,7 @@ test('music makes a portable film of a track, with its onsets in the manifest', 
     assert.equal(project.title, 'Five plucks');
     assert.equal(project.frames, 240);
     assert.deepEqual(metadata.music, { src: './track.wav', at: 0, onsets: 5 });
+    assert.equal(project.music.kick, 0.035);
     assert.deepEqual(project.scenes[0].picture, { module: './laid.js', export: 'laid', args: { duration: 4 } });
     assert.deepEqual(await readFile(path.join(made.destination, 'track.wav')), await readFile(track));
     // The manifest keeps one onset to a line, and the scene draws from the project's own engine.

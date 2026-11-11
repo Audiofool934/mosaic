@@ -8,7 +8,7 @@ import { ROOT, startServer } from './server.mjs';
 export const HELP = `mosAIc - physical mosaic artwork for people and agents
 
   mosaic init <directory>
-  mosaic import <image> <directory> [--material glass] [--stone-size 12]
+  mosaic import <image> <directory> [--material glass] [--stone-size 12] [--direct]
   mosaic music <track> <directory>
   mosaic preview [project.json] [--port 0]
   mosaic inspect [project.json]
@@ -16,7 +16,7 @@ export const HELP = `mosAIc - physical mosaic artwork for people and agents
   mosaic render [project.json] [--from 0] [--to <all frames>] [--width 1920] [--samples 4] [--sound] [--out output/video.mp4]
 
 The default project is examples/nocturne.json.
-import makes a project of a PNG, JPEG, WebP, or GIF; --material is glass, stone, or gold.
+import makes a project of a PNG, JPEG, WebP, or GIF; --material is glass, stone, or gold, and --direct gives it a camera that tours its subjects.
 Video frame ranges are inclusive at --from and exclusive at --to; render draws every frame unless --to is given.
 music makes a film of a track, its stones landing on the track's onsets; a WAV file needs no ffmpeg, any other format does.
 A film is silent unless --sound is given: then its stones are heard as they land, each in the voice of its material, with its track if it has one.
@@ -28,7 +28,7 @@ Set MOSAIC_BROWSER to an installed Chromium executable, or run npx playwright-co
 
 const OPTIONS = { init: [], import: ['material', 'stone-size'], music: [], preview: ['port'], inspect: [], still: ['time', 'width', 'samples', 'out'], render: ['from', 'to', 'width', 'samples', 'out'] };
 // Options that take no value.
-const FLAGS = { render: ['sound'] };
+const FLAGS = { import: ['direct'], render: ['sound'] };
 
 export function parseArgs(argv) {
   if (!argv.length || argv[0] === '--help' || argv[0] === '-h' || argv[0] === 'help') return { command: 'help' };
@@ -215,7 +215,7 @@ const IMPORT_TYPES = { png: '.png', gif: '.gif', jpeg: '.jpg', webp: '.webp' };
 
 // An image of one's own as a project: the image, a picture function that analyses it in the
 // browser, and a manifest whose band follows the image's shape.
-export async function importProject(image, directory, { material = 'glass', stoneSize = 12 } = {}) {
+export async function importProject(image, directory, { material = 'glass', stoneSize = 12, direct = false } = {}) {
   if (!IMPORT_MATERIALS.includes(material)) throw new Error('--material must be glass, stone, or gold.');
   const size = numeric(stoneSize, 12, '--stone-size', 3, 100);
   let data;
@@ -232,7 +232,7 @@ export async function importProject(image, directory, { material = 'glass', ston
   project.title = path.basename(image, path.extname(image)) || 'Your mosaic';
   // The engine lays an image 1600 millimetres wide, so the band shares its shape.
   project.band = [1600, Math.max(2, Math.round(1600 * info.height / info.width))];
-  project.scenes[0].picture.args = { src: `./${name}`, material, stoneSize: size };
+  project.scenes[0].picture.args = { src: `./${name}`, material, stoneSize: size, ...(direct && { direct: true }) };
   await writeFile(path.join(destination, 'project.json'), JSON.stringify(project, null, 2) + '\n');
   return { destination, ...info };
 }
@@ -261,7 +261,7 @@ export async function musicProject(track, directory) {
   const frames = Math.ceil(heard.duration * 60), duration = frames / 60;
   const project = {
     title: path.basename(track, path.extname(track)) || 'Your film', version: 1, seed: 42, fps: [60, 1], frames, band: [1920, 1080],
-    music: { src: `./${name}`, onsets },
+    music: { src: `./${name}`, kick: 0.035, onsets },
     scenes: [{ id: 'laid', picture: { module: './laid.js', export: 'laid', args: { duration } }, start: 0, end: duration, in: { type: 'laid', bed: 0 } }]
   };
   // One onset to a line, so the manifest can be read and edited by hand.
@@ -279,7 +279,7 @@ export async function main(argv = process.argv.slice(2)) {
     return;
   }
   if (args.command === 'import') {
-    const { destination, width, height } = await importProject(args.image, args.project, { material: args.material, stoneSize: args['stone-size'] });
+    const { destination, width, height } = await importProject(args.image, args.project, { material: args.material, stoneSize: args['stone-size'], direct: Boolean(args.direct) });
     const manifest = shellPath(path.join(destination, 'project.json'));
     console.log(`Created ${destination} from a ${width}×${height} image\nPreview: node ${shellPath(fileURLToPath(import.meta.url))} preview ${manifest}\nStill: node ${shellPath(fileURLToPath(import.meta.url))} still ${manifest} --out ${shellPath(path.join(destination, 'output/still.png'))}`);
     return;

@@ -1,0 +1,12 @@
+{
+  "title": "From moon to morning, directed",
+  "version": 1,
+  "seed": 42,
+  "fps": [60, 1],
+  "frames": 1080,
+  "band": [1920, 1080],
+  "scenes": [
+    { "id": "nocturne", "picture": "./nocturne-directed.js", "start": 0, "end": 10, "in": { "type": "settled" } },
+    { "id": "dawn", "picture": "./dawn-directed.js", "start": 8, "end": 18, "in": { "type": "flow", "launch": [8, 8.6], "land": [8.8, 9.5], "focus": [990, 340] } }
+  ]
+}

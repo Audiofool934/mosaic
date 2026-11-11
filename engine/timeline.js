@@ -4,6 +4,7 @@ import { readProject } from "./project.js";
 // bed, or as a flock: the stones of the picture before it lift, fly, and seat as this
 // one. It can go out by falling. Everything is decided once, at load, so that seek(t)
 // is a pure function of t.
+import { direct, subjectsOf, tour } from "./director.js";
 import { loadPicture } from "./picture.js";
 import { tessellate } from "./tessellate.js";
 import { FLAG_STILL, FLAG_TYPE, drawLists, lightDir } from "./renderer.js";
@@ -238,7 +239,8 @@ function scheduleLaid(tiles, pic, build, music) {
 
 function cameraPath(cfg, panelW, panelH, aspect) {
   const cam = cfg.camera;
-  const keys = cam.keys.map((k) => ({ t: k[0], x: k[1], y: k[2], w: k[3] }));
+  // A camera with no keys of its own, as a directed one before it is directed, shows the panel.
+  const keys = (cam.keys || [[0, panelW / 2, panelH / 2, panelW]]).map((k) => ({ t: k[0], x: k[1], y: k[2], w: k[3] }));
   const X = keys.length > 1 ? monotone(keys.map((k) => [k.t, k.x])) : () => keys[0].x;
   const Y = keys.length > 1 ? monotone(keys.map((k) => [k.t, k.y])) : () => keys[0].y;
   const Wl = keys.length > 1 ? monotone(keys.map((k) => [k.t, Math.log(k.w)])) : () => Math.log(keys[0].w);
@@ -574,12 +576,39 @@ export async function loadFilm(source, opts = {}) {
       const onBeat = scheduleLaid(base, pic, Object.assign({}, cfg.build, s.in && s.in.build), s.in && s.in.music === false ? null : table.music);
       // Stones laid to music fall faster, so each handful is seen to drop on its onset.
       for (const t of base) t.fall = (s.in && s.in.fall) || (onBeat ? 0.16 : 0.24);
-      if (s.in && s.in.bed !== undefined) layer.relayFrom = s.in.bed;
     } else {
       for (const t of base) {
         t.T = kind === "settled" ? s.start - 10 : s.start;
         t.fall = 0.24;
       }
+    }
+
+    // A directed camera is given its keys here, from the picture and its stones' schedule, and
+    // they are kept in the picture's config, so a film handed over from a worker has the same
+    // camera. It follows a laying as the stones land, and tours a finished picture's subjects:
+    // a settled one from its start, a laid one once it is whole if there is time, and one that
+    // flows in after its flock has landed, having shown the whole picture for the flight. It is
+    // back on the whole picture before the next scene's flock leaves.
+    if (cfg.camera.direct) {
+      const next = scenes[s.index + 1];
+      const until = next && next.in && next.in.type === "flow" ? Math.min(s.end, next.in.launch[0]) : s.end;
+      const music = s.in && s.in.music === false ? null : table.music;
+      const frame = { panel: { w: pic.W, h: pic.H }, aspect, onsets: ((music && music.onsets) || []).map(([at, strength]) => [at + (music.at || 0), strength]) };
+      const subjects = () => subjectsOf(base.map((t) => ({
+        x: t.x, y: t.y, area: t.a * t.b, lin: t.lin2, glow: Math.max(t.stone.mat === MAT.GOLD ? 1 : 0, Math.min(1, t.stone.emit || 0)), region: baseName(pic, pic.regions[t.L])
+      })), frame);
+      let keys;
+      if (kind === "laid") {
+        keys = direct(base.map((t) => ({ x: t.x, y: t.y, T: t.T })), { ...frame, end: until });
+        const whole = keys.at(-2);
+        if (until - whole[0] >= 6) keys = keys.slice(0, -1).concat(tour(subjects(), { ...frame, from: whole[0], until, open: "whole" }).filter((k) => k[0] > whole[0]));
+      } else if (kind === "flow") {
+        keys = tour(subjects(), { ...frame, from: Math.min(s.in.land[1], until), until, open: "whole" });
+      } else {
+        keys = tour(subjects(), { ...frame, from: s.start, until, open: s.index ? "whole" : "close" });
+      }
+      pic.cfg = { ...cfg, camera: { ...cfg.camera, keys } };
+      layer.cam = cameraPath(pic.cfg, pic.W, pic.H, aspect);
     }
 
     // Figures that come in during the scene.
@@ -952,6 +981,22 @@ export function makeTimeline(film, W, H) {
     const [tx, ty] = toWorld(L, c.X(t), c.Y(t));
     return { tx, ty, w: c.W(t), tilt: c.tilt(t), yaw: c.yaw(t), roll: c.roll(t), drift: c.drift, focusShift: c.focusShift, aperture: c.aperture };
   }
+  // The camera's kick: with music, it leans in on each onset, the more the stronger the onset,
+  // as far as `kick` of its view's width on the strongest, and eases back out over a quarter
+  // of a second. It reaches the onset just as the onset's stones land.
+  const music = film.table.music;
+  const kicks = music?.kick > 0 ? (music.onsets || []).map(([at, strength]) => [at + (music.at || 0), Math.max(strength, 0.05) ** (music.contrast ?? 2)]) : [];
+  function kickAt(t) {
+    let lo = 0, hi = kicks.length;
+    while (lo < hi) { const mid = (lo + hi) >> 1; if (kicks[mid][0] <= t + 0.05) lo = mid + 1; else hi = mid; }
+    let lean = 0;
+    for (let i = lo - 1; i >= 0 && t - kicks[i][0] < 2; i--) {
+      const after = t - kicks[i][0];
+      // It starts a twentieth of a second ahead, so that it arrives with the stones.
+      lean += kicks[i][1] * (after < 0 ? smoothstep(-0.05, 0, after) : Math.exp(-after / 0.25));
+    }
+    return music.kick * Math.min(lean, 1.25);
+  }
   function cameraAt(t) {
     const B = blendAt(t);
     let c = camOf(B.to.layer, t);
@@ -964,6 +1009,7 @@ export function makeTimeline(film, W, H) {
         focusShift: lerp(a.focusShift, c.focusShift, u), aperture: lerp(a.aperture || 0.03, c.aperture || 0.03, u)
       };
     }
+    if (kicks.length) c = { ...c, w: c.w * (1 - kickAt(t)) };
     const dist = c.w / 1000 / (2 * Math.tan(FOVY / 2) * aspect);
     const tilt = (c.tilt * Math.PI) / 180;
     const drift = c.drift * Math.sin(t * 0.37 + 0.4) + c.drift * 0.6 * noise1(t * 0.23, 5);

@@ -21,6 +21,30 @@ The resulting geometry represents individual stones with thickness and bevels, n
 The frame darkens a little toward its edges, round and measured against its longer side, so a tall frame darkens toward its ends no more than a wide one toward its sides.
 The studio and exports both use this renderer.
 
+## A directed camera
+
+A picture whose config sets `camera: { direct: true }` has no camera keys of its own: `engine/director.js` makes them when the film is built.
+The keys are ordinary camera keys, kept in the picture's config, so every frame, seek, export, and a film cut in a worker have the same camera; `tilt`, `aperture`, and the music's `kick` apply to it as to any other.
+
+A `laid` scene is followed as its stones land.
+The director works in shots of about two and a half to five and a half seconds.
+In each shot it chooses the closest frame, from about a quarter of the panel to all of it, that holds 72% of the stones landing in that shot, opens on where the first of them land, and drifts to where the last do.
+It reaches the next shot in 0.7 seconds, as that shot begins, and a shot ends on the strongest onset of the film's music that falls where it may end, or after a middling while when there is no music.
+After the last stone it pulls back over 1.6 seconds and rests on the whole panel.
+
+A finished picture has nothing landing, so the director tours its subjects.
+A stone stands out by how far its colour is from the panel's own, by how little of the panel shares that colour, by the glow of gold and lit glass, and by its region: a region that covers more than 15% of the panel is ground, and a region that fills the box around it counts for more than scattered marks or a long band.
+The director looks at frames of several sizes, takes the place that holds the most for its width, grows the frame until it holds the whole of what stands out there, and looks again elsewhere, for up to five subjects.
+This needs no named regions, so it works on an imported image too.
+A tour gives each subject a shot of 2.6 to 6 seconds, as many as there is time for, the most striking last; each shot opens a little wide and pushes in, the camera travels to the next in 1.1 seconds, and the tour ends on the whole panel.
+
+- A `settled` scene is toured from its start, opening close on a subject.
+- A `laid` scene is toured after its laying, if at least six seconds remain.
+- A scene that flows in is shown whole while its flock flies, so every stone of it lands, and is toured once the flock has landed.
+- Every directed scene is back on the whole panel before the next scene's flock leaves, since a flock is made of the stones in view.
+
+`examples/directed.json` is the two-scene film with both cameras directed.
+
 ## Browser controller
 
 `engine/runtime.js` exposes `createMosaic(canvas, options)`.
@@ -94,6 +118,8 @@ A film can be laid to music.
 Its manifest names a track and its onsets as plain data: `"music": { "src": "./track.wav", "onsets": [[seconds, strength], ...] }`.
 A scene that comes in `laid` then keeps the order in which its stones are laid, but seats them on the onsets: each onset drops a share of the stones that follows its strength raised to `contrast` (2), landing on it and dying away over `ring` seconds (0.05), and a `steady` share (0.03) is laid evenly through the build.
 These stones fall for 0.16 seconds instead of 0.24, so each handful is seen to drop on its onset.
+With `"kick"`, the camera leans in on each onset: its view narrows by that share on the strongest onset, less on the weaker by the same `contrast`, arriving with the stones and easing back out over a quarter of a second.
+The kick is part of the scene's camera at every time, so stills, seeks, motion blur, and the film's score all see it; a film without `kick` keeps its camera exactly.
 `"at"` starts the track that many seconds into the film, and a scene declines the music with `"in": { "type": "laid", "music": false }`.
 The engine never reads the track: `tools/music.mjs` finds the onsets by spectral flux when `mosaic music` makes a project, and a person or an agent can write or edit them by hand.
 `render --sound` mixes the track, at `gain` (0.7), with the stones, at `stones` (0.5), and turns the whole mix down if it would clip.

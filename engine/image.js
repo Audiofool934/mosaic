@@ -27,7 +27,9 @@ function settings(options) {
     seed: numberOption(options, "seed", 0, 4294967295, true),
     width: numberOption(options, "width", 100, 8000),
     maxDimension: numberOption(options, "maxDimension", 64, 1024, true),
-    material, background
+    material, background,
+    // A directed camera tours the image's subjects instead of holding the whole of it.
+    direct: options.direct === true
   };
 }
 
@@ -292,7 +294,7 @@ export function analyzeImage(image, options = {}) {
   const REG = Object.fromEntries(regions.map((r) => [r.name, r]));
   const cfg = {
     panel: { w: W, h: H }, res, background: regions[1].name,
-    camera: { keys: [[0, W / 2, H / 2, W]], tilt: 0, yaw: 0, roll: 0, drift: 0, aperture: 0.01 },
+    camera: { keys: [[0, W / 2, H / 2, W]], tilt: 0, yaw: 0, roll: 0, drift: 0, aperture: 0.01, ...(opts.direct && { direct: true }) },
     light: {
       key: { az: 135, el: 42, color: [1, 0.97, 0.91], power: 1.25 },
       fill: { az: -25, el: 55, color: [0.76, 0.86, 1], power: 0.28 },

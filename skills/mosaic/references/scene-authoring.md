@@ -68,6 +68,11 @@ Lighting supports a directional key and fill, ambient sky/ground, point lights, 
 `"laid"` schedules stones into the mortar using the picture's `build` configuration.
 The bundled `examples/laid.json` lays the nocturne outward from the moon while the camera pulls back; `"bed": 0` shows the bare mortar and its sinopia from the first frame.
 The sinopia outlines every region, or the groups of regions listed in the config's `sinopia: { groups }`; `sinopia: false` lays the stones straight onto bare plaster with no drawing first.
+With `"music": { "src": "./track.wav", "onsets": [[seconds, strength], ...] }` in the project, a laid scene's stones land on the onsets instead of at a smooth pace, in the same order, between the build's `start` and `end`.
+Strength runs from 0 to 1, and an onset's share of the stones follows it raised to `"contrast"` (2): raise the contrast to give the accents more of the stones, or set it to 1 for an even hand.
+`"steady"` (0.03) is the share laid evenly, `"ring"` (0.05) the seconds over which an onset's stones die away, and `"at"` the seconds into the film at which the track starts.
+`"gain"` (0.7) and `"stones"` (0.5) set the levels of the track and of the stones in a render with `--sound`.
+The `music` command writes the onsets from a track, and they can be edited or written by hand, for example to keep only the downbeats.
 `"flow"` pairs outgoing stones with an incoming picture; its `launch` and `land` intervals are on the project clock.
 A flow can lift the outgoing picture's stones off the wall together first with `"rise": [from, to, millimetres]`, fly them closer to the wall with an `"arc"` below 1, as for a long flight across it, and land them hovering to settle onto the wall together with `"settle": [from, to]`, so the flow reads the same played backward.
 Scenes with `"at": [x, y]` are placed side by side on one wall, in millimetres from its top left corner, and can share the same clock.

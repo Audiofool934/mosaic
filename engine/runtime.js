@@ -153,7 +153,9 @@ export async function createMosaic(canvas, options = {}) {
   contexts.set(canvas, gl);
   if (gl.isContextLost()) throw new Error('The graphics context was lost. Draw on a fresh canvas.');
   let renderer, base;
-  const info = { title: film.table.title || 'Untitled mosaic', width, height, aspect: film.aspect, duration, fps: film.fps, stoneCount: 0, stones: [], setupMs: 0 };
+  const info = { title: film.table.title || 'Untitled mosaic', width, height, aspect: film.aspect, duration, fps: film.fps, stoneCount: 0, stones: [], setupMs: 0,
+    // The film's track, if it has one, as its manifest gives it: a page plays it with the film.
+    music: film.table.music ? { src: film.table.music.src, at: film.table.music.at || 0, gain: film.table.music.gain ?? 0.7, stones: film.table.music.stones ?? 0.5 } : null };
   const count = () => {
     info.stoneCount = film.layers.reduce((n, l) => n + l.count, 0);
     info.stones = film.layers.map(l => ({ shot: l.scene.id, count: l.count, timing: l.timing }));

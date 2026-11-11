@@ -29,9 +29,23 @@ export function validateProject(input) {
       if (s.in?.[key] !== undefined && !(Number.isFinite(s.in[key]) && s.in[key] > 0)) throw new Error(`${s.id}: ${key} must be a length in millimetres.`);
     }
     if (s.at !== undefined && (!Array.isArray(s.at) || s.at.length !== 2 || !s.at.every(Number.isFinite))) throw new Error(`${s.id}: at must be [x, y] in millimetres.`);
+    if (s.in?.music !== undefined && typeof s.in.music !== 'boolean') throw new Error(`${s.id}: music must be true or false.`);
     if (s.front !== undefined && typeof s.front !== 'boolean') throw new Error(`${s.id}: front must be true or false.`);
   }
   if (p.scenes[0].start !== 0) throw new Error('The first scene must start at zero.');
+  if (p.music !== undefined) {
+    const m = p.music;
+    if (!m || typeof m !== 'object' || Array.isArray(m)) throw new Error('music must be an object.');
+    if (typeof m.src !== 'string' || !m.src) throw new Error('music needs src, the path of its track.');
+    if (m.at !== undefined && !(Number.isFinite(m.at) && m.at >= 0)) throw new Error('music: at must be the seconds into the film at which the track starts.');
+    if (m.onsets !== undefined && !(Array.isArray(m.onsets) && m.onsets.every((o, i) => isPoint(o) && o[0] >= 0 && o[1] >= 0 && o[1] <= 1 && (!i || o[0] >= m.onsets[i - 1][0])))) throw new Error('music: onsets must be [seconds, strength from 0 to 1] pairs in order.');
+    if (m.steady !== undefined && !(Number.isFinite(m.steady) && m.steady >= 0 && m.steady <= 1)) throw new Error('music: steady must be a share from 0 to 1.');
+    if (m.ring !== undefined && !(Number.isFinite(m.ring) && m.ring > 0)) throw new Error('music: ring must be a time in seconds.');
+    if (m.contrast !== undefined && !(Number.isFinite(m.contrast) && m.contrast >= 0 && m.contrast <= 8)) throw new Error('music: contrast must be a number from 0 to 8.');
+    for (const key of ['gain', 'stones']) {
+      if (m[key] !== undefined && !(Number.isFinite(m[key]) && m[key] >= 0 && m[key] <= 4)) throw new Error(`music: ${key} must be a level from 0 to 4.`);
+    }
+  }
   return p;
 }
 

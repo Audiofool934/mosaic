@@ -82,6 +82,7 @@ function updatePlayback() {
   $("film-label").textContent = state.playing ? "Pause film" : "Play film";
   $("film-toggle").setAttribute("aria-label", state.playing ? "Pause film" : "Play film");
   $("film-icon").textContent = state.playing ? "Ⅱ" : "▶";
+  followTrack();
   if (state.playing) playbackFrame = requestAnimationFrame(updatePlayback);
 }
 
@@ -115,6 +116,7 @@ async function loadArtwork(file = null, { resetView = true } = {}) {
   $("loading-label").textContent = file ? "Finding the contours in your image" : "Laying the first stones";
   controller?.dispose();
   controller = null;
+  tuneTrack();
   try {
     if (file && !file.type.startsWith("image/")) throw new Error("Choose a PNG, JPEG, WebP, AVIF, or GIF image.");
     setAspect(file ? await imageAspect(file) : 16 / 9);
@@ -139,6 +141,7 @@ async function loadArtwork(file = null, { resetView = true } = {}) {
     });
     if (disposed || token !== generation) { created.dispose(); return; }
     controller = created;
+    tuneTrack();
     currentFile = file;
     listen();
     if (!file && Number.isFinite(created.info?.aspect) && Math.abs(aspect - created.info.aspect) > 0.001) {
@@ -177,6 +180,50 @@ async function loadArtwork(file = null, { resetView = true } = {}) {
   }
 }
 
+// A film's own track plays with it while the stones are heard, from the film's own time. It is
+// fetched and decoded whole the first time it is wanted, so it can start from any moment. Live,
+// the stones keep their own level, and the track is set against them as a render mixes the two.
+let track = null, trackAudio = null;
+function stopTrack() {
+  track?.source?.stop();
+  if (track) track.source = null;
+}
+function tuneTrack() {
+  stopTrack();
+  const music = selectedProject ? controller?.info.music : null;
+  track = music ? { music, buffer: null, wanted: false, source: null, began: 0 } : null;
+}
+async function loadTrack(mine) {
+  mine.wanted = true;
+  try {
+    trackAudio ??= new AudioContext();
+    const response = await fetch(new URL(mine.music.src, projectURL));
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    mine.buffer = await trackAudio.decodeAudioData(await response.arrayBuffer());
+    if (mine === track) followTrack();
+  } catch (error) {
+    if (mine === track) feedback(`The film's track could not be played: ${error.message}`, true);
+  }
+}
+function followTrack() {
+  if (!track || !controller) return;
+  const state = controller.getState(), at = state.time - track.music.at;
+  if (!state.playing || $("sound").getAttribute("aria-checked") !== "true") { stopTrack(); return; }
+  if (!track.buffer) { if (!track.wanted) loadTrack(track); return; }
+  if (at < 0 || at >= track.buffer.duration) { stopTrack(); return; }
+  // The film's clock leads: the track starts again from it when it has strayed a twelfth of a second.
+  if (track.source && Math.abs(trackAudio.currentTime - track.began - at) <= 0.08) return;
+  stopTrack();
+  trackAudio.resume();
+  const source = trackAudio.createBufferSource(), level = trackAudio.createGain();
+  source.buffer = track.buffer;
+  level.gain.value = Math.min(2, (track.music.gain * 0.5) / Math.max(track.music.stones, 0.05));
+  source.connect(level).connect(trackAudio.destination);
+  source.start(0, at);
+  track.source = source;
+  track.began = trackAudio.currentTime - at;
+}
+
 // The stones are heard only once asked for: a click starts the sound, as browsers require.
 const sound = createStoneSound();
 let unhear = null;
@@ -193,6 +240,7 @@ $("sound").addEventListener("click", async () => {
   if (on) await sound.start();
   else await sound.stop();
   listen();
+  followTrack();
 });
 
 $("import-button").addEventListener("click", () => fileInput.click());
@@ -298,6 +346,7 @@ window.addEventListener("pagehide", () => {
   clearTimeout(resizeTimer);
   clearTimeout(feedbackTimer);
   stopPlaybackDisplay();
+  stopTrack();
   observer.disconnect();
   controller?.dispose();
   for (const url of objectURLs) URL.revokeObjectURL(url);

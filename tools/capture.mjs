@@ -4,6 +4,7 @@ import { createReadStream } from 'node:fs';
 import { createHash, randomUUID } from 'node:crypto';
 import path from 'node:path';
 import { renderScore, wavOf } from '../engine/sound.js';
+import { decodeTrack } from './music.mjs';
 import { ROOT, startServer } from './server.mjs';
 
 const digest = data => createHash('sha256').update(data).digest('hex');
@@ -201,20 +202,43 @@ export async function capture({ kind, projectFile, project, width, samples, from
         return bytes;
       } catch (error) { failPending(error); throw error; }
     }
-    // The film's sound: the page tells which stones are heard landing, and they are mixed here
-    // into a 16-bit stereo WAV file of exactly the film's length. A stretch in which no stone
-    // lands has no sound track.
+    // The film's sound: the page tells which stones are heard landing, and they are mixed here,
+    // with the film's track if it has one, into a 16-bit stereo WAV file of exactly the film's
+    // length. A stretch with no track in which no stone lands has no sound track.
     let audio = false, soundFile = null;
     if (kind === 'render' && sound) {
       const seconds = n => n * project.fps[1] / project.fps[0], rate = 48000;
-      const landings = await page.evaluate(range => window.mosaic.score(range), { from: seconds(from), to: seconds(to) });
+      const start = seconds(from), duration = seconds(to) - start, length = Math.max(1, Math.round(duration * rate));
+      const landings = await page.evaluate(range => window.mosaic.score(range), { from: start, to: seconds(to) });
       checkAbort(signal);
-      if (landings.length) {
-        const wav = wavOf(renderScore(landings, { from: seconds(from), duration: seconds(to) - seconds(from), rate }), rate);
+      let channels = landings.length ? renderScore(landings, { from: start, duration, rate }) : null, music = null, scale = 1;
+      if (project.music) {
+        const file = path.resolve(path.dirname(projectFile), project.music.src);
+        const track = await decodeTrack(file, { rate, channels: 2, signal });
+        const gain = project.music.gain ?? 0.7, level = project.music.stones ?? 0.5;
+        const offset = Math.round((start - (project.music.at || 0)) * rate), fade = Math.min(length, Math.round(rate / 50));
+        const mix = [new Float32Array(length), new Float32Array(length)];
+        let peak = 0;
+        for (let c = 0; c < 2; c++) {
+          for (let i = 0; i < length; i++) {
+            const j = i + offset;
+            // A track cut off by the film's end is faded over its last fiftieth of a second.
+            const v = (j >= 0 && j < track.channels[c].length ? track.channels[c][j] * gain * Math.min(1, (length - 1 - i) / fade) : 0) + (channels ? channels[c][i] * level : 0);
+            mix[c][i] = v;
+            peak = Math.max(peak, Math.abs(v));
+          }
+        }
+        // A mix that would clip is turned down as a whole, and the receipt says by how much.
+        if (peak > 0.98) { scale = 0.98 / peak; for (const c of mix) for (let i = 0; i < length; i++) c[i] *= scale; }
+        channels = mix;
+        music = { src: project.music.src, at: project.music.at || 0, gain, stones: level, scale, hash: await fileHash(file) };
+      }
+      if (channels) {
+        const wav = wavOf(channels, rate);
         soundFile = path.join(temporary, 'sound.wav');
         await writeFile(soundFile, wav);
-        audio = { codec: 'aac', bitrate: '192k', sampleRate: rate, channels: 2, landings: landings.length, sourceHash: digest(wav) };
-        onProgress(`${landings.length} stones heard landing.`);
+        audio = { codec: 'aac', bitrate: '192k', sampleRate: rate, channels: 2, landings: landings.length, ...(music && { music }), sourceHash: digest(wav) };
+        onProgress(`${landings.length} stones heard landing${music ? ', with the track' : ''}.`);
       } else onProgress('No stone lands in these frames, so the film has no sound.');
     }
     if (kind === 'still') {

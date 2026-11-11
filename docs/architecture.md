@@ -90,6 +90,15 @@ A film has a sound of its own: its stones heard as they land.
 `renderScore()` in `engine/sound.js` mixes a score into two channels without a browser, and `render --sound` puts that mix into the MP4.
 A stone that is set in place, that never arrives, or that lands out of view is not heard, so a film of settled stones is silent.
 
+A film can be laid to music.
+Its manifest names a track and its onsets as plain data: `"music": { "src": "./track.wav", "onsets": [[seconds, strength], ...] }`.
+A scene that comes in `laid` then keeps the order in which its stones are laid, but seats them on the onsets: each onset drops a share of the stones that follows its strength raised to `contrast` (2), landing on it and dying away over `ring` seconds (0.05), and a `steady` share (0.03) is laid evenly through the build.
+These stones fall for 0.16 seconds instead of 0.24, so each handful is seen to drop on its onset.
+`"at"` starts the track that many seconds into the film, and a scene declines the music with `"in": { "type": "laid", "music": false }`.
+The engine never reads the track: `tools/music.mjs` finds the onsets by spectral flux when `mosaic music` makes a project, and a person or an agent can write or edit them by hand.
+`render --sound` mixes the track, at `gain` (0.7), with the stones, at `stones` (0.5), and turns the whole mix down if it would clip.
+`controller.info.music` gives a page the track to play with the film, as the studio does.
+
 ## Walls of pictures
 
 Scenes placed with `at: [x, y]` share one wall, in millimetres from its top left corner, instead of each being centred on its own.

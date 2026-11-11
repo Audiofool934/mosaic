@@ -5,8 +5,8 @@ They describe the 0.1.0 local release candidate; other platforms have not been v
 
 ## Automated checks
 
-`npm test` passes 63 tests covering manifest validation, image analysis, distance transforms, command input, project generation and image import, the page-wall example, a film's score and its mix, local preview isolation, and distribution integrity.
-`npm run check` checks the syntax of all 57 JavaScript modules.
+`npm test` passes 68 tests covering manifest validation, image analysis, distance transforms, command input, project generation and image import, the page-wall example, a film's score and its mix, a track's onsets and the stones laid on them, local preview isolation, and distribution integrity.
+`npm run check` checks the syntax of all 60 JavaScript modules.
 These two counts were last taken on 11 November 2026 on macOS with Node 24.
 `npm run test:browser` passes seven GPU lifecycle and rendering checks using Chromium 153 with ANGLE Metal and 9,340 stones at 640 by 360 pixels.
 
@@ -54,6 +54,20 @@ The studio played the laid film with no voices while **Hear the stones** was off
 
 The sound was checked by measurement and as a spectrogram, not by ear.
 Its level and its density of sixty stones a second follow the pointer's sound and have not been tuned for films by listening.
+
+## Films laid to music
+
+These results were observed on 11 November 2026 on the same Mac and Chromium.
+The test track was twenty seconds of kalimba and hand percussion made locally with Stable Audio 3; it is not part of the distributions.
+
+`music` found 36 onsets in the track and made a project of 1,200 frames.
+`render --sound` at 960 by 540 pixels wrote twenty seconds of video and of 48 kHz stereo AAC, with 545 stones heard at half their level under the track, peaking at -9.4 dBFS with no need to turn the mix down.
+In the rendered frames, the picture changed 2.7 times as much in the frames around an onset as in the others, and more at the strong onsets than at the weak ones.
+Two renders of the film's first 300 frames had the same hash.
+In the studio, the track started at the film's own time once **Hear the stones** was on, played on without starting again, and stopped when the film was paused.
+
+The film was checked by these measurements and by its frames, not by ear or by eye in motion.
+Whether the stones feel on the beat, and how the track and the stones balance, still need a listener.
 
 ## Agent portability
 

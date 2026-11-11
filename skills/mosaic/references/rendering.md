@@ -23,6 +23,11 @@ The sound follows from the film and its seed, so it is the same in every render,
 A film whose stones are settled from the start has no landings and stays silent; lay the stones (`"in": { "type": "laid" }`), bring figures in, or flow between scenes to give it a sound.
 The engine makes no music or speech.
 
+`music <track> <directory>` makes a film project of a supplied track: it copies the track, finds its onsets, and writes them into the manifest's `music`.
+The project lays the bundled nocturne over the track's length; replace its `scene.js` to lay another picture, and keep `laid.js`, which sets the camera and the build to the film's duration.
+A WAV track needs no extra tool; MP3, Ogg, M4A, AAC, FLAC, AIFF, and Opus need FFmpeg.
+Render it with `--sound` to hear the track with the stones; without `--sound` the film is silent but its stones still land on the onsets.
+
 `--from` is inclusive and `--to` is exclusive in project frame numbers.
 The manifest's rational FPS owns the output timing.
 Preview uses fewer samples for responsiveness; four temporal samples are a useful movie export default.

@@ -150,9 +150,46 @@ function pace(tiles, start, end, rise, ease) {
   }
 }
 
+// Seat times by rank, so the stones land with a film's music. Each onset of the track, at its
+// time with a strength from 0 to 1, drops a handful of stones that land on it and just after,
+// more of them the stronger it is, dying away over `ring` seconds; a `steady` share of the
+// stones is laid evenly through the whole build, so a long rest is not quite still. An onset's
+// share of the stones follows its strength raised to `contrast`, so above 1 the strong onsets
+// take more of the stones from the weak ones, and the laying moves with the music's accents.
+function pour(tiles, start, end, onsets, steady, ring, contrast) {
+  tiles.sort((a, b) => a.key - b.key);
+  const n = tiles.length;
+  const steps = Math.max(1, Math.ceil((end - start) * 240));
+  const step = (end - start) / steps;
+  const burst = new Float64Array(steps);
+  let all = 0;
+  for (const [at, strength] of onsets) {
+    for (let i = Math.max(0, Math.floor((at - start) / step)); i < steps; i++) {
+      const after = start + (i + 0.5) * step - at;
+      if (after < 0) continue;
+      const g = Math.max(strength, 0.05) ** contrast * Math.exp(-after / ring);
+      if (g < 1e-4) break;
+      burst[i] += g;
+      all += g;
+    }
+  }
+  const cum = [0];
+  for (let i = 0; i < steps; i++) cum.push(cum[i] + steady / steps + ((1 - steady) * burst[i]) / all);
+  const total = cum[steps];
+  let j = 0;
+  for (let i = 0; i < n; i++) {
+    const want = ((i + 0.5) / n) * total;
+    while (j < steps - 1 && cum[j + 1] < want) j++;
+    const f = (want - cum[j]) / Math.max(cum[j + 1] - cum[j], 1e-12);
+    tiles[i].T = start + (j + f) * step;
+  }
+}
+
 // A laid build can be given in stages: [{ until, end }] splits the stones by rank so
 // the first share is laid slowly (a silent word) and the rest faster.
-function scheduleLaid(tiles, pic, build) {
+// With music, the film's track, the stones land on its onsets instead, in the same order;
+// returns whether they do.
+function scheduleLaid(tiles, pic, build, music) {
   const geo = geodesic(pic, build.origin, (reg) => regionSpeed(pic, build, reg));
   const byLine = new Map();
   for (const t of tiles) {
@@ -171,6 +208,11 @@ function scheduleLaid(tiles, pic, build) {
     for (const t of row) if (t.B < first.B) first = t;
     const jitter = (hash(line, 77) - 0.5) * 8;
     for (const t of row) t.key = Math.max(t.B, first.B + jitter + Math.abs(t.arc - first.arc) / rowRate) + (t.seed - 0.5) * 1.5;
+  }
+  const onsets = (music?.onsets || []).map(([t, strength]) => [t + (music.at || 0), strength]).filter(([t]) => t >= build.start && t < build.end);
+  if (onsets.length) {
+    pour(tiles, build.start, build.end, onsets, music.steady ?? 0.03, music.ring ?? 0.05, music.contrast ?? 2);
+    return true;
   }
   if (!build.stages) {
     pace(tiles, build.start, build.end, build.rise || 0.12, build.ease || 0.35);
@@ -529,8 +571,9 @@ export async function loadFilm(source, opts = {}) {
     const base = tiles.filter((t) => !t.arrival);
     const kind = (s.in && s.in.type) || "laid";
     if (kind === "laid") {
-      scheduleLaid(base, pic, Object.assign({}, cfg.build, s.in && s.in.build));
-      for (const t of base) t.fall = (s.in && s.in.fall) || 0.24;
+      const onBeat = scheduleLaid(base, pic, Object.assign({}, cfg.build, s.in && s.in.build), s.in && s.in.music === false ? null : table.music);
+      // Stones laid to music fall faster, so each handful is seen to drop on its onset.
+      for (const t of base) t.fall = (s.in && s.in.fall) || (onBeat ? 0.16 : 0.24);
       if (s.in && s.in.bed !== undefined) layer.relayFrom = s.in.bed;
     } else {
       for (const t of base) {

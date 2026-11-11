@@ -73,6 +73,18 @@ node tools/cli.mjs import ./photo.jpg ./my-photo --material glass --stone-size 1
 node tools/cli.mjs still ./my-photo/project.json --width 1600 --samples 4 --out ./output/photo.png
 ```
 
+Lay a film to a track of your own, so that its stones land on the music:
+
+```bash
+node tools/cli.mjs music ./track.wav ./my-film
+node tools/cli.mjs render ./my-film/project.json --width 1280 --samples 2 --sound --out ./my-film/output/film.mp4
+```
+
+`music` listens to the track, finds its onsets, the moments a note or a beat begins, and writes them into a new project.
+Each onset drops a handful of stones that land on it, more of them the stronger it is, and the render mixes the track with the stones.
+The new project lays the nocturne; edit its `scene.js` to lay a picture of your own.
+A WAV file needs nothing more, and any other format needs FFmpeg.
+
 Preview the included two-scene film with `node tools/cli.mjs preview examples/film.json`.
 The studio shows playback and scrubbing controls for a project manifest.
 
@@ -138,11 +150,13 @@ It also covers cutting stones in a worker and walls of several pictures that a p
 - Pages laid as one live wall, cut around their own layout in background workers.
 - The stones heard under the pointer like small stones poured onto a table, each material in its own voice, synthesised in the browser and off until asked for.
 - Films heard as their stones land, in the same voices, mixed to the same samples every time.
+- Films laid to music: a track's onsets decide when the stones land, and the track plays with them.
 - A shared portable skill and reproducible distributions with source hashes and license notices.
 
 Continuous video stylization is deferred.
 The importer uses image analysis rather than semantic object recognition, so a clear composition and good source image matter.
-A film's own sound is its stones landing; music, speech, and other sound are yours to add separately.
+A film's own sound is its stones landing, with a track if you give it one; the engine composes no music.
+Onsets are found by how the spectrum grows, with no model of beat, bar, or key, so a track of clear attacks works best.
 
 The initial GPU visual check uses Chromium on macOS Apple Silicon.
 Windows, Linux, Safari, and Firefox have not yet completed visual acceptance.

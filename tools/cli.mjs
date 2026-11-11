@@ -9,6 +9,7 @@ export const HELP = `mosAIc - physical mosaic artwork for people and agents
 
   mosaic init <directory>
   mosaic import <image> <directory> [--material glass] [--stone-size 12]
+  mosaic music <track> <directory>
   mosaic preview [project.json] [--port 0]
   mosaic inspect [project.json]
   mosaic still [project.json] [--time 2] [--width 1920] [--samples 4] [--out output/still.png]
@@ -17,14 +18,15 @@ export const HELP = `mosAIc - physical mosaic artwork for people and agents
 The default project is examples/nocturne.json.
 import makes a project of a PNG, JPEG, WebP, or GIF; --material is glass, stone, or gold.
 Video frame ranges are inclusive at --from and exclusive at --to; render draws every frame unless --to is given.
-A film is silent unless --sound is given: then its stones are heard as they land, each in the voice of its material.
+music makes a film of a track, its stones landing on the track's onsets; a WAV file needs no ffmpeg, any other format does.
+A film is silent unless --sound is given: then its stones are heard as they land, each in the voice of its material, with its track if it has one.
 Exports are always fresh and refuse to overwrite existing files.
 Preview, init, import, and inspect need only Node 20+.
 Capture also needs npm ci, Chromium, and ffmpeg for video.
 Set MOSAIC_BROWSER to an installed Chromium executable, or run npx playwright-core install chromium.
 `;
 
-const OPTIONS = { init: [], import: ['material', 'stone-size'], preview: ['port'], inspect: [], still: ['time', 'width', 'samples', 'out'], render: ['from', 'to', 'width', 'samples', 'out'] };
+const OPTIONS = { init: [], import: ['material', 'stone-size'], music: [], preview: ['port'], inspect: [], still: ['time', 'width', 'samples', 'out'], render: ['from', 'to', 'width', 'samples', 'out'] };
 // Options that take no value.
 const FLAGS = { render: ['sound'] };
 
@@ -49,13 +51,16 @@ export function parseArgs(argv) {
       result[key] = argv[++i];
     } else if (command === 'import' && result.image === undefined) {
       result.image = value;
+    } else if (command === 'music' && result.track === undefined) {
+      result.track = value;
     } else {
-      if (result.project !== undefined) throw new Error(command === 'import' ? 'Provide one image and one destination directory.' : 'Provide only one project path.');
+      if (result.project !== undefined) throw new Error(command === 'import' ? 'Provide one image and one destination directory.' : command === 'music' ? 'Provide one track and one destination directory.' : 'Provide only one project path.');
       result.project = value;
     }
   }
   if (command === 'init' && !result.project) throw new Error('init needs a destination directory.');
   if (command === 'import' && !result.project) throw new Error('import needs an image and a destination directory.');
+  if (command === 'music' && !result.project) throw new Error('music needs a track and a destination directory.');
   return result;
 }
 
@@ -83,10 +88,18 @@ export async function inspectProject(projectFile) {
     try { await readFile(target); }
     catch { throw new Error(`${scene.id}: scene module not found: ${module}`); }
   }
+  if (project.music) {
+    const src = project.music.src;
+    if (/^[a-z][a-z\d+.-]*:/i.test(src) || src.startsWith('/')) throw new Error('music: use a relative local track path.');
+    const relative = path.relative(path.dirname(file), path.resolve(path.dirname(file), src));
+    if (relative.startsWith('..' + path.sep) || relative === '..') throw new Error('music: the track must be inside the project directory.');
+    try { await readFile(path.resolve(path.dirname(file), src)); }
+    catch { throw new Error(`music: track not found: ${src}`); }
+  }
   return { file, project, metadata: {
     title: project.title || 'Untitled mosaic', version: project.version, seed: project.seed,
     fps: project.fps, frames: project.frames, duration: project.frames * project.fps[1] / project.fps[0],
-    band: project.band, scenes: project.scenes.map(s => ({ id: s.id, picture: s.picture, start: s.start, end: s.end }))
+    band: project.band, ...(project.music && { music: { src: project.music.src, at: project.music.at || 0, onsets: project.music.onsets?.length || 0 } }), scenes: project.scenes.map(s => ({ id: s.id, picture: s.picture, start: s.start, end: s.end }))
   } };
 }
 
@@ -224,6 +237,39 @@ export async function importProject(image, directory, { material = 'glass', ston
   return { destination, ...info };
 }
 
+const TRACK_TYPES = ['.wav', '.mp3', '.ogg', '.m4a', '.aac', '.flac', '.aif', '.aiff', '.opus'];
+
+// A track of one's own as a film: the track, the nocturne laid over its length, and a manifest
+// that carries the track's onsets, on which the stones land.
+export async function musicProject(track, directory) {
+  const extension = path.extname(track).toLowerCase();
+  if (!TRACK_TYPES.includes(extension)) throw new Error(`Cannot read ${path.basename(track)}. Use a ${TRACK_TYPES.map(t => t.slice(1).toUpperCase()).join(', ')} track.`);
+  const { readTrack, findOnsets } = await import('./music.mjs');
+  let heard;
+  try { heard = await readTrack(track); }
+  catch (error) { throw new Error(`Cannot read track ${path.basename(track)}: ${error.message}`); }
+  if (!(heard.duration >= 2 && heard.duration <= 1200)) throw new Error('A track must last from two seconds to twenty minutes.');
+  const onsets = findOnsets(heard.samples, heard.rate);
+  const destination = await scaffold(directory);
+  // The page plays WAV, MP3, and Ogg from the preview server; other formats are heard in a render.
+  const name = 'track' + extension;
+  await cp(track, path.join(destination, name));
+  const scene = (await readFile(path.join(ROOT, 'examples/nocturne.js'), 'utf8')).replaceAll('../engine/paint.js', './engine/paint.js');
+  await writeFile(path.join(destination, 'scene.js'), scene);
+  const laid = (await readFile(path.join(ROOT, 'examples/music/laid.js'), 'utf8')).replaceAll('../nocturne.js', './scene.js');
+  await writeFile(path.join(destination, 'laid.js'), laid);
+  const frames = Math.ceil(heard.duration * 60), duration = frames / 60;
+  const project = {
+    title: path.basename(track, path.extname(track)) || 'Your film', version: 1, seed: 42, fps: [60, 1], frames, band: [1920, 1080],
+    music: { src: `./${name}`, onsets },
+    scenes: [{ id: 'laid', picture: { module: './laid.js', export: 'laid', args: { duration } }, start: 0, end: duration, in: { type: 'laid', bed: 0 } }]
+  };
+  // One onset to a line, so the manifest can be read and edited by hand.
+  const text = JSON.stringify(project, null, 2).replace(/\[\s+(-?[\d.e-]+),\s+(-?[\d.e-]+)\s+\]/g, '[$1, $2]');
+  await writeFile(path.join(destination, 'project.json'), text + '\n');
+  return { destination, duration: heard.duration, onsets: onsets.length };
+}
+
 export async function main(argv = process.argv.slice(2)) {
   const args = parseArgs(argv);
   if (args.command === 'help') { console.log(HELP); return; }
@@ -236,6 +282,12 @@ export async function main(argv = process.argv.slice(2)) {
     const { destination, width, height } = await importProject(args.image, args.project, { material: args.material, stoneSize: args['stone-size'] });
     const manifest = shellPath(path.join(destination, 'project.json'));
     console.log(`Created ${destination} from a ${width}×${height} image\nPreview: node ${shellPath(fileURLToPath(import.meta.url))} preview ${manifest}\nStill: node ${shellPath(fileURLToPath(import.meta.url))} still ${manifest} --out ${shellPath(path.join(destination, 'output/still.png'))}`);
+    return;
+  }
+  if (args.command === 'music') {
+    const { destination, duration, onsets } = await musicProject(args.track, args.project);
+    const manifest = shellPath(path.join(destination, 'project.json')), self = shellPath(fileURLToPath(import.meta.url));
+    console.log(`Created ${destination} from a track of ${duration.toFixed(1)} s with ${onsets} onsets${onsets ? '' : '; with none to land on, its stones are laid at an even pace'}\nPreview: node ${self} preview ${manifest}\nFilm: node ${self} render ${manifest} --sound --out ${shellPath(path.join(destination, 'output/film.mp4'))}`);
     return;
   }
   const { file, project, metadata } = await inspectProject(args.project);

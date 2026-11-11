@@ -35,6 +35,25 @@ The browser check compares the two mixes: on Chromium they differ by less than a
 The mix is 48 kHz stereo at twice the live volume, written as 16-bit WAV, and encoded as AAC at 192 kbit/s in the MP4.
 The receipt records how many stones were heard and the hash of the WAV.
 
+## A film laid to music
+
+`mosaic music <track> <directory>` makes a film whose stones land on a track.
+`tools/music.mjs` reads the track, a WAV file as it is and any other format through ffmpeg, and finds its onsets by spectral flux.
+It compares each window of about 46 ms with the one about 12 ms before it, on a logarithmic scale, and adds up the growth of every frequency.
+An onset is a peak of that growth that stands clear of the growth around it, at least 60 ms after the last one.
+Growth below that of a tone 34 dB under full scale coming in is not counted, so a held note or hiss gives no onsets.
+On test tones the onsets are found within 16 ms of where the notes begin.
+
+The onsets go into the manifest as `[seconds, strength]` pairs, the strongest of the track at 1, and the engine lays the stones on them.
+The stones keep the order the picture lays them in; only their moments change.
+An onset's share of the stones follows the square of its strength, so the accents of the music drop many stones and the notes between them few, and almost nothing lands in a rest.
+Since each stone is heard as it lands, the stones play along with the track as percussion, louder where an onset drops more of them.
+
+In a render, the track is decoded to 48 kHz stereo and mixed at 0.7 of its level with the stones at half of theirs, so the stones sit under the music.
+`"gain"` and `"stones"` in the manifest's `music` change the two levels.
+A mix that would pass full scale is turned down as a whole, and the receipt records the track's hash, both levels, and that scale.
+The studio plays the track with the film while **Hear the stones** is on.
+
 ## From measurements to sound
 
 Three measured properties of a material set its voice, each relative to glass.
